@@ -19,7 +19,7 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
    - Every path listed in `Core files:` rows across all flows.
    - Every path listed in `Test files:` rows across all flows (skip `N/A` entries).
    - Deduplicate by path.
-3. Write `tmp/files-checklist.md` using `agents/execution/templates/files-checklist-template.md` as the scaffold. One row per unique file. All rows start unchecked `[ ]`.
+3. Write `tmp/files-checklist.md` using `agents/featurework/execution/templates/files-checklist-template.md` as the scaffold. One row per unique file. All rows start unchecked `[ ]`.
 4. For each file in the checklist (create parent directories before child files):
    - Create any missing parent directories.
    - Write the skeleton file:
