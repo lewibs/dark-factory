@@ -42,4 +42,4 @@ Invoke the `investigation-agent` when you need to understand an existing system 
 
 ## Output
 
-A completed `docs/plans/<feature-name>.md` with all approved stages filled in and the stage gate tracker updated. Set status to `approved` after all stages pass.
+Use the Write tool to save the plan directly to `docs/plans/<yyyy-mm-dd>-<what-it-updates>.md`. Do not return the plan content to the caller and expect them to save it — write the file yourself. Set status to `approved` after all stages pass and update the stage gate tracker.
