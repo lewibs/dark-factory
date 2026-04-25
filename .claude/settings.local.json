@@ -21,7 +21,10 @@
       "Bash(gh repo *)",
       "Bash(git mv *)",
       "Bash(python3 -m py_compile /home/lewibs/github/skills/agents/documentation/skills/detect-drift/scripts/generate_checklists.py)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(npx --yes @mermaid-js/mermaid-cli -i /tmp/logging-diagram.mmd -o /tmp/logging-diagram.svg)",
+      "Bash(node *)",
+      "Bash(python3 *)"
     ]
   }
 }
