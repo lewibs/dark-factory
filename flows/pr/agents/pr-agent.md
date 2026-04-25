@@ -13,15 +13,17 @@ All scripts you need are in the **Scripts** table in `create-pr`.
 ## Input
 
 You will be invoked with either:
-- A **file path** — read that file to get the PR description.
-- A **description string** — use it directly as the PR body.
+- A **file path** — read that file to get context for the PR description.
+- A **description string** — use it as context for the PR description.
 
-If neither is provided, look at the changes and make it up.
+If neither is provided, look at the git diff and any relevant `docs/bugs/` or `docs/plans/` files.
 
 ## Your task
 
-1. Determine the PR description from the input above.
-2. Follow the instructions in `create-pr` to open the PR.
+1. Build the PR body using `flows/pr/templates/pr-template.md`:
+   - **Description**: populate from the input file, a matching `docs/bugs/` entry, or a `docs/plans/` entry. Summarize what changed and why.
+   - **Test Plan**: run the project's test suite. If tests exist and ran, paste the output. If no tests exist, omit the section entirely.
+2. Follow the instructions in `create-pr` to open the PR with the completed body.
 3. Wait for CI checks to complete using the watch script.
 4. If CI fails:
    - Spawn `resolve-pr-issue` with the PR URL and failing run details.
@@ -44,7 +46,7 @@ If neither is provided, look at the changes and make it up.
 ## Rules
 
 - The fix is already applied to the working tree when you are spawned. Do not re-apply it.
-- Use the resolved PR description verbatim as the PR body. Do not add a test plan section unless you actually ran tests or took screenshots — if you did, include the test output or screenshots directly.
+- Always use `flows/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
 - Do not merge if CI is failing (unless the only failures are credits/quota exhaustion).
 - Do not merge if there are unresolved review threads.
 - When addressing CI failures or review comments, push additional commits to the same branch — do not open a new PR.

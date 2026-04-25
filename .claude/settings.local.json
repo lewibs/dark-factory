@@ -16,7 +16,8 @@
       "Skill(update-config)",
       "Bash(git check-ignore *)",
       "Bash(git stash *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git remote *)"
     ]
   }
 }
