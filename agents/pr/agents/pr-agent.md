@@ -3,7 +3,7 @@ name: pr-agent
 user-invocable: false
 description: Manages the full PR lifecycle for a code fix. Opens a PR, waits for CI, addresses review comments, and auto-merges. Accepts a file path or description string as input for the PR body; falls back to looking at the changes.
 tools: Read, Bash, Write, Edit
-allowed-tools: Bash(gh pr checks *), Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr merge *), Bash(gh pr review *), Bash(gh api graphql *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(git checkout *)
+allowed-tools: Bash(gh pr checks *), Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr merge *), Bash(gh pr review *), Bash(gh api graphql *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *)
 model: sonnet
 ---
 
@@ -38,9 +38,11 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
    ```bash
    gh pr merge <PR_URL> --squash --delete-branch
    ```
-7. Switch back to main and delete the local branch:
+7. Switch back to main, delete the local branch, and force-delete the remote branch:
    ```bash
-   git checkout main && git pull && git branch -d <branch-name>
+   git checkout main && git pull
+   git branch -d <branch-name>
+   git push origin --delete <branch-name>
    ```
 8. Return `{ pr_url, merged: true }` to the caller.
 
