@@ -51,13 +51,23 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--plans-dir",
-        default="docs/plans",
-        help="Relative path to plan docs directory.",
+        default="docs/docs",
+        help="Relative path to docs directory (default: docs/docs).",
     )
     parser.add_argument(
         "--output-dir",
-        default="docs/plans/checklists",
-        help="Relative path where checklist artifacts are written.",
+        default="tmp/drift-checklists",
+        help="Relative path where checklist artifacts are written (default: tmp/drift-checklists).",
+    )
+    parser.add_argument(
+        "--ui-surfaces-dir",
+        default=None,
+        help="Relative path to UI entry surfaces directory to audit (optional).",
+    )
+    parser.add_argument(
+        "--api-surfaces-dir",
+        default=None,
+        help="Relative path to server API directory to audit (optional).",
     )
     return parser.parse_args()
 
@@ -67,6 +77,8 @@ def find_repo_root_from(start: Path) -> Path | None:
         if (candidate / CANONICAL_CATALOG_PATH).is_file():
             return candidate
         if (candidate / LEGACY_CATALOG_PATH).is_file():
+            return candidate
+        if (candidate / "docs" / "docs").is_dir():
             return candidate
     return None
 
@@ -130,16 +142,14 @@ def parse_catalog(catalog_path: Path, plans_dir: Path) -> set[str]:
     return catalog_entries
 
 
-def resolve_catalog_path(repo_root: Path) -> Path:
+def resolve_catalog_path(repo_root: Path) -> Path | None:
     canonical = (repo_root / CANONICAL_CATALOG_PATH).resolve()
     if canonical.is_file():
         return canonical
     legacy = (repo_root / LEGACY_CATALOG_PATH).resolve()
     if legacy.is_file():
         return legacy
-    raise FileNotFoundError(
-        "Missing plan catalog file. Expected docs/index.md (preferred) or docs/plans/index.md (legacy)."
-    )
+    return None
 
 
 def infer_file_from_target(repo_root: Path, target: str) -> tuple[str | None, str | None]:
@@ -265,25 +275,29 @@ def parse_plan_file(  # skipcq: PY-R1000
     )
 
 
-def collect_ui_surfaces(repo_root: Path) -> list[str]:
+def collect_ui_surfaces(repo_root: Path, ui_surfaces_dir: str | None) -> list[str]:
+    if not ui_surfaces_dir:
+        return []
+    surfaces_root = repo_root / ui_surfaces_dir
+    if not surfaces_root.exists():
+        return []
     ui_surfaces: set[str] = set()
-    app_root = repo_root / "main/app/app"
-    if app_root.exists():
-        for file_path in app_root.rglob("*.tsx"):
-            if "__tests__" in file_path.parts:
-                continue
-            ui_surfaces.add(str(file_path.relative_to(repo_root)))
-    side_menu = repo_root / "main/app/components/side-menu.tsx"
-    if side_menu.is_file():
-        ui_surfaces.add(str(side_menu.relative_to(repo_root)))
+    for file_path in surfaces_root.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if "__tests__" in file_path.parts:
+            continue
+        ui_surfaces.add(str(file_path.relative_to(repo_root)))
     return sorted(ui_surfaces)
 
 
-def collect_server_api_surfaces(repo_root: Path) -> list[str]:
-    api_root = repo_root / "main/server/api"
+def collect_server_api_surfaces(repo_root: Path, api_surfaces_dir: str | None) -> list[str]:
+    if not api_surfaces_dir:
+        return []
+    api_root = repo_root / api_surfaces_dir
     if not api_root.exists():
         return []
-    return sorted(str(path.relative_to(repo_root)) for path in api_root.rglob("app.py"))
+    return sorted(str(path.relative_to(repo_root)) for path in api_root.rglob("*") if path.is_file())
 
 
 def ensure_dir(path: Path) -> None:
@@ -349,6 +363,8 @@ def summarize_findings(  # skipcq: PY-R1000
     repo_root: Path,
     plans: list[PlanParse],
     catalog_entries: set[str],
+    ui_surfaces_dir: str | None = None,
+    api_surfaces_dir: str | None = None,
 ) -> dict[str, list[str]]:
     findings = {
         "extra": [],
@@ -368,17 +384,17 @@ def summarize_findings(  # skipcq: PY-R1000
                 f"`{plan.plan_file}` references missing path `{missing_ref}`."
             )
 
-    # missing: UI/API entry surfaces not covered by plans.
+    # missing: UI/API entry surfaces not covered by docs.
     plan_refs = collect_plan_refs(plans)
-    for ui_surface in collect_ui_surfaces(repo_root):
+    for ui_surface in collect_ui_surfaces(repo_root, ui_surfaces_dir):
         if ui_surface not in plan_refs:
             findings["missing"].append(
-                f"UI surface `{ui_surface}` is not referenced by any plan flow."
+                f"UI surface `{ui_surface}` is not referenced by any doc flow."
             )
-    for api_surface in collect_server_api_surfaces(repo_root):
+    for api_surface in collect_server_api_surfaces(repo_root, api_surfaces_dir):
         if api_surface not in plan_refs:
             findings["missing"].append(
-                f"Server API surface `{api_surface}` is not referenced by any plan."
+                f"API surface `{api_surface}` is not referenced by any doc."
             )
 
     # different: flow tests declared but missing.
@@ -447,6 +463,7 @@ def write_ui_checklists(
     plans: list[PlanParse],
     output_ui_dir: Path,
     skill_root: Path,
+    ui_surfaces_dir: str | None = None,
 ) -> None:
     ensure_dir(output_ui_dir)
     clear_markdown_files(output_ui_dir)
@@ -462,7 +479,7 @@ def write_ui_checklists(
             for test_file in flow.test_files:
                 flow_test_map.setdefault(flow.target_file, set()).add(test_file)
 
-    for ui_surface in collect_ui_surfaces(repo_root):
+    for ui_surface in collect_ui_surfaces(repo_root, ui_surfaces_dir):
         owners = sorted(plan_refs.get(ui_surface, set()))
         test_refs = sorted(flow_test_map.get(ui_surface, set()))
         content = render_template(
@@ -524,14 +541,18 @@ def main() -> int:
 
     skill_root = script_path.parent.parent
     catalog_path = resolve_catalog_path(repo_root)
-    catalog_entries = parse_catalog(catalog_path, plans_dir)
-    catalog_display_path = str(catalog_path.relative_to(repo_root))
+    if catalog_path is not None:
+        catalog_entries = parse_catalog(catalog_path, plans_dir)
+        catalog_display_path = str(catalog_path.relative_to(repo_root))
+    else:
+        catalog_entries = set()
+        catalog_display_path = "N/A"
 
     plan_files = sorted(path for path in plans_dir.glob("*.md") if path.name != "index.md")
     parsed_plans = [parse_plan_file(repo_root, plan_path, catalog_entries) for plan_path in plan_files]
 
     ensure_dir(output_dir)
-    output_plans_dir = output_dir / "plans"
+    output_plans_dir = output_dir / "docs"
     output_ui_dir = output_dir / "ui-surfaces"
     summary_path = output_dir / "DRIFT-SUMMARY.md"
 
@@ -542,13 +563,20 @@ def main() -> int:
         skill_root,
         catalog_display_path,
     )
-    write_ui_checklists(repo_root, parsed_plans, output_ui_dir, skill_root)
-    findings = summarize_findings(repo_root, parsed_plans, catalog_entries)
+    write_ui_checklists(repo_root, parsed_plans, output_ui_dir, skill_root, args.ui_surfaces_dir)
+    findings = summarize_findings(
+        repo_root,
+        parsed_plans,
+        catalog_entries,
+        args.ui_surfaces_dir,
+        args.api_surfaces_dir,
+    )
     write_summary(findings, summary_path)
 
     print(f"Wrote summary: {summary_path.relative_to(repo_root)}")
-    print(f"Wrote plan checklists: {output_plans_dir.relative_to(repo_root)}")
-    print(f"Wrote UI checklists: {output_ui_dir.relative_to(repo_root)}")
+    print(f"Wrote doc checklists: {output_plans_dir.relative_to(repo_root)}")
+    if args.ui_surfaces_dir:
+        print(f"Wrote UI checklists: {output_ui_dir.relative_to(repo_root)}")
     return 0
 
 
