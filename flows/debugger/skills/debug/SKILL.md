@@ -1,5 +1,6 @@
 ---
 name: systematic-debugging
+user-invocable: false
 description: Run a mandatory debugging workflow for non-obvious bugs using the Lewibs bug template and Solving a Bug checklist, then save a deduplicated audit log in docs/bugs. Use when root cause is unclear, issue behavior is not simple/obvious, or repeated guessing risks regressions.
 ---
 

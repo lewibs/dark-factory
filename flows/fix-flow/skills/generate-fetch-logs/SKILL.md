@@ -10,7 +10,7 @@ Generate `fetch-logs.sh` — the script that pulls all logs relevant to debuggin
 
 ## Steps
 
-1. Read `/tmp/fix-flow-orchestrator/system-diagram.md` to identify all log sources for this flow.
+1. Read `docs/plans/system-diagram.md` to identify all log sources for this flow.
 
 2. Identify where logs live:
    - CloudWatch log groups → use `aws logs filter-log-events`

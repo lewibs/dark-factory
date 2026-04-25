@@ -1,5 +1,6 @@
 ---
 name: create-mermaid-diagram
+user-invocable: false
 description: Use this skill when you need to create or update Mermaid diagrams for code changes.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: debugger-agent
+user-invocable: false
 description: Runs systematic debugging on a non-obvious bug by following the debug skill checklist step by step.
 ---
 

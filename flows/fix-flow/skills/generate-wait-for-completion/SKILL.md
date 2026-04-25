@@ -10,7 +10,7 @@ Generate `wait-for-completion.sh` — the script that blocks until the flow reac
 
 ## Steps
 
-1. Read `/tmp/system-diagram.md` to understand the flow's terminal states and how to detect them.
+1. Read `docs/plans/system-diagram.md` to understand the flow's terminal states and how to detect them.
 
 2. Determine the terminal signal:
    - DB field (e.g. `processing_status = complete | failed`) → poll the DB
