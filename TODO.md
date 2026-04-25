@@ -4,7 +4,7 @@ initialization
 
 execution
 
-Creating project skills
+managing learning and automaking skills for the project.
 
 updating docs on each completion hook
 code review
@@ -19,7 +19,7 @@ update headers
 hooks
 * execution logs
 * debugging logs
-* project skills
+* project skills - manage learning
 * logging AI data
 * documentation
 
