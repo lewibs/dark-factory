@@ -47,6 +47,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 ## Rules
 
 - The fix is already applied to the working tree when you are spawned. Do not re-apply it.
+- Always stage with `git add --all` before committing — never stage individual files, so nothing is missed.
 - Always use `flows/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
 - Do not merge if CI is failing (unless the only failures are credits/quota exhaustion).
 - Do not merge if there are unresolved review threads.
