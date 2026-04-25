@@ -1,0 +1,16 @@
+{
+  "name": "encache-skillz",
+  "agents": [
+    "./flows/debugger/agents/",
+    "./flows/documentation/agents/",
+    "./flows/fix-flow/agents/",
+    "./flows/pr/agents/"
+  ],
+  "skills": [
+    "./skills/",
+    "./flows/debugger/skills/",
+    "./flows/documentation/skills/",
+    "./flows/fix-flow/skills/",
+    "./flows/pr/skills/"
+  ]
+}

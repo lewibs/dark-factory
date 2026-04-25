@@ -1,0 +1,4 @@
+interface:
+  display_name: "SAM Local DB"
+  short_description: "Run SAM locally with the Encache DB"
+  default_prompt: "Use this skill to start SAM locally with Postgres, verify env vars, docker network, and schema setup for the Encache backend."
