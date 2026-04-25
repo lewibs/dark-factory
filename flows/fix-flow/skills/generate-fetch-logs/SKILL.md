@@ -1,10 +1,16 @@
+---
+name: generate-fetch-logs
+description: Generates fetch-logs.sh, a script that pulls all logs relevant to debugging the integration flow. Called by setup-wizard.
+user-invocable: false
+---
+
 # generate-fetch-logs
 
 Generate `fetch-logs.sh` — the script that pulls all logs relevant to debugging the flow.
 
 ## Steps
 
-1. Read `/tmp/system-diagram.md` to identify all log sources for this flow.
+1. Read `/tmp/fix-flow-orchestrator/system-diagram.md` to identify all log sources for this flow.
 
 2. Identify where logs live:
    - CloudWatch log groups → use `aws logs filter-log-events`
