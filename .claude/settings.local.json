@@ -14,7 +14,9 @@
       "Bash(git push *)",
       "Bash(gh pr *)",
       "Skill(update-config)",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)"
     ]
   }
 }
