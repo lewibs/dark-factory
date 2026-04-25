@@ -37,7 +37,7 @@ Open a pull request on GitHub and manage it through to merge.
 | Get PR node ID | `gh api graphql -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){id}}}' -F owner="{owner}" -F repo="{repo}" -F number=<PR_NUMBER> --jq '.data.repository.pullRequest.id'` |
 | List unresolved review threads | `gh api graphql -f query='query($id:ID!){node(id:$id){... on PullRequest{reviewThreads(first:50){nodes{id isResolved comments(first:10){nodes{body}}}}}}}' -F id="$PR_ID"` |
 | Resolve a review thread | `gh api graphql -f query='mutation($threadId:ID!){resolveReviewThread(input:{threadId:$threadId}){thread{isResolved}}}' -F threadId="<THREAD_ID>"` |
-| Squash merge the PR | `gh pr merge <PR_URL> --squash --auto` |
+| Squash merge and delete branch | `gh pr merge <PR_URL> --squash --delete-branch` |
 
 ## Rules
 
