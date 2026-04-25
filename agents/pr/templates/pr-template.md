@@ -7,3 +7,6 @@
 
 <!-- Only include this section if tests were actually run.
      Paste the exact test output (truncated if very long). If no tests exist, delete this section. -->
+
+---
+🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)
