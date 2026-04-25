@@ -38,9 +38,9 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
    ```bash
    gh pr merge <PR_URL> --squash --delete-branch
    ```
-7. Switch back to main:
+7. Switch back to main and delete the local branch:
    ```bash
-   git checkout main && git pull
+   git checkout main && git pull && git branch -d <branch-name>
    ```
 8. Return `{ pr_url, merged: true }` to the caller.
 
