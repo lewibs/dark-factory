@@ -1,5 +1,6 @@
 ---
 name: pr-agent
+user-invocable: false
 description: Manages the full PR lifecycle for a code fix. Opens a PR, waits for CI, addresses review comments, and auto-merges. Accepts a file path or description string as input for the PR body; falls back to looking at the changes.
 tools: Read, Bash, Write, Edit
 allowed-tools: Bash(gh pr checks *), Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr merge *), Bash(gh pr review *), Bash(gh api graphql *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(git checkout *)

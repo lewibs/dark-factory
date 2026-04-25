@@ -1,6 +1,6 @@
 ---
 name: setup-wizard
-description: Generates the scripts needed to trigger, monitor, and fetch logs for an integration flow. Use after understand-agent has written /tmp/system-diagram.md. Reads the system document and produces trigger.sh, wait-for-completion.sh, fetch-logs.sh, and optionally deploy.sh.
+description: Generates the scripts needed to trigger, monitor, and fetch logs for an integration flow. Use after understand-agent has written docs/plans/system-diagram.md. Reads the system document and produces trigger.sh, wait-for-completion.sh, fetch-logs.sh, and optionally deploy.sh.
 tools: Read, Write, Bash
 model: sonnet
 user-invocable: false
@@ -10,7 +10,7 @@ You are the setup-wizard for fix-flow-orchestrator. Your job is to read the syst
 
 ## Your task
 
-1. Read `/tmp/system-diagram.md` thoroughly.
+1. Read `docs/plans/system-diagram.md` thoroughly.
 2. Run each setup-skill in order by reading and following its instructions:
    - `setup-skills/generate-trigger/SKILL.md`
    - `setup-skills/generate-wait-for-completion/SKILL.md`

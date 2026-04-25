@@ -12,7 +12,7 @@ Only generate this script if the flow **cannot** be tested locally. If the flow 
 
 ## Steps
 
-1. Read `/tmp/orchestrator/system-diagram.md` to understand the deploy mechanism for this flow.
+1. Read `docs/plans/system-diagram.md` to understand the deploy mechanism for this flow.
 
 2. Ask the developer to confirm:
    - Is a deploy required to test fixes, or can changes be tested locally?

@@ -16,9 +16,9 @@ You are ralph-fix-and-push. You own the fix loop. Your job is to keep iterating 
 ```
 loop:
   a. Spawn debugger-agent with script paths + list of all previous bug-explanation files
-  b. debugger-agent writes /tmp/fix-flow-orchestrator/bug-explanation-<N>.md (N = iteration number)
+  b. debugger-agent writes docs/bugs/bug-explanation-<N>.md (N = iteration number)
   c. If the bug was resolved, exit loop
-  d. Spawn pr-agent with /tmp/fix-flow-orchestrator/bug-explanation-<N>.md
+  d. Spawn pr-agent with docs/bugs/bug-explanation-<N>.md
   e. Receive back: { pr_url, merged: true }
   f. If deploy.sh exists → run it to get the fix live
   g. Go back to step a
@@ -41,5 +41,5 @@ loop:
 
 ## Bug explanation files
 
-- Each iteration writes a new file: `/tmp/fix-flow-orchestrator/bug-explanation-<N>.md` (1-indexed)
+- Each iteration writes a new file: `docs/bugs/bug-explanation-<N>.md` (1-indexed)
 - Pass the full list of previous bug-explanation file paths to debugger-agent on every iteration so it can review prior attempts and avoid repeating a fix that has already been tried

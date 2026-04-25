@@ -97,10 +97,10 @@ flowchart TD
 
   User -->|invokes with required flow name| A
   A -->|Phase 1 — spawn understand-agent| UA
-  U2 -->|/tmp/system-diagram.md| UA
+  U2 -->|docs/plans/system-diagram.md| UA
   UA -->|gates Phase 2| A
   A -->|Phase 2 — spawn setup-wizard| W
-  A -->|passes /tmp/system-diagram.md| W
+  A -->|passes docs/plans/system-diagram.md| W
   W5 -->|script paths| A
   A -->|Phase 3 — spawn ralph-fix-and-push with script paths| R
   R -->|spawn debugger-agent| DA
@@ -136,8 +136,8 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 - All files live under `~/github/skills/fix-flow-orchestrator/`.
 - `understand-agent.md` is a dedicated sub-agent spawned once for Phase 1 — the orchestrator never does the understanding work itself.
 - `skills/document-system.md` mirrors the new-plan template exactly — Mermaid diagram, I/O contracts, component descriptions — but documents an existing system by reading the code rather than planning new work.
-- Phase 1 gates Phase 2: setup-wizard only runs after `understand-agent` writes `/tmp/system-diagram.md`.
-- `/tmp/system-diagram.md` is a temporary working file — the orchestrator deletes it when the session ends.
+- Phase 1 gates Phase 2: setup-wizard only runs after `understand-agent` writes `docs/plans/system-diagram.md`.
+- `docs/plans/system-diagram.md` is a persistent project documentation.
 - `setup-skills/` contains one skill per generated script.
 - `ralph-fix-and-push.md` owns Phase 3 entirely — the orchestrator spawns it and only gets back `{ all_green, pr_urls }`.
 - `skills/debug.md` is used by the debugger-agent only.
@@ -151,12 +151,12 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 ### `SKILL.md` — orchestrator
 
-**Job:** Entry point. Runs Phase 1, Phase 2, then Phase 3 in strict sequence. Holds `/tmp/system-diagram.md` for the duration of the session and cleans it up on exit. Does not know about the internal workings of any phase.
+**Job:** Entry point. Runs Phase 1, Phase 2, then Phase 3 in strict sequence. Holds `docs/plans/system-diagram.md` for the duration of the session and cleans it up on exit. Does not know about the internal workings of any phase.
 
 | | Description |
 |---|---|
 | **In** | Developer invocation with required flow argument — e.g. `/fix-flow-orchestrator ingest_window` |
-| **Out** | All-green confirmation + list of PR URLs created across iterations; cleans up `/tmp/system-diagram.md` on exit |
+| **Out** | All-green confirmation + list of PR URLs created across iterations; keeps docs/plans/system-diagram.md as persistent project documentation |
 
 ---
 
@@ -164,13 +164,13 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 #### `understand-agent.md`
 
-**Job:** Spawned once. Explores the codebase and writes the system document. Returns when `/tmp/system-diagram.md` is written — that file gates Phase 2.
+**Job:** Spawned once. Explores the codebase and writes the system document. Returns when `docs/plans/system-diagram.md` is written — that file gates Phase 2.
 
 | | Description |
 |---|---|
 | **In** | Flow name from orchestrator |
 | **Invokes** | `skills/document-system.md` |
-| **Out** | `/tmp/system-diagram.md` written to disk |
+| **Out** | `docs/plans/system-diagram.md` written to disk |
 
 #### `skills/document-system.md`
 
@@ -179,7 +179,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 | | Description |
 |---|---|
 | **In** | Flow name |
-| **Out** | `/tmp/system-diagram.md` — structured identically to a new-plan file |
+| **Out** | `docs/plans/system-diagram.md` — structured identically to a new-plan file |
 
 ---
 
@@ -187,11 +187,11 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 #### `setup-wizard.md`
 
-**Job:** Reads `/tmp/system-diagram.md` and orchestrates each setup sub-skill in sequence to generate the scripts the ralph-fix-and-push needs.
+**Job:** Reads `docs/plans/system-diagram.md` and orchestrates each setup sub-skill in sequence to generate the scripts the ralph-fix-and-push needs.
 
 | | Description |
 |---|---|
-| **In** | `/tmp/system-diagram.md` from orchestrator |
+| **In** | `docs/plans/system-diagram.md` from orchestrator |
 | **Out** | Paths to all generated scripts, passed back to SKILL.md |
 | **Invokes** | `generate-trigger.md` → `generate-wait-for-completion.md` → `generate-fetch-logs.md` → `generate-deploy.md` (optional) |
 
@@ -199,28 +199,28 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 | | Description |
 |---|---|
-| **In** | `/tmp/system-diagram.md` |
+| **In** | `docs/plans/system-diagram.md` |
 | **Out** | `scripts/trigger.sh` — fires the flow and exits immediately |
 
 #### `setup-skills/generate-wait-for-completion.md`
 
 | | Description |
 |---|---|
-| **In** | `/tmp/system-diagram.md` |
+| **In** | `docs/plans/system-diagram.md` |
 | **Out** | `scripts/wait-for-completion.sh` — polls until success (exit 0) or failure (exit 1) |
 
 #### `setup-skills/generate-fetch-logs.md`
 
 | | Description |
 |---|---|
-| **In** | `/tmp/system-diagram.md` |
+| **In** | `docs/plans/system-diagram.md` |
 | **Out** | `scripts/fetch-logs.sh` — fetches all relevant logs and prints to stdout |
 
 #### `setup-skills/generate-deploy.md` _(optional)_
 
 | | Description |
 |---|---|
-| **In** | `/tmp/system-diagram.md` |
+| **In** | `docs/plans/system-diagram.md` |
 | **Out** | `scripts/deploy.sh` — deploys current code to target environment; exits 0 on success |
 
 ---
@@ -229,7 +229,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 #### `ralph-fix-and-push.md` — loop controller
 
-**Job:** Spawned by the orchestrator with the generated script paths. Owns the entire loop — spawns debugger-agent, receives `/tmp/bug-explanation.md` path back, passes it to pr-agent, handles deploy if needed, repeats until the flow passes. The orchestrator knows nothing about what happens inside.
+**Job:** Spawned by the orchestrator with the generated script paths. Owns the entire loop — spawns debugger-agent, receives `docs/bugs/bug-explanation.md` path back, passes it to pr-agent, handles deploy if needed, repeats until the flow passes. The orchestrator knows nothing about what happens inside.
 
 | | Description |
 |---|---|
@@ -244,7 +244,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 |---|---|
 | **In** | Paths to generated scripts + iteration number |
 | **Calls** | `trigger.sh` → `wait-for-completion.sh` → `fetch-logs.sh` → `debug.md` |
-| **Out** | `/tmp/bug-explanation.md` path + fix applied to working tree — returned to ralph-fix-and-push |
+| **Out** | `docs/bugs/bug-explanation.md` path + fix applied to working tree — returned to ralph-fix-and-push |
 
 #### `skills/debug.md`
 
@@ -253,7 +253,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 | | Description |
 |---|---|
 | **In** | Raw log output from `fetch-logs.sh` + flow context |
-| **Out** | Bug explanation written to `/tmp/bug-explanation.md` + fix applied to working tree |
+| **Out** | Bug explanation written to `docs/bugs/bug-explanation.md` + fix applied to working tree |
 
 #### `pr-agent.md` — spawned after each fix by ralph-fix-and-push
 
@@ -261,7 +261,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 | | Description |
 |---|---|
-| **In** | Path to `/tmp/bug-explanation.md` (passed by ralph-fix-and-push) + fix applied to working tree |
+| **In** | Path to `docs/bugs/bug-explanation.md` (passed by ralph-fix-and-push) + fix applied to working tree |
 | **Invokes** | `skills/create-pr.md` (passing bug explanation as PR description) → waits for CI → addresses comments → auto-merges |
 | **Out** | `{ pr_url, merged: true }` — returned to ralph-fix-and-push |
 
@@ -271,7 +271,7 @@ classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 | | Description |
 |---|---|
-| **In** | Path to `/tmp/bug-explanation.md` + fix applied to working tree |
+| **In** | Path to `docs/bugs/bug-explanation.md` + fix applied to working tree |
 | **Out** | PR URL on GitHub |
 
 ---
