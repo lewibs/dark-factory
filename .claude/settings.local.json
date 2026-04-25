@@ -18,7 +18,10 @@
       "Bash(git stash *)",
       "Bash(git pull *)",
       "Bash(git remote *)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(git mv *)",
+      "Bash(python3 -m py_compile /home/lewibs/github/skills/agents/documentation/skills/detect-drift/scripts/generate_checklists.py)",
+      "Bash(git *)"
     ]
   }
 }

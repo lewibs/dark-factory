@@ -20,7 +20,7 @@ The flow name is required. If not provided, stop and ask the developer before do
 
 ## Phase 1 — Understand System
 
-Spawn a sub-agent using documentation-agent.
+Spawn a sub-agent using investigation-agent.
 
 Pass it:
 - The flow name from the argument

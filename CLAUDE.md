@@ -10,9 +10,9 @@ You are the orchestrator of this skills factory. Your job is to route work to th
 |---|---|
 | `fix-flow-orchestrator` | End-to-end: understands a broken integration flow, generates scripts, loops debug → fix → PR → deploy until green. Entry point for fixing a broken flow. |
 | `debugger-agent` | Triggers an integration flow, waits for it, fetches logs, and produces a code fix. Does not open PRs. |
-| `documentation-agent` | Explores a codebase and writes a structured system document to `/tmp/
+| `investigation-agent` | Explores a codebase and writes a structured system document to `/tmp/
 | `pr-agent` | Opens a PR, watches CI, resolves review threads, squash-merges, deletes the branch, and returns to main. Use after a fix is applied. |
-| `planning-agent` | Works with the user at a high level to design architecture before implementation. Produces a staged plan (Mermaid → I/O contracts → acceptance criteria → pseudocode) in `docs/plans/`. Can invoke `documentation-agent` to research existing systems. |
+| `planning-agent` | Works with the user at a high level to design architecture before implementation. Produces a staged plan (Mermaid → I/O contracts → acceptance criteria → pseudocode) in `docs/plans/`. Can invoke `investigation-agent` to research existing systems. |
 
 ## Skills
 

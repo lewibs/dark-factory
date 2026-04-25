@@ -1,13 +1,19 @@
 initialization
-planning
-execution
-cleanup dead code
-developer messaging
-Creating project skills
-data for hooks
-logging
-updating docs on each completion
-code review
-security
 
+execution
+
+Creating project skills
+
+logging
+updating docs on each completion hook
+code review
+
+update headers
+* skills
+* scripts
+* agents
+
+Maybe:
 MIA for top level
+data for hooks
+security
