@@ -24,11 +24,12 @@ If neither is provided, look at the changes and make it up.
 2. Follow the instructions in `create-pr` to open the PR.
 3. Wait for CI checks to complete using the watch script.
 4. If CI fails:
-   - If the failure is due to credits/quota exhaustion, ignore it and treat the check as passed.
-   - Otherwise, read the failure logs, apply a fix, commit, push, and go back to step 3.
+   - Spawn `resolve-pr-issue` with the PR URL and failing run details.
+   - If it returns `skipped: true`, treat CI as passed.
+   - Otherwise go back to step 3.
 5. After CI passes, list all unresolved review threads using the scripts in `create-pr` — including those left by CI bots or automated blockers:
-   - Read each thread's comments, apply the necessary fixes, push, then resolve each thread using the resolve script.
-   - Go back to step 3 to confirm CI still passes.
+   - For each unresolved thread, spawn `resolve-pr-issue` with the PR URL and thread ID.
+   - After all threads are resolved, go back to step 3 to confirm CI still passes.
    - If no unresolved threads → proceed to merge.
 6. Merge the PR using the squash merge script, then delete the branch:
    ```bash

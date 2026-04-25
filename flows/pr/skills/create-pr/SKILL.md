@@ -24,8 +24,30 @@ Open a pull request on GitHub and manage it through to merge.
 3. Push the branch and open the PR:
    ```bash
    git push -u origin HEAD
-   gh pr create --title "<title>" --body "<description>"
+   gh pr create --title "<type>(<scope>): <description>" --body "<description>"
    ```
+
+## PR Title Format
+
+Use `<type>(<scope>): <description>` — imperative mood, under 72 characters.
+
+| Type | When to use |
+|---|---|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `chore` | Maintenance, deps, config |
+| `docs` | Documentation only |
+| `refactor` | Code change that isn't a fix or feature |
+| `test` | Adding or updating tests |
+| `ci` | CI/CD pipeline changes |
+| `perf` | Performance improvement |
+| `style` | Formatting, whitespace (no logic change) |
+| `revert` | Reverting a previous commit |
+
+**Examples:**
+- `feat(pr-agent): add branch deletion after merge`
+- `fix(ci): handle quota exhaustion as a passing check`
+- `chore(settings): allow git and gh commands without prompting`
 
 ## Scripts
 
