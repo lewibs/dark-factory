@@ -1,3 +1,9 @@
+---
+name: generate-wait-for-completion
+description: Generates wait-for-completion.sh, a script that polls until the integration flow reaches a terminal state. Called by setup-wizard.
+user-invocable: false
+---
+
 # generate-wait-for-completion
 
 Generate `wait-for-completion.sh` — the script that blocks until the flow reaches a terminal state.

@@ -1,10 +1,16 @@
+---
+name: generate-trigger
+description: Generates trigger.sh, a script that fires the integration flow. Called by setup-wizard.
+user-invocable: false
+---
+
 # generate-trigger
 
 Generate `trigger.sh` — the script that fires the integration flow.
 
 ## Steps
 
-1. Read `/tmp/system-diagram.md` to understand the flow entry point.
+1. Read `/tmp/fix-flow-orchestrator/system-diagram.md` to understand the flow entry point.
 
 2. Determine how to invoke the flow:
    - Local process (e.g. `pytest`, CLI command) → write a script that runs it directly
@@ -25,4 +31,4 @@ Generate `trigger.sh` — the script that fires the integration flow.
    chmod +x /tmp/fix-flow-orchestrator/scripts/trigger.sh
    ```
 
-5. Confirm with the developer that the trigger command looks correct before returning.
+5. Confirm with the developer that the trigger flow is correct.

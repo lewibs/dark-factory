@@ -1,3 +1,9 @@
+---
+name: generate-deploy
+description: Optionally generates deploy.sh, a script that deploys the current code to the target environment. Only used when fixes cannot be tested locally. Called by setup-wizard.
+user-invocable: false
+---
+
 # generate-deploy (optional)
 
 Generate `deploy.sh` — the script that deploys the current code to the target environment.
@@ -6,7 +12,7 @@ Only generate this script if the flow **cannot** be tested locally. If the flow 
 
 ## Steps
 
-1. Read `/tmp/system-diagram.md` to understand the deploy mechanism for this flow.
+1. Read `/tmp/orchestrator/system-diagram.md` to understand the deploy mechanism for this flow.
 
 2. Ask the developer to confirm:
    - Is a deploy required to test fixes, or can changes be tested locally?
