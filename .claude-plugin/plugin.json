@@ -1,5 +1,13 @@
 {
-  "name": "encache-skillz",
+  "name": "dark-factory",
+  "description": "Reusable skills and agents for debugging, PR management, documentation, and fix flows.",
+  "version": "1.0.0",
+  "author": {
+    "name": "lewibs",
+    "email": "benjaminsl2000@gmail.com"
+  },
+  "repository": "https://github.com/lewibs/dark-factory",
+  "license": "MIT",
   "agents": [
     "./flows/debugger/agents/",
     "./flows/documentation/agents/",
