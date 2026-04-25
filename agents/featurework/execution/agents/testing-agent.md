@@ -17,7 +17,7 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
 1. Read the plan file at `planPath`.
 2. Extract all flows — every `### Flow:` block.
    - If no flows are found, stop and return an error to the caller.
-3. Write `tmp/flows-checklist.md` using `agents/execution/templates/flows-checklist-template.md` as the scaffold. One row per flow. All boolean fields start `false`.
+3. Write `tmp/flows-checklist.md` using `agents/featurework/execution/templates/flows-checklist-template.md` as the scaffold. One row per flow. All boolean fields start `false`.
 4. For each flow where `Test files:` is not `N/A`:
    - For each path row in the flow's paths table:
      - Write one test function in the flow's test file:

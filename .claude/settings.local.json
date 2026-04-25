@@ -27,7 +27,10 @@
       "Bash(python3 *)",
       "Bash(cat)",
       "Bash(npx --yes @mermaid-js/mermaid-cli -i /tmp/execution-agent-diagram.mmd -o /tmp/execution-agent-diagram.svg)",
-      "Bash(npx *)"
+      "Bash(npx *)",
+      "Bash(sed -i 's|agents/execution/templates/files-checklist-template.md|agents/featurework/execution/templates/files-checklist-template.md|g' /home/lewibs/github/skills/agents/featurework/execution/agents/skeleton-agent.md)",
+      "Bash(sed -i 's|agents/execution/templates/flows-checklist-template.md|agents/featurework/execution/templates/flows-checklist-template.md|g' /home/lewibs/github/skills/agents/featurework/execution/agents/testing-agent.md)",
+      "Bash(sed -i 's|agents/execution/skills/deviation-protocol/SKILL.md|agents/featurework/execution/skills/deviation-protocol/SKILL.md|g' /home/lewibs/github/skills/agents/featurework/execution/agents/implementation-agent.md)"
     ]
   }
 }

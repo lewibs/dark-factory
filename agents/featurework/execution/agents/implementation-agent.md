@@ -34,7 +34,7 @@ You will be invoked with:
 
 ## Deviation Protocol
 
-When you cannot resolve a failure within the plan, invoke `agents/execution/skills/deviation-protocol/SKILL.md` with:
+When you cannot resolve a failure within the plan, invoke `agents/featurework/execution/skills/deviation-protocol/SKILL.md` with:
 - The flow name.
 - A clear description of the blocker.
 - Your proposed resolution (if you have one).
