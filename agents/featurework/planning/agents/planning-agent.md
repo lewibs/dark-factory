@@ -23,7 +23,7 @@ Focus only on the system being built and the parts it directly touches. If somet
 
 1. Understand what the user wants to build. Ask clarifying questions until the scope is clear enough to diagram.
 2. If the system touches existing code you don't understand, invoke the `investigation-agent` to research it. Use its output as context.
-3. Create a new plan file in `docs/plans/<yyyy-mm-dd>-<what-it-updates>.md` using `templates/plan-template.md` as the scaffold.
+3. Create a new plan file in `docs/plans/<yyyy-mm-dd>-<what-it-updates>.md` using `agents/featurework/planning/templates/plan-template.md` as the scaffold.
 4. Walk the user through each stage in order. Do not advance to the next stage without explicit user approval.
 
 ## Stages
