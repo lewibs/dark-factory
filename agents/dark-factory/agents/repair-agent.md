@@ -69,6 +69,7 @@ repair-agent(taskDescription, taskName):
   cleanup(WORK_DIR, taskName)
 
   Report: "Done. PR: <prUrl>. Merged: <merged>. Worktree <WORK_DIR> removed."
+  Return: { prUrl: prUrl }
   STOP
 ```
 
@@ -85,7 +86,7 @@ If either command fails: warn developer but do not halt — this is non-fatal.
 
 - Never write, edit, or scaffold code yourself — delegate entirely.
 - Always run cleanup on error before halting, except on prep failure (work dir does not exist yet).
-- cleanup is non-fatal: if rm -rf fails, warn and continue.
+- cleanup is non-fatal: if git worktree remove or git branch -D fails, warn and continue.
 - Skip code review entirely — this is intentional for repair tasks.
 - Skip skill-update-agent — repair tasks do not produce new skills.
 - Doc update is conditional: only invoke update-documentation-agent when repair-implementation-agent reports significantChange == true.
