@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent, gates on human approval (with feedback-and-retry), then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Bash, Agent, PushNotification, Skill
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
 model: sonnet
 allowed-tools: Bash(find *), Bash(grep -r *)
 ---
@@ -52,23 +52,27 @@ feature-agent(description):
     Display: "Plan written to <planPath>. Please review."
     Display the full contents of the plan file to the developer.
 
-    Before asking the developer for plan approval, call PushNotification with title: "Plan Approval Required" and message: "A plan is ready for your review and requires approval to proceed."
+    Call PushNotification with title: "Plan Approval Required" and message: "A plan is ready for your review and requires approval to proceed."
 
-    Ask the developer:
-      "Approve this plan? Reply 'yes' or 'approve' to proceed to implementation,
-       'abort' to cancel, or provide feedback text to request a revision."
+    Use AskUserQuestion with:
+      header: "Plan Approval"
+      question: "The plan is ready at <planPath>. How would you like to proceed?"
+      options:
+        - label: "Approve", description: "Proceed to implementation"
+        - label: "Request Changes", description: "Provide feedback to revise the plan (use Other to type details)"
+        - label: "Abort", description: "Cancel feature work entirely"
 
-    response = lowercase(developer's reply)
+    response = developer's selection (or "Other" text)
 
-    If response == "abort":
+    If response == "Abort":
       report "Feature work aborted by developer." to developer
       STOP
 
-    If response == "yes" OR response == "approve":
+    If response == "Approve":
       # Explicit approval — proceed to execution
       BREAK LOOP
     Else:
-      # Any other response is treated as feedback for a retry
+      # Request Changes or Other — treat as feedback for a retry
       feedback = response
       CONTINUE LOOP
 
@@ -89,7 +93,7 @@ feature-agent(description):
 
 ## Implementation Notes
 
-- The approval gate is a plain conversational prompt — ask the developer directly, no tool call needed.
+- The approval gate uses AskUserQuestion so the prompt reaches the actual user even when feature-agent runs as a sub-agent.
 - When passing feedback to `planning-agent` on a retry, prepend: "Revise the plan based on this developer feedback: <feedback>" so planning-agent understands the revision context.
 - Read the plan file (using the Read tool) before displaying it to the developer, so they see the full contents inline.
 - After a hard-stop from `execution-agent`, stop completely. The developer will manually edit the plan and re-invoke `execution-agent`.

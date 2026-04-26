@@ -12,13 +12,21 @@ You must follow this skill exactly when invoked. Do not write any code from the 
 
 1. **Stop writing code immediately.** Do not edit any files until a developer decision is received.
 
-2. Before asking the developer how to proceed on a plan conflict, call PushNotification with title: "Developer Decision Required" and message: "A plan conflict was encountered and requires your decision to continue."
+2. Call PushNotification with title: "Developer Decision Required" and message: "A plan conflict was encountered and requires your decision to continue."
 
-   **Ask the developer how to proceed.** Present clearly:
+   Present clearly (as text before the question):
    - What flow was being implemented.
    - What the conflict or ambiguity is (be specific — quote the plan section if helpful).
    - Your proposed resolution, if you have one.
-   - Then ask: *"How would you like to proceed? Options: (1) course-correct — give me guidance and I will update the plan and continue, or (2) hard-stop — pause execution and return to planning."*
+
+   Then use AskUserQuestion with:
+     header: "Plan Conflict"
+     question: "Plan conflict encountered in [flow]. How would you like to proceed?"
+     options:
+       - label: "Course-correct", description: "Provide guidance — I will update the plan and continue (use Other to type instructions)"
+       - label: "Hard-stop", description: "Pause execution and return to planning"
+
+   If "Course-correct" or "Other": treat the developer's selection and any notes as guidance.
 
 3. **Wait for the developer's response.**
 

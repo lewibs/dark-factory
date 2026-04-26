@@ -2,7 +2,7 @@
 name: fix-flow-orchestrator
 user-invocable: false
 description: "Autonomously drives a failing integration flow to green. Generates test/log/deploy scripts, then loops: trigger, debug, PR, deploy until the flow passes."
-tools: Read, Bash, PushNotification
+tools: Read, Bash, PushNotification, AskUserQuestion
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *)"
 ---
@@ -13,7 +13,7 @@ Runs three phases in strict sequence. Never proceed to the next phase until the 
 
 ## Required argument
 
-The flow name is required. If not provided, before asking the developer for the required flow name, call PushNotification with title: "Input Required" and message: "The fix-flow orchestrator needs a flow name to proceed." Then stop and ask the developer before doing anything else.
+The flow name is required. If not provided, call PushNotification with title: "Input Required" and message: "The fix-flow orchestrator needs a flow name to proceed." Then use AskUserQuestion with header "Flow Name", question "Which integration flow needs to be fixed?", and options: "Provide flow name (use Other to type it)" and "Cancel — I will reinvoke with the correct flow name". Stop and wait before doing anything else.
 
 ```
 /fix-flow-orchestrator <flow-name>

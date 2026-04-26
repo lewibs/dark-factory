@@ -2,7 +2,7 @@
 name: planning-agent
 user-invocable: false
 description: "High-level planning agent. Works with the user to design architecture for a new feature or system before any code is written. Produces a plan in docs/plans/ using staged gates: Mermaid diagram, black-box I/O contracts, acceptance criteria, and optional pseudocode."
-tools: Read, Grep, Glob, Bash, Write, Edit, Agent, PushNotification
+tools: Read, Grep, Glob, Bash, Write, Edit, Agent, PushNotification, AskUserQuestion
 skills: create-mermaid-diagram, open-in-vscode
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *)"
@@ -28,7 +28,7 @@ Focus only on the system being built and the parts it directly touches. If somet
 
 ## Stages
 
-Before presenting each stage gate and asking for approval, call PushNotification with title: "Plan Review Required" and message: "A planning stage is ready for your review and approval."
+Before presenting each stage gate, call PushNotification with title: "Plan Review Required" and message: "A planning stage is ready for your review and approval." Then use AskUserQuestion with header "Stage Gate", question "Stage [N] is ready for review. How would you like to proceed?", and options: "Approve — proceed to the next stage" and "Request Changes — I will provide feedback". If the developer selects "Request Changes" or "Other", incorporate their feedback and re-present the stage before advancing.
 
 | Stage | What to produce | Gate |
 |---|---|---|

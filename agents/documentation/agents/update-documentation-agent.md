@@ -2,7 +2,7 @@
 name: update-documentation-agent
 user-invocable: false
 description: Updates docs/ based on an implemented plan. Given a plan path, identifies affected flows and docs, then deletes stale content, updates modified sections, and adds new information.
-tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification
+tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification, AskUserQuestion
 model: sonnet
 skills: documentation
 allowed-tools: Bash(find *), Bash(grep -r *), Bash(ls *)
@@ -14,7 +14,7 @@ Updates project documentation after a plan has been implemented. Runs three phas
 
 ## Required argument
 
-The plan path is required. If not provided, before asking the developer for the required plan path, call PushNotification with title: "Input Required" and message: "The update-documentation agent needs a plan path to proceed." Then stop and ask the developer before doing anything else.
+The plan path is required. If not provided, call PushNotification with title: "Input Required" and message: "The update-documentation agent needs a plan path to proceed." Then use AskUserQuestion with header "Plan Path", question "Which plan file should documentation be updated for?", and options: "Provide path (use Other to type it, e.g. docs/plans/2026-04-26-my-feature.md)" and "Skip — do not update documentation this run". Stop and wait before doing anything else.
 
 ```
 /update-documentation-agent <plan-path>
