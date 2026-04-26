@@ -1,11 +1,9 @@
-cp repo copy for multiple features at a time.
-
 managing learning and automaking skills for the project.
 
 DARK for top level agent repo for skills agents that the top level has access to.
 
 pull tasks and resolve them.
-debugger vs fix flow? what is the difference?
+debugger vs fix flow? what is the difference? lets just delete debugger. Fix flow needs to do the same thing but its more deterministic. WHich I like... perhaps it can be moved into fix flow. but also this is useful for other agents. maybe they can use them????
 
 
 update headers
