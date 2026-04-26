@@ -24,7 +24,12 @@ Open a pull request on GitHub and manage it through to merge.
 3. Push the branch and open the PR:
    ```bash
    git push -u origin HEAD
-   gh pr create --title "<type>(<scope>): <description>" --body "<description>"
+   # Always write the body to a temp file — never pass it inline with --body.
+   # Inline bodies fail with "Parser aborted" when the content is large.
+   cat > /tmp/pr-body.md << 'EOF'
+   <body content here>
+   EOF
+   gh pr create --title "<type>(<scope>): <description>" --body-file /tmp/pr-body.md
    ```
 
 ## PR Title Format

@@ -51,6 +51,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 - The fix is already applied to the working tree when you are spawned. Do not re-apply it.
 - Always stage with `git add --all` before committing — never stage individual files, so nothing is missed.
 - Always use `flows/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
+- Always write the PR body to `/tmp/pr-body.md` and open the PR with `gh pr create --body-file /tmp/pr-body.md`. Never use `--body` with inline content — large bodies cause a "Parser aborted" interactive prompt.
 - Do not merge if CI is failing (unless the only failures are credits/quota exhaustion).
 - Do not merge if there are unresolved review threads.
 - When addressing CI failures or review comments, push additional commits to the same branch — do not open a new PR.
