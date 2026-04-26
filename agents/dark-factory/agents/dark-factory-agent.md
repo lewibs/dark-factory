@@ -114,7 +114,7 @@ If rm fails: warn developer but do not halt — this is non-fatal.
 | "add", "build", "create", "implement", "new feature" | `feature-agent` |
 | "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow-orchestrator` |
 | "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger-agent` |
-| Ambiguous | Ask the developer one clarifying question before routing |
+| Ambiguous | Before asking the developer a clarifying question about an ambiguous task, call PushNotification with title: "Clarification Required" and message: "The dark-factory agent needs one clarification before it can route your request." Then ask the developer one clarifying question before routing |
 
 ## Rules
 

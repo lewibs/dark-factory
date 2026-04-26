@@ -13,7 +13,7 @@ Runs three phases in strict sequence. Never proceed to the next phase until the 
 
 ## Required argument
 
-The flow name is required. If not provided, stop and ask the developer before doing anything else. 
+The flow name is required. If not provided, before asking the developer for the required flow name, call PushNotification with title: "Input Required" and message: "The fix-flow orchestrator needs a flow name to proceed." Then stop and ask the developer before doing anything else.
 
 ```
 /fix-flow-orchestrator <flow-name>

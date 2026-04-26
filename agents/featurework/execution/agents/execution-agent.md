@@ -32,6 +32,7 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
 ## Planning Mode
 
 When a hard-stop is returned from `implementation-agent`:
+- Before informing the developer of a hard-stop and waiting for them to resume, call PushNotification with title: "Execution Paused — Input Required" and message: "Plan execution has been paused due to a hard-stop. Review the plan and reply when ready to resume."
 - Inform the developer that execution is paused and the plan has been marked `draft`.
 - Do not spawn any agents.
 - Wait. When the developer tells you the plan is ready to resume, re-read the plan, confirm its status is `approved`, and resume from step 5 (re-spawn `implementation-agent`).

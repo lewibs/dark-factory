@@ -38,7 +38,7 @@ loop:
 ## Stopping conditions
 
 - Flow passes (exit_code 0 from debugger-agent) → return all-green
-- Debugger-agent is stuck (same root cause appears in the new bug-explanation as in a previous one, with no new progress) → ask the developer how to proceed rather than stopping; do not re-attempt the same fix
+- Debugger-agent is stuck (same root cause appears in the new bug-explanation as in a previous one, with no new progress) → before asking the developer how to proceed when the debugger-agent is stuck, call PushNotification with title: "Debugging Stuck — Input Required" and message: "The debugger-agent is stuck on a repeated root cause and needs your guidance to proceed." Then ask the developer how to proceed rather than stopping; do not re-attempt the same fix
 
 ## Bug explanation files
 
