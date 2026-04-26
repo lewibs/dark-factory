@@ -1,13 +1,19 @@
 ```
-██████╗  █████╗ ██████╗ ██╗  ██╗    ███████╗ █████╗  ██████╗████████╗ ██████╗ ██████╗ ██╗   ██╗
-██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝    ██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗╚██╗ ██╔╝
-██║  ██║███████║██████╔╝█████╔╝     █████╗  ███████║██║        ██║   ██║   ██║██████╔╝ ╚████╔╝ 
-██║  ██║██╔══██║██╔══██╗██╔═██╗     ██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗  ╚██╔╝  
-██████╔╝██║  ██║██║  ██║██║  ██╗    ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║   ██║   
-╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝  
+██████╗  █████╗ ██████╗ ██╗  ██╗
+██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝
+██║  ██║███████║██████╔╝█████╔╝ 
+██║  ██║██╔══██║██╔══██╗██╔═██╗ 
+██████╔╝██║  ██║██║  ██║██║  ██╗
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝
+███████╗ █████╗  ██████╗████████╗ ██████╗ ██████╗ ██╗   ██╗
+██╔════╝██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗╚██╗ ██╔╝
+█████╗  ███████║██║        ██║   ██║   ██║██████╔╝ ╚████╔╝ 
+██╔══╝  ██╔══██║██║        ██║   ██║   ██║██╔══██╗  ╚██╔╝  
+██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║   ██║   
+╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝  
 ```
 
-Dark Factory is a fully autonomous coding plugin for [Claude Code](https://claude.ai/code). Give it a plan file and it outputs working features — end-to-end. No hand-holding, no back-and-forth. Dark Factory handles the implementation, debugging, code review, and PR from start to finish.
+Dark Factory is a fully autonomous coding plugin for Claude Code. Tell it what you want, design the system with it, and then watch the code get generated. Dark Factory handles the implementation, debugging, code review, and PR from start to finish.
 
 ---
 
