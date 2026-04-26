@@ -22,7 +22,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 ## Your task
 
 1. Build the PR body using `flows/pr/templates/pr-template.md`:
-   - **Description**: populate from the input file, a matching `docs/bugs/` entry, or a `docs/plans/` entry. Summarize what changed and why.
+   - **Description**: paste the full raw contents of the input file (or the matching `docs/bugs/` or `docs/plans/` file) verbatim into the Description section. Do not summarise, paraphrase, or abbreviate.
    - **Test Plan**: run the project's test suite. If tests exist and ran, paste the output. If no tests exist, omit the section entirely.
 2. Follow the instructions in `create-pr` to open the PR with the completed body.
 3. Wait for CI checks to complete using the watch script.

@@ -1,7 +1,6 @@
 ## Description
 
-<!-- Source this from the relevant bug file (docs/bugs/<date>-<slug>.md) or plan file if one exists.
-     Include: what broke or what was planned, root cause (for bugs), and what the fix/change does. -->
+<!-- Paste the full contents of the relevant plan file (docs/plans/<date>-<slug>.md) or bug file (docs/bugs/<date>-<slug>.md) verbatim here. Do not summarise. -->
 
 ## Test Plan
 

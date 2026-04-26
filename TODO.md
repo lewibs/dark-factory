@@ -1,7 +1,5 @@
 cp repo copy for multiple features at a time.
 
-initialization
-
 managing learning and automaking skills for the project.
 
 code review
