@@ -30,9 +30,9 @@ You are the investigation-agent. Your job is to investigate a system and produce
 
 | Skill | When to use |
 |---|---|
-| `skills/investigate/SKILL.md` | Exploring an unknown codebase — entry points, data flow, log sources, failure modes, deployment discovery |
-| `skills/documentation/SKILL.md` | Writing or updating a `docs/docs/` file using the documentation template |
-| `skills/detect-drift/SKILL.md` | Auditing parity between docs/plans and actual implementation — works for both `docs/docs/` system documents and `docs/plans/` plan files |
+| `agents/documentation/skills/investigate/SKILL.md` | Exploring an unknown codebase — entry points, data flow, log sources, failure modes, deployment discovery |
+| `agents/documentation/skills/documentation/SKILL.md` | Writing or updating a `docs/docs/` file using the documentation template |
+| `agents/documentation/skills/detect-drift/SKILL.md` | Auditing parity between docs/plans and actual implementation — works for both `docs/docs/` system documents and `docs/plans/` plan files |
 
 ## Drift detection
 

@@ -21,4 +21,4 @@ Use this skill whenever a system needs to be documented in `docs/docs/`.
 
 ## Template
 
-Use `templates/documentation-template.md` as the required scaffold for all documentation files.
+Use `agents/documentation/skills/documentation/templates/documentation-template.md` as the required scaffold for all documentation files.

@@ -1,51 +1,123 @@
 # Commands
 
-## Overview
+## Metadata
 
-The `commands/` directory contains the three Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent.
+- System type: `library`
+- Owner: dark-factory plugin
+- Source directory: `commands/`
+- Command count: 3 slash commands
 
-## Command Files
+## System Intent
 
-### manufacture
+- What this is: The `commands/` directory contains the three Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent. Commands carry a `description` field for the Claude Code command picker and a single delegation line in the body.
+- Primary consumer(s): Developers invoking slash commands from the Claude Code interface.
+- Boundary: Commands only contain front-matter and a delegation line. All orchestration logic lives in `agents/`.
 
-**File:** `commands/manufacture.md`
+## Mermaid Diagram
 
+```mermaid
+flowchart TD
+  Dev([Developer]) -->|/dark-factory:manufacture task| CMD_M[commands/manufacture.md]
+  Dev -->|/dark-factory:init github_url?| CMD_I[commands/init.md]
+  Dev -->|/dark-factory:update| CMD_U[commands/update.md]
+
+  CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
+  CMD_I -->|delegates to| IOA[agents/initialization/agents/init-orchestrator-agent.md]
+  CMD_U -->|runs directly| GIT[git pull + claude plugin update]
 ```
-/dark-factory:manufacture <task description>
+
+## Flows
+
+### Flow: `manufacture`
+
+- Core files: `commands/manufacture.md`, `agents/dark-factory/agents/dark-factory-agent.md`
+
+#### Types
+
+```txt
+ManufactureInput {
+  taskDescription: string (free-text, e.g. "add OAuth login", "fix login crash")
+}
+
+ManufactureOutput {
+  prUrl: string
+  merged: boolean
+}
+
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
 ```
 
-Delegates to `agents/dark-factory/agents/dark-factory-agent.md`.
+#### Paths
 
-Full end-to-end orchestration: classifies the task, routes to the appropriate worker (feature, debugger, or fix-flow), runs code review and documentation update, opens and merges a PR, and cleans up. Accepts a free-text task description as input (e.g. "add OAuth login", "fix the login crash", "pipeline is failing").
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `manufacture.success` | `ManufactureInput` | `ManufactureOutput` | `happy path` | Delegates to dark-factory-agent; routes feature/debug/fix-flow, reviews, opens PR |
+| `manufacture.error` | `ManufactureInput` | `StandardError` | `error` | Worker agent returns error or hard-stop; cleanup runs |
 
 ---
 
-### init
+### Flow: `init`
 
-**File:** `commands/init.md`
+- Core files: `commands/init.md`, `agents/initialization/agents/init-orchestrator-agent.md`
 
+#### Types
+
+```txt
+InitInput {
+  githubUrl: string | void (optional GitHub repo URL to clone; omit to use CWD)
+}
+
+InitOutput {
+  prUrl: string (the "init: dark factory" PR)
+}
 ```
-/dark-factory:init [github_url]
-```
 
-Delegates to `agents/initialization/agents/init-orchestrator-agent.md`.
+#### Paths
 
-Onboards a project onto Dark Factory. Optionally accepts a GitHub URL; if omitted, treats the current working directory as the project to initialize. Sets up `docs/docs/`, `docs/plans/`, `docs/bugs/` directories, generates `CLAUDE.md`, and opens an "init: dark factory" PR.
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `init.newRepo` | `InitInput{githubUrl}` | `InitOutput` | `happy path` | Clones repo, runs init.sh, generates docs, opens PR |
+| `init.existingCWD` | `InitInput{void}` | `InitOutput` | `happy path` | Treats CWD as target; runs init.sh, generates docs, opens PR |
 
 ---
 
-### update
+### Flow: `update`
 
-**File:** `commands/update.md`
+- Core files: `commands/update.md`
 
+#### Types
+
+```txt
+UpdateInput {
+  void (no arguments)
+}
+
+UpdateOutput {
+  void (outputs plugin version info to terminal)
+}
 ```
-/dark-factory:update
-```
 
-Updates the Dark Factory plugin to the latest version via `git pull` and `claude plugin update dark-factory`. Takes no arguments.
+#### Paths
 
-## Relationship to Agents
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `update.success` | `UpdateInput` | `UpdateOutput` | `happy path` | Runs `git pull` then `claude plugin update "dark-factory@dark-factory"` |
 
-Commands are thin wrappers. Their front-matter carries a `description` for display in Claude Code's command picker, and their body contains a single line: `Follow the instructions in <agent-path> exactly.`
+## Logs
 
-All orchestration logic lives in `agents/`, not in `commands/`.
+| Source | Location |
+|--------|----------|
+| N/A | Commands are thin stubs; they produce no structured log output. Terminal output from `git pull` and `claude plugin update` is the only observable output for the update command. |
+
+## Deployment
+
+- Mechanism: `local only`
+- Deploy command:
+  ```bash
+  # Commands become available after installing the plugin:
+  claude plugin install dark-factory
+  # Commands are then accessible as /dark-factory:<name> in the Claude Code interface.
+  ```
+- Notes: Commands are loaded by the Claude Code runtime from the plugin's `commands/` directory. No deployment step beyond plugin installation.
