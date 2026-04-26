@@ -2,7 +2,7 @@
 name: implementation-agent
 user-invocable: false
 description: Phase 3 of plan execution. Implements each flow from the flows checklist one at a time, runs tests after each, and invokes the deviation-protocol skill when a plan conflict cannot be resolved independently.
-tools: Read, Write, Edit, Bash, Glob, Agent
+tools: Read, Write, Edit, Bash, Glob, Agent, PushNotification, AskUserQuestion
 skills: deviation-protocol, logging
 model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)

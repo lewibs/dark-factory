@@ -1,7 +1,7 @@
 ---
 name: ralph-fix-and-push
 description: Owns the bug-fixing loop for fix-flow-orchestrator. Spawns debugger-agent and pr-agent repeatedly until the integration flow passes green. Use after setup-wizard has generated the scripts.
-tools: Read, Bash, Agent, PushNotification
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: sonnet
 user-invocable: false
 allowed-tools: Bash(bash *), Bash(find *)
@@ -38,7 +38,7 @@ loop:
 ## Stopping conditions
 
 - Flow passes (exit_code 0 from debugger-agent) → return all-green
-- Debugger-agent is stuck (same root cause appears in the new bug-explanation as in a previous one, with no new progress) → before asking the developer how to proceed when the debugger-agent is stuck, call PushNotification with title: "Debugging Stuck — Input Required" and message: "The debugger-agent is stuck on a repeated root cause and needs your guidance to proceed." Then ask the developer how to proceed rather than stopping; do not re-attempt the same fix
+- Debugger-agent is stuck (same root cause appears in the new bug-explanation as in a previous one, with no new progress) → call PushNotification with title: "Debugging Stuck — Input Required" and message: "The debugger-agent is stuck on a repeated root cause and needs your guidance to proceed." Then use AskUserQuestion with header "Debugging Stuck", question "Debugger is stuck on the same root cause. How would you like to proceed?", and options: "Provide new direction (use Other to type guidance)" and "Abort — stop the fix loop". Do not re-attempt the same fix.
 
 ## Bug explanation files
 

@@ -2,7 +2,7 @@
 name: dark-factory-agent
 user-invocable: true
 description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/debug/fix-flow), runs code review and doc housekeeping, opens a PR, then removes the work dir.
-tools: Read, Bash, Agent, PushNotification
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: sonnet
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
 allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *)
@@ -133,7 +133,7 @@ Match signals in the order listed below — first match wins.
 | "add", "build", "create", "implement", "new feature" | `feature-agent` |
 | "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow-orchestrator` |
 | "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger-agent` |
-| Ambiguous | Before asking the developer a clarifying question about an ambiguous task, call PushNotification with title: "Clarification Required" and message: "The dark-factory agent needs one clarification before it can route your request." Then ask the developer one clarifying question before routing |
+| Ambiguous | Call PushNotification with title: "Clarification Required" and message: "The dark-factory agent needs one clarification before it can route your request." Then use AskUserQuestion with header "Route Task" and a question that clarifies the intent (e.g., "Is this a new feature or a bug fix?") with options matching the possible routes (e.g., "New Feature", "Bug Fix", "Broken Flow"). Route based on the response. |
 
 ## Rules
 

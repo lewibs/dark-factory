@@ -2,7 +2,7 @@
 name: execution-agent
 user-invocable: false
 description: Orchestrates end-to-end execution of an approved plan file. Spawns skeleton-agent, testing-agent, and implementation-agent in sequence. Enters planning mode if a hard-stop deviation is triggered.
-tools: Read, Write, Edit, Bash, Agent, PushNotification
+tools: Read, Write, Edit, Bash, Agent, PushNotification, AskUserQuestion
 allowed-tools: Bash(rm tmp/files-checklist.md), Bash(rm tmp/flows-checklist.md)
 model: sonnet
 ---
@@ -32,10 +32,16 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
 ## Planning Mode
 
 When a hard-stop is returned from `implementation-agent`:
-- Before informing the developer of a hard-stop and waiting for them to resume, call PushNotification with title: "Execution Paused — Input Required" and message: "Plan execution has been paused due to a hard-stop. Review the plan and reply when ready to resume."
-- Inform the developer that execution is paused and the plan has been marked `draft`.
-- Do not spawn any agents.
-- Wait. When the developer tells you the plan is ready to resume, re-read the plan, confirm its status is `approved`, and resume from step 5 (re-spawn `implementation-agent`).
+- Call PushNotification with title: "Execution Paused — Input Required" and message: "Plan execution has been paused due to a hard-stop. Review the plan and reply when ready to resume."
+- Use AskUserQuestion with:
+    header: "Execution Paused"
+    question: "Execution is paused (hard-stop). Edit the plan and resume when ready."
+    options:
+      - label: "Resume", description: "The plan is updated and approved — re-read and continue from the current flow"
+      - label: "Abort", description: "Cancel execution entirely"
+- If "Abort": stop immediately.
+- If "Resume": re-read the plan, confirm its status is `approved`, and resume from step 5 (re-spawn `implementation-agent`).
+- Do not spawn any agents until a resume response is received.
 
 ## Rules
 
