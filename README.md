@@ -13,7 +13,15 @@
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝  
 ```
 
-Dark Factory is a fully autonomous coding plugin for Claude Code. Tell it what you want, design the system with it, and then watch the code get generated. Dark Factory handles the implementation, debugging, code review, and PR from start to finish.
+Dark Factory is a fully autonomous coding plugin for Claude Code. One command. No hand-holding. Done.
+
+| | |
+|---|---|
+| **Build features** | Designs, implements, reviews, and ships new functionality end-to-end |
+| **Fix bugs** | Diagnoses failures, applies fixes, and verifies — without you touching the code |
+| **Repair broken flows** | Detects broken integrations, loops through fixes, and restores green CI |
+
+All three run **100% autonomously** — Dark Factory handles planning, implementation, code review, PR, and cleanup from start to finish.
 
 ---
 
