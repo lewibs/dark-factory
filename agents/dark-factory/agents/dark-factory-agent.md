@@ -72,6 +72,8 @@ dark-factory-agent(taskDescription, taskName):
     report error and STOP
 
   # Step 4 — update docs and detect drift
+  # IMPORTANT: Both documentation agents MUST fully complete before proceeding to Step 5.
+  # The pr-agent (Step 5) uses `git add --all`, which will pick up any docs written here.
   invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
   invoke detect-drift-agent (scoped to WORK_DIR/docs/docs/)
 
@@ -94,6 +96,8 @@ dark-factory-agent(taskDescription, taskName):
     warn developer: "skill-update-agent failed: <error>. Continuing to PR."
 
   # Step 5 — PR
+  # Only reached after all Step 4 documentation agents have fully completed.
+  # pr-agent uses `git add --all`, so any docs written in Step 4 are included in the PR.
   invoke pr-agent with: planFilePath ?? taskDescription
 
   If pr-agent errors or cannot merge:
