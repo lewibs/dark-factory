@@ -20,13 +20,14 @@ claude plugin install dark-factory
 git pull
 # Re-register local repo as marketplace source, then update
 claude plugin marketplace add "$(pwd)"
-claude plugin update dark-factory
+claude plugin marketplace update dark-factory
+claude plugin update "dark-factory@dark-factory"
 ```
 
 ## Error handling
 
 - If `claude plugin marketplace add` fails with "path not found" or "already registered differently", verify you are running the command from inside the correct repo root directory and that the path is valid.
-- If `claude plugin update` exits non-zero, check `claude plugin list` to confirm the plugin name and re-run `claude plugin marketplace add "$(pwd)"` before retrying.
+- If `claude plugin update` exits non-zero, check `claude plugin list --json` to confirm the full plugin id (format: `name@marketplace`) and use that exact id with `claude plugin update`. Also re-run `claude plugin marketplace add "$(pwd)"` and `claude plugin marketplace update dark-factory` before retrying.
 
 ## Verify
 
