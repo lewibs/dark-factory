@@ -2,7 +2,7 @@
 name: detect-drift-agent
 user-invocable: false
 description: Audits parity between docs/docs/ system documentation and actual code. Detects stale references, undocumented flows, and broken claims. Fixes straightforward drift in place and reports findings.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification
 model: sonnet
 skills: detect-drift
 allowed-tools: Bash(python agents/documentation/skills/detect-drift/scripts/*), Bash(find *), Bash(grep -r *)

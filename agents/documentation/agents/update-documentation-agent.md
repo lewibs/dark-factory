@@ -2,7 +2,7 @@
 name: update-documentation-agent
 user-invocable: false
 description: Updates docs/ based on an implemented plan. Given a plan path, identifies affected flows and docs, then deletes stale content, updates modified sections, and adds new information.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification
 model: sonnet
 skills: documentation
 allowed-tools: Bash(find *), Bash(grep -r *), Bash(ls *)

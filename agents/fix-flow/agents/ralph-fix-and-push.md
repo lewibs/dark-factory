@@ -1,7 +1,7 @@
 ---
 name: ralph-fix-and-push
 description: Owns the bug-fixing loop for fix-flow-orchestrator. Spawns debugger-agent and pr-agent repeatedly until the integration flow passes green. Use after setup-wizard has generated the scripts.
-tools: Read, Bash, Agent
+tools: Read, Bash, Agent, PushNotification
 model: sonnet
 user-invocable: false
 allowed-tools: Bash(bash *), Bash(find *)
