@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: Opens a pull request on GitHub using a fix already applied to the working tree. Provides all scripts needed to manage the full PR lifecycle: open, CI checks, comment resolution, and merge.
+description: "Opens a pull request on GitHub using a fix already applied to the working tree. Provides all scripts needed to manage the full PR lifecycle: open, CI checks, comment resolution, and merge."
 user-invocable: false
 ---
 
