@@ -1,6 +1,6 @@
 {
   "name": "dark-factory",
-  "description": "Reusable skills and agents for debugging, PR management, documentation, and fix flows.",
+  "description": "Reusable skills and agents for feature work, debugging, PR management, documentation, and fix flows.",
   "version": "1.0.0",
   "author": {
     "name": "lewibs",
@@ -9,16 +9,23 @@
   "repository": "https://github.com/lewibs/dark-factory",
   "license": "MIT",
   "agents": [
-    "./flows/debugger/agents/",
-    "./flows/documentation/agents/",
-    "./flows/fix-flow/agents/",
-    "./flows/pr/agents/"
+    "./agents/dark-factory/agents/",
+    "./agents/code-review/agents/",
+    "./agents/debugger/agents/",
+    "./agents/documentation/agents/",
+    "./agents/featurework/agents/",
+    "./agents/featurework/execution/agents/",
+    "./agents/featurework/planning/agents/",
+    "./agents/fix-flow/agents/",
+    "./agents/initialization/agents/",
+    "./agents/pr/agents/"
   ],
   "skills": [
     "./skills/",
-    "./flows/debugger/skills/",
-    "./flows/documentation/skills/",
-    "./flows/fix-flow/skills/",
-    "./flows/pr/skills/"
+    "./agents/debugger/skills/",
+    "./agents/documentation/skills/",
+    "./agents/featurework/execution/skills/",
+    "./agents/fix-flow/skills/",
+    "./agents/pr/skills/"
   ]
 }
