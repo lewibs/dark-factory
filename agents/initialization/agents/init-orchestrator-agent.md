@@ -1,7 +1,7 @@
 ---
 name: init-orchestrator-agent
 user-invocable: true
-description: 'Sets up a project to use dark factory. Runs init.sh, generates CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".'
+description: 'Sets up a project to use dark factory. Runs init.sh, generates docs/docs/ files and a minimal CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".'
 tools: Bash, Agent
 model: sonnet
 scripts: agents/initialization/scripts/init.sh
@@ -51,7 +51,7 @@ init-orchestrator-agent(github_url?):
   If init-docs-agent fails or returns no path, report the error and STOP.
 
   # Step 4: open a PR for the generated docs
-  invoke pr-agent with: description = "init: dark factory\n\nAdds CLAUDE.md to <PROJECT_PATH> to bootstrap dark factory integration."
+  invoke pr-agent with: description = "init: dark factory\n\nAdds docs/docs/ and CLAUDE.md to <PROJECT_PATH> to bootstrap dark factory integration."
 
   Report the PR URL to the user.
   STOP
