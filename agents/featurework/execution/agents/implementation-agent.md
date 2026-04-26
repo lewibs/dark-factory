@@ -3,7 +3,7 @@ name: implementation-agent
 user-invocable: false
 description: Phase 3 of plan execution. Implements each flow from the flows checklist one at a time, runs tests after each, and invokes the deviation-protocol skill when a plan conflict cannot be resolved independently.
 tools: Read, Write, Edit, Bash, Glob, Agent
-skills: deviation-protocol
+skills: deviation-protocol, logging
 model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
 ---
@@ -30,8 +30,9 @@ You will be invoked with:
       - Diagnose the failure.
       - If the fix is clear and stays within the plan (no conflicting requirements, no ambiguous spec): fix and re-run. Repeat until passing or until you judge the issue cannot be resolved within the plan.
       - If the fix requires departing from the plan: invoke `deviation-protocol/SKILL.md` (see Deviation Protocol below).
-3. After all flows are marked done, run the full test suite to confirm everything is green.
-4. Return `{ allFlowsGreen: true, flowsChecklistPath: checklistPath }`.
+3. After all flows are marked done, invoke `skills/logging/SKILL.md` with `planPath` to instrument every flow with structured log statements.
+4. Run the full test suite to confirm everything is green.
+5. Return `{ allFlowsGreen: true, flowsChecklistPath: checklistPath }`.
 
 ## Deviation Protocol
 
