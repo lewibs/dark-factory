@@ -28,6 +28,7 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 | `feature-agent` | `agents/featurework/agents/feature-agent.md` |
 | `debugger-agent` | `agents/debugger/agents/debugger-agent.md` |
 | `fix-flow-orchestrator` | `agents/fix-flow/agents/fix-flow-orchestrator.md` |
+| `repair-agent` | `agents/dark-factory/agents/repair-agent.md` |
 | `code-review-orchestrator-agent` | `agents/code-review/agents/code-review-orchestrator-agent.md` |
 | `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
 | `skill-update-agent` | `agents/skill-update/agents/skill-update-agent.md` |
@@ -38,17 +39,30 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 ```
 dark-factory-agent(taskDescription, taskName):
 
-  # Step 1 — prep isolated work dir
+  # Step 1 — classify and route
+  Classify taskDescription using the Classification rules table below.
+
+  # Repair route: repair-agent manages its own worktree, PR, and cleanup internally.
+  # Do NOT prep a worktree; just invoke repair-agent and stop.
+  If classified as repair (small change, tweak, rename, minor update, quick fix, adjust, alter):
+    result = invoke repair-agent with: taskDescription, taskName
+    If result is error or hard-stop:
+      report error and STOP
+    prUrl = result.prUrl
+    Report: "Done. PR: <prUrl>."
+    STOP
+
+  # Step 2 — prep isolated work dir (feature / fix-flow / debugger routes only)
   Run from the project root (git repo):
     bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
 
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
-  # Step 2 — route to worker agent
+  # Step 3 — route to worker agent
   cd into WORK_DIR
 
-  Classify taskDescription:
+  Route based on classification:
     - New feature or capability → invoke feature-agent with taskDescription
     - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription
     - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription
@@ -59,7 +73,7 @@ dark-factory-agent(taskDescription, taskName):
 
   planFilePath = path the worker wrote its plan to (null if no plan produced)
 
-  # Step 3 — code review
+  # Step 4 — code review
   invoke code-review-orchestrator-agent with:
     planFilePath = planFilePath ?? "Task: <taskDescription>"
     codePath     = WORK_DIR
@@ -68,12 +82,12 @@ dark-factory-agent(taskDescription, taskName):
     run cleanup(WORK_DIR)
     report error and STOP
 
-  # Step 4 — update docs
-  # IMPORTANT: Documentation agent MUST fully complete before proceeding to Step 5.
-  # The pr-agent (Step 5) uses `git add --all`, which will pick up any docs written here.
+  # Step 5 — update docs
+  # IMPORTANT: Documentation agent MUST fully complete before proceeding to Step 6.
+  # The pr-agent (Step 6) uses `git add --all`, which will pick up any docs written here.
   invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
 
-  # Step 4c — skill update (non-fatal)
+  # Step 5c — skill update (non-fatal)
   skillsWritten = []
   try:
     skillResult = invoke skill-update-agent with:
@@ -85,9 +99,9 @@ dark-factory-agent(taskDescription, taskName):
   catch error:
     warn developer: "skill-update-agent failed: <error>. Continuing to PR."
 
-  # Step 5 — PR
-  # Only reached after all Step 4 documentation agents have fully completed.
-  # pr-agent uses `git add --all`, so any docs written in Step 4 are included in the PR.
+  # Step 6 — PR
+  # Only reached after all Step 5 documentation agents have fully completed.
+  # pr-agent uses `git add --all`, so any docs written in Step 5 are included in the PR.
   invoke pr-agent with: planFilePath ?? taskDescription
 
   If pr-agent errors or cannot merge:
@@ -96,7 +110,7 @@ dark-factory-agent(taskDescription, taskName):
 
   prUrl = result from pr-agent
 
-  # Step 6 — cleanup
+  # Step 7 — cleanup
   cleanup(WORK_DIR, taskName)
 
   Report: "Done. PR: <prUrl>. Worktree <WORK_DIR> removed. Skills written: <skillsWritten>."
@@ -111,8 +125,11 @@ bash agents/dark-factory/scripts/cleanup-worktree.sh WORK_DIR taskName
 
 ## Classification rules
 
+Match signals in the order listed below — first match wins.
+
 | Signal in taskDescription | Route to |
 |---|---|
+| "small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter" | `repair-agent` |
 | "add", "build", "create", "implement", "new feature" | `feature-agent` |
 | "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow-orchestrator` |
 | "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger-agent` |
