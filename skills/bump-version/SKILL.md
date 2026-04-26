@@ -31,8 +31,10 @@ When the dark-factory plugin needs a new release: increment the patch segment of
    ```
 8. Re-register and update the locally installed plugin so the running Claude Code environment reflects the new version:
    ```bash
-   claude plugin marketplace add "$(pwd)"
-   claude plugin update dark-factory
+   DARK_FACTORY_ROOT=$(git worktree list | head -1 | awk '{print $1}')
+   claude plugin marketplace add "$DARK_FACTORY_ROOT"
+   claude plugin marketplace update dark-factory
+   claude plugin update "dark-factory@dark-factory"
    claude plugin list   # confirm new version appears
    ```
 
@@ -40,5 +42,5 @@ When the dark-factory plugin needs a new release: increment the patch segment of
 
 - The tag format is `dark-factory--v<version>` — two dashes between `dark-factory` and `v`. Using a single dash (`dark-factory-v1.1.5`) is wrong and will not match the convention already established by prior tags.
 - Always run the duplicate-tag guard (step 3) before modifying any file. Writing the file and then discovering the tag exists leaves the repo in a dirty state with an uncommitted version change.
-- `claude plugin marketplace add "$(pwd)"` must be run from the repo root. Use `$(pwd)` rather than a hardcoded path so the skill is portable across machines and clone locations.
+- Always use `git worktree list | head -1 | awk '{print $1}'` (not `$(pwd)`) to get the main repo root for marketplace registration. When this skill runs inside a git worktree, `$(pwd)` resolves to the worktree path — which gets deleted after cleanup — causing the marketplace registration to point to a dead path and the plugin to disappear on next restart.
 - This skill covers patch bumps only. Minor and major bumps follow the same steps but increment the respective segment and reset lower segments to zero.
