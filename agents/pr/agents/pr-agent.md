@@ -22,7 +22,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 
 ## Your task
 
-1. Build the PR body using `flows/pr/templates/pr-template.md`:
+1. Build the PR body using `agents/pr/templates/pr-template.md`:
    - **Description**: paste the full raw contents of the input file (or the matching `docs/bugs/` or `docs/plans/` file) verbatim into the Description section. Do not summarise, paraphrase, or abbreviate.
    - **Test Plan**: run the project's test suite. If tests exist and ran, paste the output. If no tests exist, omit the section entirely.
 2. Follow the instructions in `create-pr` to open the PR with the completed body.
@@ -51,7 +51,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 
 - The fix is already applied to the working tree when you are spawned. Do not re-apply it.
 - Always stage with `git add --all` before committing — never stage individual files, so nothing is missed.
-- Always use `flows/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
+- Always use `agents/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
 - Always write the PR body to `/tmp/pr-body.md` and open the PR with `gh pr create --body-file /tmp/pr-body.md`. Never use `--body` with inline content — large bodies cause a "Parser aborted" interactive prompt.
 - Do not merge if CI is failing (unless the only failures are credits/quota exhaustion).
 - Do not merge if there are unresolved review threads.
