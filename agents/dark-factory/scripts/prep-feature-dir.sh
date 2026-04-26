@@ -18,8 +18,8 @@ WORKTREE_NAME="${PROJECT_NAME}-${TASK_NAME}"
 WORK_DIR="${GIT_ROOT}/../${WORKTREE_NAME}"
 
 if git -C "$GIT_ROOT" worktree list | grep -qF "$WORKTREE_NAME"; then
-    echo "Error: worktree '${WORKTREE_NAME}' already exists." >&2
-    exit 1
+    echo "WORK_DIR=${WORK_DIR}"
+    exit 0
 fi
 
 git -C "$GIT_ROOT" pull origin main || { echo "Error: git pull failed." >&2; exit 1; }
