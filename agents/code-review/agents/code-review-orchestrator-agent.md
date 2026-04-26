@@ -47,7 +47,7 @@ StandardError {
 3. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
 4. Enter the resolver loop:
-   - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath: "tmp/issues.md"`.
+   - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath` set to the absolute path of `tmp/issues.md` (i.e. `<codePath>/tmp/issues.md`).
    - Wait for it to return.
    - If it returns an error: surface the error and halt.
    - If `anyRemaining` is false: exit the loop.
