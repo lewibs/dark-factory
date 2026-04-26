@@ -4,9 +4,11 @@ description: Install or update the dark-factory plugin in Claude Code.
 user-invocable: true
 ---
 
-## Install (one-time, run from inside the cloned repo)
+## Install (one-time)
 
 ```bash
+git clone https://github.com/lewibs/dark-factory
+cd dark-factory
 claude plugin marketplace add .
 claude plugin install dark-factory
 ```
