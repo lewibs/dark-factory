@@ -46,4 +46,4 @@ claude plugin list
 |---|---|---|
 | `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or fix-flow) end-to-end, runs code review, opens a PR, and cleans up |
 | `/dark-factory:init` | Optional GitHub URL | Onboard a project onto dark factory — sets up the structure for infinite autonomous changes and generates a CLAUDE.md |
-| `/dark-factory:update` | None | Update the plugin to the latest version |
+| `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |

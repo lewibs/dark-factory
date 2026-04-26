@@ -1,5 +1,5 @@
 ---
-description: Update the dark-factory plugin to the latest version.
+description: "Install or reinstall the dark-factory plugin. Run from the repo root."
 ---
 
 Run these commands from the repo root (`~/github/dark_factory/dark_factory` or wherever you cloned it):
