@@ -28,6 +28,8 @@ Focus only on the system being built and the parts it directly touches. If somet
 
 ## Stages
 
+Before presenting each stage gate and asking for approval, call PushNotification with title: "Plan Review Required" and message: "A planning stage is ready for your review and approval."
+
 | Stage | What to produce | Gate |
 |---|---|---|
 | 1 | Mermaid diagram — use the `create-mermaid-diagram` skill; nodes, boundaries, labeled data flows | User approval required |

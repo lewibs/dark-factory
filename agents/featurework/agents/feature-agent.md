@@ -51,6 +51,8 @@ feature-agent(description):
     Display: "Plan written to <planPath>. Please review."
     Display the full contents of the plan file to the developer.
 
+    Before asking the developer for plan approval, call PushNotification with title: "Plan Approval Required" and message: "A plan is ready for your review and requires approval to proceed."
+
     Ask the developer:
       "Approve this plan? Reply 'yes' or 'approve' to proceed to implementation,
        'abort' to cancel, or provide feedback text to request a revision."

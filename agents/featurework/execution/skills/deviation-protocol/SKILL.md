@@ -12,7 +12,9 @@ You must follow this skill exactly when invoked. Do not write any code from the 
 
 1. **Stop writing code immediately.** Do not edit any files until a developer decision is received.
 
-2. **Ask the developer how to proceed.** Present clearly:
+2. Before asking the developer how to proceed on a plan conflict, call PushNotification with title: "Developer Decision Required" and message: "A plan conflict was encountered and requires your decision to continue."
+
+   **Ask the developer how to proceed.** Present clearly:
    - What flow was being implemented.
    - What the conflict or ambiguity is (be specific — quote the plan section if helpful).
    - Your proposed resolution, if you have one.

@@ -29,7 +29,7 @@ None required. Runs against all files in `docs/docs/` by default. Optionally acc
 2. After the skill produces its findings report:
    - Fix any `extra` or `different` items that are straightforward (broken file paths, stale references, renamed files).
    - For `missing` items (implemented behavior not documented), add a brief section to the relevant doc or create a new doc in `docs/docs/`.
-   - For `wrong` items, note them in the report and ask the developer how to proceed.
+   - For `wrong` items, note them in the report; before asking the developer how to proceed on unresolvable drift items, call PushNotification with title: "Documentation Drift — Input Required" and message: "The detect-drift agent found items it cannot resolve automatically and needs your guidance." Then ask the developer how to proceed.
 
 3. Return:
    - A summary of findings (counts per severity bucket).

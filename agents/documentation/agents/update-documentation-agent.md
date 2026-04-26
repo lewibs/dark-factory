@@ -14,7 +14,7 @@ Updates project documentation after a plan has been implemented. Runs three phas
 
 ## Required argument
 
-The plan path is required. If not provided, stop and ask the developer before doing anything else.
+The plan path is required. If not provided, before asking the developer for the required plan path, call PushNotification with title: "Input Required" and message: "The update-documentation agent needs a plan path to proceed." Then stop and ask the developer before doing anything else.
 
 ```
 /update-documentation-agent <plan-path>
