@@ -10,7 +10,7 @@
 
 ## Mermaid Diagram
 
-> Use the `create-mermaid-diagram` skill to generate this diagram.
+> Use the skill at `skills/create-mermaid-diagram/SKILL.md` to generate this diagram.
 
 ```mermaid
 flowchart TD

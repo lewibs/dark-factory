@@ -31,7 +31,7 @@ flowchart TD
 
 ### Flow: `updateDocumentation`
 
-- Core files: `agents/documentation/agents/update-documentation-agent.md`, `agents/documentation/skills/documentation/SKILL.md`, `agents/documentation/skills/documentation/templates/documentation-template.md`
+- Core files: `agents/documentation/agents/update-documentation-agent.md`, `agents/documentation/skills/documentation/SKILL.md`, `agents/documentation/skills/documentation/templates/documentation-template.md`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -81,6 +81,7 @@ update-documentation-agent(planPath):
       edit file: delete removed sections, update modified sections, add new sections
     if new flow + plan has enough detail:
       create docs/docs/<flow-name>.md from documentation-template
+      # documentation-template instructs use of skills/create-mermaid-diagram/SKILL.md for diagrams
     if new flow + plan is unrelated:
       copy plan content to docs/docs/<plan-name>.md
     mark item [x]

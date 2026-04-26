@@ -35,7 +35,7 @@ flowchart TD
 ### Flow: `planFeature`
 
 - Test files: `tests/`
-- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -57,7 +57,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planFeature.success` | `PlanFeatureInput` | `PlanFeatureOutput` | happy path | planning-agent writes plan, opens it in VSCode, returns planPath |
+| `planFeature.success` | `PlanFeatureInput` | `PlanFeatureOutput` | happy path | planning-agent invokes `skills/create-mermaid-diagram/SKILL.md` to produce the diagram, writes plan, opens it in VSCode, returns planPath |
 | `planFeature.error` | `PlanFeatureInput` | `StandardError` | error | planning-agent fails or returns no planPath |
 
 ### Flow: `approveFeature`
@@ -132,7 +132,7 @@ execution-agent(planPath):
 
   # Stage 3: implementation
   implementation-agent(planPath, tmp/flows-checklist.md)
-  if hardStop: PushNotification, pause, wait for developer, re-run implementation-agent
+  if hardStop: PushNotification, pause, wait for developer (deviation-protocol updates diagram via skills/create-mermaid-diagram/SKILL.md if architecture changed), re-run implementation-agent
   if allFlowsGreen:
     rm tmp/files-checklist.md
     rm tmp/flows-checklist.md

@@ -25,12 +25,16 @@
 
 ## Steps to cause failure
 
+> Use the skill at `skills/create-mermaid-diagram/SKILL.md` to generate this diagram.
+
 ```mermaid
 flowchart LR
 Start --> Stop
 ```
 
 ## System
+
+> Use the skill at `skills/create-mermaid-diagram/SKILL.md` to generate this diagram.
 
 ```mermaid
 flowchart TD
