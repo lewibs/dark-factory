@@ -39,6 +39,7 @@ graph TD
     S3["Step 3 — code-review-orchestrator-agent"]:::created
     S4a["Step 4a — update-documentation-agent"]:::created
     S4b["Step 4b — detect-drift-agent"]:::created
+    S4c["Step 4c — skill-update-agent\n(non-fatal)"]:::created
     S5["Step 5 — pr-agent"]:::created
     S6["Step 6 — Cleanup\nrm -rf dark_factory-&lt;task-name&gt;"]:::created
   end
@@ -59,7 +60,8 @@ graph TD
   WC -->|"planFilePath (if any)"| S3
   S3 -->|"status: complete"| S4a
   S4a -->|"docs updated"| S4b
-  S4b -->|"drift report"| S5
+  S4b -->|"drift report"| S4c
+  S4c -->|"skillsWritten (non-fatal)"| S5
   S5 -->|"pr_url, merged: true"| S6
   S6 -->|"PR URL + cleanup confirmation"| User
 
@@ -365,9 +367,10 @@ DarkFactoryInput {
 }
 
 DarkFactoryOutput {
-  prUrl:   string
-  merged:  true
-  workDir: string  (already deleted; reported for auditability)
+  prUrl:         string
+  merged:        true
+  workDir:       string     (already deleted; reported for auditability)
+  skillsWritten: SkillFile[]  (may be empty; list of skill files created or updated by skill-update-agent)
 }
 ```
 
@@ -407,6 +410,14 @@ dark-factory-agent(taskDescription, taskName):
   docsResult = updateDocsAndDrift(planFilePath, workDir)
   if error: cleanup(workDir); STOP
 
+  # Step 4c — skill update (non-fatal)
+  skillsWritten = []
+  try:
+    skillResult = invoke skill-update-agent with (planFilePath, workDir, taskDescription)
+    skillsWritten = skillResult.skillsWritten
+  catch error:
+    warn developer: "skill-update-agent failed: <error>. Continuing to PR."
+
   # Step 5 — open PR
   prResult = openPR(planFilePath, taskDescription)
   if error: cleanup(workDir); STOP
@@ -414,7 +425,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 6 — cleanup
   cleanup(workDir)
 
-  return { prUrl: prResult.prUrl, merged: true, workDir }
+  return { prUrl: prResult.prUrl, merged: true, workDir, skillsWritten }
 ```
 
 ## Logs

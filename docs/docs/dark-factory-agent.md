@@ -2,11 +2,11 @@
 
 ## Metadata
 
-- System type: `flow`
+- System type: `agent`
 
 ## System Intent
 
-- What this is: `dark-factory-agent` is the top-level orchestrator for all dark-factory work. It preps an isolated work directory (a fresh copy of the repo), routes to the appropriate worker agent, runs code review, runs documentation agents, and then opens a PR — in that strict order. It does not write code or modify files itself; it delegates entirely. The PR step (Step 5) is intentionally placed after all documentation agents (Step 4) have fully completed so that `pr-agent`'s `git add --all` picks up any docs written during Step 4.
+- What this is: `dark-factory-agent` is the top-level orchestrator for all dark-factory work. It preps an isolated work directory (a fresh copy of the repo), routes to the appropriate worker agent (feature/debug/fix-flow), runs code review, runs documentation agents, invokes the skill-update-agent to capture recurring patterns, and then opens a PR — in that strict order. It does not write code or modify files itself; it delegates entirely. The PR step (Step 5) is intentionally placed after all documentation agents (Step 4) have fully completed so that `pr-agent`'s `git add --all` picks up any docs written during Step 4.
 
 ## Mermaid Diagram
 
@@ -52,20 +52,28 @@ graph TD
 ### Flow: `darkFactoryAgent` (top-level)
 
 - Test files: N/A
-- Core files: `agents/dark-factory/agents/dark-factory-agent.md`
+- Core files:
+  - `agents/dark-factory/agents/dark-factory-agent.md`
+  - `agents/dark-factory/scripts/prep-feature-dir.sh`
 
 #### Types
 
 ```txt
 DarkFactoryInput {
   taskDescription: string  (verbatim user request)
-  taskName:        string  (short slug for the work dir, e.g. "add-oauth"; derived if not provided)
+  taskName:        string  (optional — short slug; derived from taskDescription if omitted)
 }
 
 DarkFactoryOutput {
-  prUrl:   string
-  merged:  true
-  workDir: string  (already deleted; reported for auditability)
+  prUrl:         string
+  merged:        true
+  workDir:       string  (already deleted; reported for auditability)
+  skillsWritten: SkillFile[]   (may be empty)
+}
+
+SkillFile {
+  path:    string  (relative path within workDir)
+  action:  "created" | "updated"
 }
 
 StandardError {
@@ -78,10 +86,13 @@ StandardError {
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
 | `darkFactoryAgent.success` | `DarkFactoryInput` | `DarkFactoryOutput` | happy path | all 6 steps complete, PR merged, work dir removed |
+| `darkFactoryAgent.noSkills` | `DarkFactoryInput` | `DarkFactoryOutput { skillsWritten: [] }` | happy path | skill-update-agent ran, found nothing; manufacture continues normally |
+| `darkFactoryAgent.skillsAdded` | `DarkFactoryInput` | `DarkFactoryOutput` | happy path | skill-update-agent wrote skills; they are included in the PR diff |
 | `darkFactoryAgent.prepFailure` | `DarkFactoryInput` | `StandardError` | error | prep-feature-dir.sh fails; no work dir created, nothing to clean up |
 | `darkFactoryAgent.workerFailure` | `DarkFactoryInput` | `StandardError` | error | worker agent hard-stops or errors; cleanup runs, then halt |
 | `darkFactoryAgent.reviewFailure` | `DarkFactoryInput` | `StandardError` | error | code-review-orchestrator-agent halts; cleanup runs, then halt |
 | `darkFactoryAgent.driftFailure` | `DarkFactoryInput` | `StandardError` | error | detect-drift-agent surfaces unresolvable items; cleanup runs before PR |
+| `darkFactoryAgent.skillUpdateError` | `DarkFactoryInput` | `DarkFactoryOutput` | error (non-fatal) | skill-update-agent errors; dark-factory-agent logs warning and continues to pr-agent |
 | `darkFactoryAgent.prFailure` | `DarkFactoryInput` | `StandardError` | error | pr-agent cannot merge; cleanup runs, then halt |
 
 #### Pseudocode
@@ -90,40 +101,46 @@ StandardError {
 dark-factory-agent(taskDescription, taskName):
 
   # Step 1 — prep isolated work dir
-  run prep-feature-dir.sh <taskName>
-  capture WORK_DIR from stdout
+  bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
+  Capture WORK_DIR from stdout
   if error: STOP (no cleanup needed)
 
   # Step 2 — route to worker
-  cd WORK_DIR; classify taskDescription; invoke worker agent
-  if error: cleanup(WORK_DIR); STOP
+  cd into WORK_DIR; classify taskDescription; invoke worker agent
+  if error: cleanup(WORK_DIR), /clear, STOP
   planFilePath = worker result (null if no plan produced)
 
   # Step 3 — code review
   invoke code-review-orchestrator-agent with planFilePath, WORK_DIR
-  if error: cleanup(WORK_DIR); STOP
+  if error: cleanup(WORK_DIR), /clear, STOP
 
   # Step 4 — documentation (MUST fully complete before Step 5)
+  # IMPORTANT: Both documentation agents MUST fully complete before proceeding to Step 5.
+  # The pr-agent (Step 5) uses `git add --all`, which will pick up any docs written here.
+
   # Step 4a
   invoke update-documentation-agent with planFilePath (or null)
   # Step 4b
   invoke detect-drift-agent scoped to WORK_DIR/docs/docs/
-  if detect-drift unresolvable: cleanup(WORK_DIR); STOP
+  if detect-drift unresolvable: cleanup(WORK_DIR), /clear, STOP
   # Step 4c (non-fatal)
-  try: invoke skill-update-agent
-  catch: warn developer, continue
+  try:
+    skillResult = invoke skill-update-agent with planFilePath, workDir, taskSummary=taskDescription
+    skillsWritten = skillResult.skillsWritten
+    log "Skills written: " + skillsWritten
+  catch error:
+    warn developer, continue
 
-  # Step 5 — PR (only after all Step 4 agents done)
-  # pr-agent uses `git add --all`; docs from Step 4 are included because Step 4 is complete.
+  # Step 5 — PR (only reached after all Step 4 documentation agents have fully completed)
+  # pr-agent uses `git add --all`, so any docs written in Step 4 are included in the PR.
   invoke pr-agent with planFilePath ?? taskDescription
-  if error: cleanup(WORK_DIR); STOP
+  if error: cleanup(WORK_DIR), /clear, STOP
   prUrl = result
 
   # Step 6 — cleanup
   cleanup(WORK_DIR)
-
-  report "Done. PR: <prUrl>. Work dir <WORK_DIR> removed."
-  STOP
+  /clear
+  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed. Skills written: <skillsWritten>."
 ```
 
 ---
@@ -268,4 +285,4 @@ CleanupOutput {
   # Invoke via Claude Code:
   # /dark-factory-agent <task-name> "<task description>"
   ```
-- Notes: `prep-feature-dir.sh` must be run from the outer wrapper directory (`dark_factory/`). Step 5 (`pr-agent`) is intentionally ordered after Step 4 (documentation agents) so that `git add --all` in `pr-agent` includes any docs written during Step 4. `feature-agent` does not invoke `pr-agent`; only `dark-factory-agent` does, and only after documentation is complete.
+- Notes: `prep-feature-dir.sh` must be run from the outer wrapper directory (`dark_factory/`). Step 5 (`pr-agent`) is intentionally ordered after Step 4 (documentation agents) so that `git add --all` in `pr-agent` includes any docs written during Step 4. `feature-agent` does not invoke `pr-agent`; only `dark-factory-agent` does, and only after documentation is complete. All steps except Step 4c (skill-update-agent) are fatal on error — they trigger cleanup and halt. Step 4c is non-fatal: errors are logged as warnings and the loop continues to the PR step.

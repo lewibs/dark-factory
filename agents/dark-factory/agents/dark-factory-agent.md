@@ -84,12 +84,14 @@ dark-factory-agent(taskDescription, taskName):
     STOP
 
   # Step 4c — skill update (non-fatal)
+  skillsWritten = []
   try:
     skillResult = invoke skill-update-agent with:
       planFilePath = planFilePath
       workDir      = WORK_DIR
       taskSummary  = taskDescription
-    log "Skills written: " + skillResult.skillsWritten
+    skillsWritten = skillResult.skillsWritten
+    log "Skills written: " + skillsWritten
   catch error:
     warn developer: "skill-update-agent failed: <error>. Continuing to PR."
 
@@ -109,7 +111,7 @@ dark-factory-agent(taskDescription, taskName):
   cleanup(WORK_DIR)
   /clear
 
-  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed. Skills written: <skillResult.skillsWritten>."
+  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed. Skills written: <skillsWritten>."
   STOP
 ```
 
