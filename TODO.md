@@ -1,6 +1,3 @@
-
-/clear at the end of the manufacture loop
-
 hooks
 * execution logs
 * debugging logs

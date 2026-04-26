@@ -1,129 +1,264 @@
 # Agents
 
-## Overview
+## Metadata
 
-The `agents/` directory contains all orchestration logic for Dark Factory. Agents are markdown files with YAML front-matter that Claude Code loads as sub-agents. Each agent has a narrowly-scoped responsibility and delegates all writing/editing to other agents or skills.
+- System type: `library`
+- Owner: dark-factory plugin
+- Source directory: `agents/`
+- Agent count: 24 agent markdown files across 9 subsystems
 
-## Agent Inventory
+## System Intent
 
-### dark-factory (top-level orchestrator)
+- What this is: The `agents/` directory contains all orchestration logic for Dark Factory. Agents are markdown files with YAML front-matter that Claude Code loads as sub-agents. Each agent has a narrowly-scoped responsibility and delegates all writing/editing to other agents or skills. No agent writes code directly — they orchestrate.
+- Primary consumer(s): Claude Code runtime (loads agents via front-matter), `/dark-factory:manufacture` command (entry point).
+- Boundary: Only agent `.md` files. No Python, no shell scripts (except via `allowed-tools`).
 
-**File:** `agents/dark-factory/agents/dark-factory-agent.md`
+## Mermaid Diagram
 
-The root orchestrator invoked by `/dark-factory:manufacture`. It:
+```mermaid
+flowchart TD
+  User([Developer]) -->|/dark-factory:manufacture| DFA[dark-factory-agent]
 
-1. Runs `agents/dark-factory/scripts/prep-feature-dir.sh <taskName>` to create an isolated working directory (`dark_factory-<taskName>/`).
-2. Classifies the task and routes to the correct worker:
-   - New feature → `feature-agent`
-   - Broken integration / end-to-end failure → `fix-flow-orchestrator`
-   - Bug / crash / unexpected behavior → `debugger-agent`
-3. Runs `code-review-orchestrator-agent` on the result.
-4. Runs `update-documentation-agent` (must complete before the PR step).
-5. Runs `skill-update-agent` (non-fatal — failure only logs a warning).
-6. Invokes `pr-agent` to open, CI-watch, resolve comments, and merge.
-7. Cleans up the isolated work directory.
+  DFA -->|new feature| FA[feature-agent]
+  DFA -->|broken flow| FFO[fix-flow-orchestrator]
+  DFA -->|bug / crash| DA[debugger-agent]
+  DFA -->|ambiguous| PN[PushNotification → clarify]
 
-The agent never writes, edits, or scaffolds code itself — it delegates entirely.
+  FA --> PA[planning-agent]
+  PA --> EA[execution-agent]
+  EA --> SkelA[skeleton-agent]
+  EA --> TA[testing-agent]
+  EA --> IA[implementation-agent]
 
-**Classification rules:**
+  FFO --> IVA[investigation-agent]
+  FFO --> SW[setup-wizard]
+  FFO --> RFP[ralph-fix-and-push]
+  RFP --> DFA2[debug-flow-agent]
+  DFA2 --> DA
 
-| Signal | Worker |
-|---|---|
-| "add", "build", "create", "implement", "new feature" | `feature-agent` |
-| "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow-orchestrator` |
-| "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger-agent` |
-| Ambiguous | Sends a PushNotification, then asks a single clarifying question |
+  DFA -->|after worker| CRO[code-review-orchestrator-agent]
+  CRO --> HLR[high-level-review-agent]
+  CRO --> LLR[low-level-review-agent]
+  CRO --> RA[resolver-agent]
 
----
+  DFA -->|after code review| UDA[update-documentation-agent]
+  DFA -->|after docs| SUA[skill-update-agent]
+  DFA -->|after skills| PRA[pr-agent]
+  PRA --> RPI[resolve-pr-issue]
 
-### featurework
+  DFA -->|init path| IOA[init-orchestrator-agent]
+  IOA --> IDA[init-docs-agent]
+```
 
-**Directory:** `agents/featurework/`
+## Flows
 
-Handles end-to-end feature implementation through three layers:
+### Flow: `manufacture`
 
-- **`feature-agent`** (`agents/featurework/agents/feature-agent.md`) — orchestrates planning → approval gate → execution. Invokes `planning-agent`, presents the plan to the developer, loops on feedback, then invokes `execution-agent` after approval. Sends a PushNotification before requesting approval. Never opens a PR itself.
-- **`planning-agent`** (`agents/featurework/planning/agents/planning-agent.md`) — reads the codebase and writes a plan file under `docs/plans/`.
-- **`execution-agent`** (`agents/featurework/execution/agents/execution-agent.md`) — implements the approved plan. Has sub-agents: `implementation-agent`, `skeleton-agent`, `testing-agent`.
+- Core files: `agents/dark-factory/agents/dark-factory-agent.md`
 
----
+#### Types
 
-### debugger
+```txt
+TaskInput {
+  taskDescription: string (verbatim user request)
+  taskName: string (optional short slug; derived from taskDescription if omitted)
+}
 
-**File:** `agents/debugger/agents/debugger-agent.md`
+WorkerResult {
+  planFilePath: string | null (path written by worker; null if debugger-agent)
+}
 
-Runs systematic debugging on non-obvious, state-dependent, or intermittent bugs. Steps:
+ManufactureOutput {
+  prUrl: string
+  merged: boolean
+  skillsWritten: string[]
+}
 
-1. Confirms the bug warrants systematic debugging.
-2. Creates or reuses a `docs/bugs/<yyyy-mm-dd>-<bug-slug>.md` audit log.
-3. Reads all relevant logs and stack traces before touching code.
-4. Follows the debug checklist: write failing test → confirm failure → identify root cause → fix → confirm pass → optionally revert and re-confirm failure.
-5. Records root cause, fix summary, and verification in the bug file.
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
+```
 
----
+#### Paths
 
-### fix-flow
-
-**Directory:** `agents/fix-flow/`
-
-Autonomously drives a failing integration flow to green. Three phases:
-
-1. **Phase 1 — Understand System**: spawns `investigation-agent` to document the named flow, writes `docs/plans/system-diagram.md`.
-2. **Phase 2 — Setup**: spawns `setup-wizard` to generate trigger/fetch-logs/wait-for-completion/deploy scripts.
-3. **Phase 3 — Fix and Push**: spawns `ralph-fix-and-push` which loops: trigger → debug → PR → deploy until the flow passes.
-
----
-
-### code-review
-
-**Directory:** `agents/code-review/`
-
-Orchestrates automated code review. Entry point: `code-review-orchestrator-agent`.
-
-1. Creates `tmp/issues.md`.
-2. Spawns `high-level-review-agent` and `low-level-review-agent` in parallel.
-3. Enters a resolver loop: spawns `resolver-agent` repeatedly until `anyRemaining` is false (max 10 iterations).
-4. Deletes `tmp/issues.md` and returns `{ status: "complete" }`.
-
----
-
-### documentation
-
-**Directory:** `agents/documentation/`
-
-Three agents handle documentation lifecycle:
-
-- **`investigation-agent`** — explores the codebase for a named system, validates or creates `docs/docs/<system-name>.md`. Uses `skills/investigate`, `skills/documentation`, and `skills/detect-drift`.
-- **`update-documentation-agent`** — after a plan is implemented, identifies affected flows, locates relevant `docs/docs/` files, and updates or creates them in three phases (identify flows → identify affected docs → update docs). Requires a plan path; sends PushNotification if missing.
-- **`detect-drift-agent`** — audits parity between `docs/` and the actual implementation.
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `manufacture.feature` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to feature-agent; runs code-review, docs, skills, PR, cleanup |
+| `manufacture.fixFlow` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to fix-flow-orchestrator |
+| `manufacture.debug` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to debugger-agent; planFilePath is null |
+| `manufacture.ambiguous` | `TaskInput` | PushNotification + clarifying question | `branch` | Sends PushNotification before asking developer |
+| `manufacture.workerError` | `TaskInput` | `StandardError` | `error` | Worker returns error or hard-stop; cleanup runs before halt |
+| `manufacture.prepFailure` | `TaskInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no cleanup needed |
 
 ---
 
-### initialization
+### Flow: `featurework`
 
-**Directory:** `agents/initialization/`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/execution/agents/execution-agent.md`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`
 
-- **`init-orchestrator-agent`** — entry point for `/dark-factory:init`. Runs `agents/initialization/scripts/init.sh`, sets `bypassPermissions` in `~/.claude/settings.json`, invokes `init-docs-agent`, and opens an "init: dark factory" PR via `pr-agent`.
-- **`init-docs-agent`** — discovers major systems in the project, invokes `investigation-agent` for each, writes `docs/docs/` files, `docs/docs/README.md`, and `CLAUDE.md`.
+#### Types
+
+```txt
+FeatureInput {
+  taskDescription: string
+}
+
+PlanFile {
+  path: string (docs/plans/<date>-<slug>.md)
+  approved: boolean
+}
+
+FeatureOutput {
+  planFilePath: string
+  testsGreen: boolean
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; developer approves; execution-agent implements |
+| `featurework.feedbackLoop` | `FeatureInput` | PushNotification + revised plan | `branch` | Developer rejects plan; planning-agent revises; loop repeats |
+| `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol and cannot self-resolve |
 
 ---
 
-### pr
+### Flow: `fixFlow`
 
-**Directory:** `agents/pr/`
+- Core files: `agents/fix-flow/agents/fix-flow-orchestrator.md`, `agents/fix-flow/agents/setup-wizard.md`, `agents/fix-flow/agents/ralph-fix-and-push.md`, `agents/fix-flow/agents/debug-flow-agent.md`
 
-- **`pr-agent`** — stages all changes (`git add --all`), writes PR body from `agents/pr/templates/pr-template.md` to `/tmp/pr-body.md`, opens PR, waits for CI, spawns `resolve-pr-issue` for failures or unresolved review threads, squash-merges, deletes the branch, and returns `{ pr_url, merged: true }`.
-- **`resolve-pr-issue`** — resolves a single CI failure or review thread.
+#### Types
+
+```txt
+FixFlowInput {
+  flowName: string (name of the failing integration flow)
+}
+
+DebugFlowInput {
+  triggerScriptPath: string
+  waitScriptPath: string
+  fetchLogsScriptPath: string
+}
+
+DebugFlowOutput {
+  bugFilePath: string (docs/bugs/bug-explanation-<N>.md)
+  exitCode: number (0 = flow passed, 1 = flow failed)
+}
+
+FixFlowOutput {
+  prUrls: string[]
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `fixFlow.success` | `FixFlowInput` | `FixFlowOutput` | `happy path` | investigation → setup → ralph-fix-and-push loop until flow green; debug-flow-agent triggers + fetches logs per iteration |
+| `fixFlow.flowPassed` | `DebugFlowInput` | `DebugFlowOutput{exitCode=0}` | `happy path` | debug-flow-agent runs trigger.sh + wait-for-completion.sh; flow succeeds; no logging or debug needed |
+| `fixFlow.flowFailed` | `DebugFlowInput` | `DebugFlowOutput{exitCode=1}` | `branch` | flow fails; debug-flow-agent fetches logs and delegates to debugger-agent for fix |
+| `fixFlow.missingFlowName` | `FixFlowInput{flowName=null}` | PushNotification + halt | `error` | fix-flow-orchestrator sends PushNotification before asking developer for flow name |
 
 ---
 
-### skill-update
+### Flow: `codeReview`
 
-**File:** `agents/skill-update/agents/skill-update-agent.md`
+- Core files: `agents/code-review/agents/code-review-orchestrator-agent.md`, `agents/code-review/agents/high-level-review-agent.md`, `agents/code-review/agents/low-level-review-agent.md`, `agents/code-review/agents/resolver-agent.md`
 
-After a manufacture run completes, reviews the completed work (plan file + git diff), identifies non-obvious patterns likely to recur, and writes or updates `skills/<slug>/SKILL.md` files. Returns `{ skillsWritten: [] }` when no qualifying patterns are found. Never modifies agent files or files outside `skills/`.
+#### Types
 
-## Front-matter conventions
+```txt
+ReviewInput {
+  planFilePath: string | "Task: <description>"
+  codePath: string
+}
+
+ReviewOutput {
+  status: "complete"
+  anyRemaining: boolean (false when all issues are resolved; true if max iterations hit)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `codeReview.clean` | `ReviewInput` | `ReviewOutput{anyRemaining=false}` | `happy path` | No issues found; resolver loop exits immediately |
+| `codeReview.issuesFound` | `ReviewInput` | `ReviewOutput{anyRemaining=false}` | `happy path` | Resolver loop runs up to 10 iterations until all issues checked off |
+| `codeReview.maxIterations` | `ReviewInput` | `StandardError` | `error` | Resolver loop exceeds 10 iterations without clearing all items; orchestrator halts with stuck-items description |
+
+---
+
+### Flow: `documentation`
+
+- Core files: `agents/documentation/agents/investigation-agent.md`, `agents/documentation/agents/update-documentation-agent.md`, `agents/documentation/agents/detect-drift-agent.md`
+
+#### Types
+
+```txt
+DocUpdateInput {
+  planFilePath: string | null
+}
+
+DocUpdateOutput {
+  filesUpdated: string[]
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `documentation.update` | `DocUpdateInput` | `DocUpdateOutput` | `happy path` | update-documentation-agent identifies affected flows and updates docs/docs/ files |
+| `documentation.missingPlan` | `DocUpdateInput{planFilePath=null}` | PushNotification + error | `error` | update-documentation-agent sends PushNotification before halting |
+| `documentation.driftDetected` | DetectDriftInput | drift report | `branch` | detect-drift-agent flags stale docs; fixes straightforward drift in place |
+
+---
+
+### Flow: `pr`
+
+- Core files: `agents/pr/agents/pr-agent.md`, `agents/pr/agents/resolve-pr-issue.md`
+
+#### Types
+
+```txt
+PRInput {
+  planFilePath: string | taskDescription
+}
+
+PROutput {
+  pr_url: string
+  merged: boolean
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `pr.merged` | `PRInput` | `PROutput{merged=true}` | `happy path` | PR opens, CI passes, squash-merge succeeds |
+| `pr.ciFailure` | `PRInput` | spawn `resolve-pr-issue` | `branch` | CI red; resolve-pr-issue fixes and pushes |
+| `pr.reviewComment` | `PRInput` | spawn `resolve-pr-issue` | `branch` | Unresolved review thread; resolve-pr-issue addresses and resolves |
+
+## Logs
+
+| Source | Location |
+|--------|----------|
+| N/A | Agents are markdown instruction files; they produce no structured runtime log output. All observable output is Claude Code session text. |
+
+## Deployment
+
+- Mechanism: `local only`
+- Deploy command:
+  ```bash
+  # Agents are loaded by the Claude Code runtime from the plugin directory.
+  # No deployment step — install the plugin with:
+  claude plugin install dark-factory
+  ```
+- Notes: Agents run inside Claude Code sessions on the developer's local machine. There is no remote runtime or server.
+
+## Front-matter Conventions
 
 Every agent file has a YAML front-matter block:
 
@@ -131,11 +266,11 @@ Every agent file has a YAML front-matter block:
 |---|---|
 | `name` | Agent identifier |
 | `user-invocable` | Whether the agent can be invoked directly by the developer |
-| `description` | One-line summary |
+| `description` | One-line summary shown in Claude Code |
 | `tools` | Comma-separated list of Claude tools the agent may use |
 | `model` | Model to use (typically `sonnet`) |
 | `skills` | Skill files the agent references |
 | `allowed-tools` | Fine-grained bash command allowlist |
 | `scripts` | Shell scripts the agent is permitted to run |
 
-Agents that call `PushNotification` in their body must declare it in `tools:` — the Claude Code runtime silently skips notifications for agents missing this declaration (see `docs/bugs/`).
+Agents that call `PushNotification` in their body must declare it in `tools:` — the Claude Code runtime silently skips notifications for agents missing this declaration (see `docs/bugs/2026-04-25-push-notification-missing-from-tools.md`).
