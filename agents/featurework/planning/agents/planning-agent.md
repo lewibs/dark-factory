@@ -3,7 +3,7 @@ name: planning-agent
 user-invocable: false
 description: "High-level planning agent. Works with the user to design architecture for a new feature or system before any code is written. Produces a plan in docs/plans/ using staged gates: Mermaid diagram, black-box I/O contracts, acceptance criteria, and optional pseudocode."
 tools: Read, Grep, Glob, Bash, Write, Edit, Agent
-skills: create-mermaid-diagram
+skills: create-mermaid-diagram, open-in-vscode
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *)"
 ---
@@ -44,3 +44,5 @@ Invoke the `investigation-agent` when you need to understand an existing system 
 ## Output
 
 Use the Write tool to save the plan directly to `docs/plans/<yyyy-mm-dd>-<what-it-updates>.md`. Do not return the plan content to the caller and expect them to save it — write the file yourself. Set status to `approved` after all stages pass and update the stage gate tracker.
+
+After writing the plan file, invoke the `open-in-vscode` skill with the absolute path to the plan file so the developer can review it immediately in their editor.
