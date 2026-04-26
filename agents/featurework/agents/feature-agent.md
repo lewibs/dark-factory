@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent, gates on human approval (with feedback-and-retry), then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Bash, Agent, PushNotification
+tools: Read, Bash, Agent, PushNotification, Skill
 model: sonnet
 allowed-tools: Bash(find *), Bash(grep -r *)
 ---
@@ -32,7 +32,6 @@ You are the feature-agent. Your job is to orchestrate end-to-end feature work by
 feature-agent(description):
 
   feedback = null
-  attemptNumber = 1
 
   LOOP:
     # Step 1: invoke planning-agent
@@ -48,6 +47,7 @@ feature-agent(description):
     planPath = result from planning-agent (the path it wrote the plan to)
 
     # Step 2: present plan and request approval
+    invoke open-in-vscode skill with: planPath
     Read the plan file at planPath using the Read tool.
     Display: "Plan written to <planPath>. Please review."
     Display the full contents of the plan file to the developer.
@@ -58,7 +58,7 @@ feature-agent(description):
       "Approve this plan? Reply 'yes' or 'approve' to proceed to implementation,
        'abort' to cancel, or provide feedback text to request a revision."
 
-    response = developer's reply
+    response = lowercase(developer's reply)
 
     If response == "abort":
       report "Feature work aborted by developer." to developer
@@ -70,7 +70,6 @@ feature-agent(description):
     Else:
       # Any other response is treated as feedback for a retry
       feedback = response
-      attemptNumber += 1
       CONTINUE LOOP
 
   # Step 3: approved — invoke execution-agent

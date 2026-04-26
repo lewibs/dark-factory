@@ -25,7 +25,11 @@ flowchart TD
   DFA -->|ambiguous| PN[PushNotification → clarify]
 
   FA --> PA[planning-agent]
-  PA --> EA[execution-agent]
+  PA -->|planPath| FA
+  FA -->|open-in-vscode| VSC[VS Code]
+  FA -->|inline display + PushNotification| Dev([Developer])
+  Dev -->|approve| EA[execution-agent]
+  Dev -->|feedback| FA
   EA --> SkelA[skeleton-agent]
   EA --> TA[testing-agent]
   EA --> IA[implementation-agent]
@@ -112,14 +116,20 @@ FeatureOutput {
   planFilePath: string
   testsGreen: boolean
 }
+
+ReviewDecision {
+  decision: "approve" | "abort" | "feedback"
+  feedbackText: string | null (present when decision == "feedback")
+}
 ```
 
 #### Paths
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; developer approves; execution-agent implements |
-| `featurework.feedbackLoop` | `FeatureInput` | PushNotification + revised plan | `branch` | Developer rejects plan; planning-agent revises; loop repeats |
+| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; feature-agent opens it in VS Code, reads and displays it inline, sends PushNotification, developer replies "yes" or "approve"; execution-agent implements |
+| `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer replies with feedback text; feature-agent re-invokes planning-agent with feedback, re-opens in VS Code, re-displays, re-prompts; loop repeats until explicit approval |
+| `featurework.abort` | `FeatureInput` | `StandardError` | `error` | Developer replies "abort" during plan review; feature-agent stops all work |
 | `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol and cannot self-resolve |
 
 ---
