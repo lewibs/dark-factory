@@ -5,7 +5,7 @@ description: Lightweight repair orchestrator. Skips planning, code review, and f
 tools: Read, Bash, Agent, PushNotification
 model: sonnet
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(rm -rf dark_factory-*), Bash(cd *)
+allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(git worktree remove *), Bash(git branch -D *)
 ---
 
 You are the repair-agent. Your job is to apply a targeted repair end-to-end: isolate the work in a fresh directory, delegate implementation to repair-implementation-agent, run the docs update if warranted, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -36,11 +36,11 @@ repair-agent(taskDescription, taskName):
     # lowercase, hyphens only, truncated to 30 chars
 
   # Step 2 — prep isolated work dir
-  Run from the outer wrapper (dark_factory/):
+  Run from the project root (git repo):
     bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
 
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
-  If script fails: report error and STOP (no cleanup needed)
+  If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
   # Step 3 — implement directly (no planning, no routing)
   cd into WORK_DIR
@@ -66,19 +66,19 @@ repair-agent(taskDescription, taskName):
   merged = true
 
   # Step 6 — cleanup
-  cleanup(WORK_DIR)
+  cleanup(WORK_DIR, taskName)
 
-  Report: "Done. PR: <prUrl>. Merged: <merged>. Work dir <WORK_DIR> removed."
+  Report: "Done. PR: <prUrl>. Merged: <merged>. Worktree <WORK_DIR> removed."
   STOP
 ```
 
-## cleanup(WORK_DIR)
+## cleanup(WORK_DIR, taskName)
 
 ```
-cd dark_factory/   # outer wrapper
-rm -rf WORK_DIR
+git worktree remove WORK_DIR --force
+git branch -D feature/<taskName>
 
-If rm fails: warn developer but do not halt — this is non-fatal.
+If either command fails: warn developer but do not halt — this is non-fatal.
 ```
 
 ## Rules

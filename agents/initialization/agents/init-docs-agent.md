@@ -1,7 +1,7 @@
 ---
 name: init-docs-agent
 user-invocable: false
-description: Explores a newly initialized project, discovers user-facing flows per system, invokes investigation-agent per flow to generate docs/docs/ files, then writes a minimal CLAUDE.md pointer doc at the project root. Called after init.sh sets up the project structure.
+description: Explores a newly initialized project, discovers user-facing flows per system, invokes investigation-agent per flow to generate docs/docs/ files, then writes a minimal CLAUDE.md pointer doc at the project root.
 tools: Read, Grep, Glob, Bash, Write, Task
 model: sonnet
 allowed-tools: Bash(ls *), Bash(find *), Bash(cat *), Bash(grep -r *), Bash(mkdir *)
