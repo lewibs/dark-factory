@@ -56,7 +56,6 @@ dark-factory-agent(taskDescription, taskName):
 
   If worker returns error or hard-stop:
     run cleanup(WORK_DIR)
-    /clear
     report error and STOP
 
   planFilePath = path the worker wrote its plan to (null if no plan produced)
@@ -68,7 +67,6 @@ dark-factory-agent(taskDescription, taskName):
 
   If error:
     run cleanup(WORK_DIR)
-    /clear
     report error and STOP
 
   # Step 4 — update docs and detect drift
@@ -80,7 +78,6 @@ dark-factory-agent(taskDescription, taskName):
   If detect-drift-agent surfaces unresolvable items (wrong items needing developer input):
     report the unresolved items to the developer
     run cleanup(WORK_DIR)
-    /clear
     STOP
 
   # Step 4c — skill update (non-fatal)
@@ -102,14 +99,12 @@ dark-factory-agent(taskDescription, taskName):
 
   If pr-agent errors or cannot merge:
     run cleanup(WORK_DIR)
-    /clear
     report error and STOP
 
   prUrl = result from pr-agent
 
   # Step 6 — cleanup
   cleanup(WORK_DIR)
-  /clear
 
   Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed. Skills written: <skillsWritten>."
   STOP
