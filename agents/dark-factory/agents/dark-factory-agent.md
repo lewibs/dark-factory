@@ -30,7 +30,6 @@ All paths are relative to the inner project dir (`dark_factory/dark_factory/` fr
 | `fix-flow-orchestrator` | `agents/fix-flow/agents/fix-flow-orchestrator.md` |
 | `code-review-orchestrator-agent` | `agents/code-review/agents/code-review-orchestrator-agent.md` |
 | `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
-| `detect-drift-agent` | `agents/documentation/agents/detect-drift-agent.md` |
 | `skill-update-agent` | `agents/skill-update/agents/skill-update-agent.md` |
 | `pr-agent` | `agents/pr/agents/pr-agent.md` |
 
@@ -69,16 +68,10 @@ dark-factory-agent(taskDescription, taskName):
     run cleanup(WORK_DIR)
     report error and STOP
 
-  # Step 4 — update docs and detect drift
-  # IMPORTANT: Both documentation agents MUST fully complete before proceeding to Step 5.
+  # Step 4 — update docs
+  # IMPORTANT: Documentation agent MUST fully complete before proceeding to Step 5.
   # The pr-agent (Step 5) uses `git add --all`, which will pick up any docs written here.
   invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
-  invoke detect-drift-agent (scoped to WORK_DIR/docs/docs/)
-
-  If detect-drift-agent surfaces unresolvable items (wrong items needing developer input):
-    report the unresolved items to the developer
-    run cleanup(WORK_DIR)
-    STOP
 
   # Step 4c — skill update (non-fatal)
   skillsWritten = []
