@@ -25,6 +25,6 @@ else
 
     mkdir "$DIRNAME"
 
-    find . -maxdepth 1 ! -name '.' ! -name "$DIRNAME" -exec cp -rp {} "$DIRNAME/" +
+    find . -maxdepth 1 ! -name '.' ! -name "$DIRNAME" -exec mv {} "$DIRNAME/" \;
     echo "PROJECT_PATH=${DIRNAME}/${DIRNAME}"
 fi
