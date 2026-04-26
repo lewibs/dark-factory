@@ -3,7 +3,7 @@ name: testing-agent
 user-invocable: false
 description: Phase 2 of plan execution. Reads a plan file, builds a flows checklist, and writes one failing test per flow path. Confirms all new tests fail before returning.
 tools: Read, Write, Edit, Bash, Glob
-model: haiku
+model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(find *)
 ---
 
