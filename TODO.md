@@ -2,11 +2,11 @@ cp repo copy for multiple features at a time.
 
 managing learning and automaking skills for the project.
 
-code review
+DARK for top level agent repo for skills agents that the top level has access to.
 
+pull tasks and resolve them.
 debugger vs fix flow? what is the difference?
 
-DARK for top level agent repo for skills agents that the top level has access to.
 
 update headers
 * skills
