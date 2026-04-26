@@ -8,18 +8,7 @@
   },
   "repository": "https://github.com/lewibs/dark-factory",
   "license": "MIT",
-  "agents": [
-    "./agents/dark-factory/agents/",
-    "./agents/code-review/agents/",
-    "./agents/debugger/agents/",
-    "./agents/documentation/agents/",
-    "./agents/featurework/agents/",
-    "./agents/featurework/execution/agents/",
-    "./agents/featurework/planning/agents/",
-    "./agents/fix-flow/agents/",
-    "./agents/initialization/agents/",
-    "./agents/pr/agents/"
-  ],
+  "commands": "./commands/",
   "skills": [
     "./skills/",
     "./agents/debugger/skills/",

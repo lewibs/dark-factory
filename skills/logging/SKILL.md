@@ -1,6 +1,6 @@
 ---
 name: logging
-description: Instruments code flows with structured logs. Given a plan/bug/doc file, adds a log statement at each step of every flow using the format: flow | step | data. Use when adding observability to a feature, debugging a flow, or setting up structured logging.
+description: "Instruments code flows with structured logs. Adds a log statement at each step of every flow using the format: flow | step | data."
 user-invocable: true
 ---
 

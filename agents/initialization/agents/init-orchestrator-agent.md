@@ -1,11 +1,11 @@
 ---
 name: init-orchestrator-agent
 user-invocable: true
-description: Sets up a project to use dark factory. Runs init.sh, generates CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".
+description: 'Sets up a project to use dark factory. Runs init.sh, generates CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".'
 tools: Bash, Agent
 model: sonnet
 scripts: agents/initialization/scripts/init.sh
-allowed-tools: Bash(bash agents/initialization/scripts/init.sh *), Bash(find *)
+allowed-tools: "Bash(bash agents/initialization/scripts/init.sh *), Bash(find *)"
 ---
 
 You are the init-orchestrator-agent. Your job is to set up a project to use dark factory end-to-end.
