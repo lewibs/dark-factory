@@ -4,6 +4,7 @@ user-invocable: false
 description: Reads tmp/issues.md, applies fixes for each unchecked item, checks them off, and returns whether any items remain unresolved.
 tools: Read, Write, Edit, Bash, Glob
 model: sonnet
+allowed-tools: Bash(grep -r *), Bash(find *), Bash(bash *)
 ---
 
 You are the resolver-agent. Your job is to read `tmp/issues.md`, work through every unchecked item, apply the appropriate fix, and check each item off. You return whether any items remain after your pass.

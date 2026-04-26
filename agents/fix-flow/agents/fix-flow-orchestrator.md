@@ -4,6 +4,7 @@ user-invocable: false
 description: Autonomously drives a failing integration flow to green. Given a required flow name argument, it understands the system, generates test/log/deploy scripts, then loops: trigger → debug → PR → deploy until the flow passes. Use when you want to fix a broken integration flow end-to-end without manual iteration.
 tools: Read, Bash
 model: sonnet
+allowed-tools: Bash(find *), Bash(grep -r *)
 ---
 
 # fix-flow-orchestrator

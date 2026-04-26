@@ -4,6 +4,7 @@ user-invocable: false
 description: Explores a newly initialized project and generates a CLAUDE.md at its root. Called after init.sh sets up the project structure.
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
+allowed-tools: Bash(ls *), Bash(find *), Bash(cat *), Bash(grep -r *)
 ---
 
 You are the init-docs-agent. Your job is to explore a project directory and produce a `CLAUDE.md` at its root that gives future Claude sessions an accurate mental model of the codebase.

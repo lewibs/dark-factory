@@ -4,6 +4,11 @@ description: Generates the scripts needed to trigger, monitor, and fetch logs fo
 tools: Read, Write, Bash
 model: sonnet
 user-invocable: false
+skills: generate-trigger, generate-wait-for-completion, generate-fetch-logs, generate-deploy
+allowed-tools:
+  - Bash(chmod +x *)
+  - Bash(bash *)
+  - Bash(find *)
 ---
 
 You are the setup-wizard for fix-flow-orchestrator. Your job is to read the system document and generate the scripts the ralph-fix-and-push needs. You do not run the flow. You only generate scripts.

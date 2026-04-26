@@ -3,7 +3,7 @@ name: resolve-pr-issue
 description: Resolves a single PR issue — either a CI failure or an unresolved review thread. Reads the issue, applies a fix, pushes, and resolves the thread if applicable. Called by pr-agent.
 user-invocable: false
 tools: Read, Bash, Write, Edit
-allowed-tools: Bash(gh api graphql *), Bash(gh run view *), Bash(gh pr checks *), Bash(gh pr view *), Bash(git add *), Bash(git commit *), Bash(git push *)
+allowed-tools: Bash(gh api graphql *), Bash(gh run view *), Bash(gh pr checks *), Bash(gh pr view *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(git status *), Bash(git log *), Bash(grep -r *), Bash(find *)
 model: sonnet
 ---
 
