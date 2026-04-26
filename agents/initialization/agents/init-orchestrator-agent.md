@@ -24,12 +24,21 @@ init-orchestrator-agent(github_url?):
 
   If github_url is provided:
     run: bash <SCRIPT> <github_url>
+    REPO_NAME = basename(github_url, ".git")
+    DERIVED_PROJECT_PATH = REPO_NAME/REPO_NAME
   Else:
     run: bash <SCRIPT>
+    DIRNAME = basename(CWD)
+    DERIVED_PROJECT_PATH = DIRNAME/DIRNAME
 
-  Capture PROJECT_PATH from the script's stdout line: `PROJECT_PATH=<value>`
+  If the script succeeds:
+    Capture PROJECT_PATH from the script's stdout line: `PROJECT_PATH=<value>`
 
-  If the script fails, report the error and STOP.
+  If the script fails with an "already exists" error:
+    Log: "Directory already exists — skipping init.sh, proceeding to documentation phase."
+    PROJECT_PATH = DERIVED_PROJECT_PATH
+
+  If the script fails for any other reason: report the error and STOP.
 
   # Step 2: generate CLAUDE.md for the project
   invoke init-docs-agent with: project_path = PROJECT_PATH
@@ -47,4 +56,4 @@ init-orchestrator-agent(github_url?):
 
 - Never modify init.sh or init-docs-agent.
 - Do not create or edit any files yourself — delegate entirely to the script and agents.
-- If init.sh fails because the target directory already exists, report that to the user and stop — do not attempt to recover.
+- If init.sh fails because the target directory already exists, derive PROJECT_PATH and proceed directly to Step 2 — do not stop.
