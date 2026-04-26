@@ -6,5 +6,5 @@ Run these two commands:
 
 ```bash
 git pull
-claude plugin update dark-factory
+claude plugin update "dark-factory@dark-factory"
 ```
