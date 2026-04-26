@@ -1,117 +1,239 @@
 # Skills
 
-## Overview
+## Metadata
 
-The `skills/` directory contains reusable skill files that agents reference during execution. Skills are markdown documents (`SKILL.md`) that describe a concrete, repeatable procedure. They are not agents — they do not have their own invocation lifecycle. An agent reads a skill file and follows its steps.
+- System type: `library`
+- Owner: dark-factory plugin
+- Source directories: `skills/` (project-level), `agents/*/skills/` (agent-local)
+- Skill count: 8 project-level + 10 agent-local = 18 skills total
 
-There are two categories of skills:
+## System Intent
 
-1. **Project-level skills** (`skills/`) — general-purpose skills applicable to any project using Dark Factory.
-2. **Agent-local skills** (`agents/<agent-name>/skills/`) — skills scoped to a specific agent's workflows.
+- What this is: Skills are markdown procedure files (`SKILL.md`) that agents read and follow during execution. They are not agents — they have no invocation lifecycle of their own. An agent reads a skill file and executes its steps. Skills encode non-obvious, reusable procedures that would otherwise be duplicated across agents.
+- Primary consumer(s): Dark Factory agents (referenced in agent front-matter `skills:` field). Some skills are also user-invocable as slash commands.
+- Boundary: Skill files are read-only inputs to agents. Skills do not write files, call tools, or produce outputs directly — the consuming agent does.
 
-## Project-Level Skills
+## Mermaid Diagram
 
-### install
+```mermaid
+flowchart TD
+  Agent([Consuming Agent]) -->|reads SKILL.md| Skill[Skill File]
+  Skill -->|step-by-step procedure| Agent
+  Agent -->|executes steps| Output([Skill Output])
 
-**File:** `skills/install/SKILL.md`
+  subgraph ProjectLevel["Project-Level Skills (skills/)"]
+    S1[install]
+    S2[install-plugin]
+    S3[logging]
+    S4[create-mermaid-diagram]
+    S5[find-dead-code]
+    S6[declare-tools-in-agent-frontmatter]
+    S7[handle-idempotent-setup-script]
+    S8[open-in-vscode]
+  end
 
-Instructions for installing or updating the Dark Factory plugin in Claude Code via `claude plugin marketplace add` and `claude plugin install dark-factory`.
+  subgraph AgentLocal["Agent-Local Skills (agents/*/skills/)"]
+    AL1[investigate]
+    AL2[documentation]
+    AL3[detect-drift]
+    AL4[debug]
+    AL5[generate-fetch-logs]
+    AL6[generate-wait-for-completion]
+    AL7[generate-trigger]
+    AL8[generate-deploy]
+    AL9[create-pr]
+    AL10[deviation-protocol]
+  end
+```
+
+## Flows
+
+### Flow: `projectLevelSkills`
+
+- Core files: `skills/install/SKILL.md`, `skills/install-plugin/SKILL.md`, `skills/logging/SKILL.md`, `skills/create-mermaid-diagram/SKILL.md`, `skills/find-dead-code/SKILL.md`, `skills/declare-tools-in-agent-frontmatter/SKILL.md`, `skills/handle-idempotent-setup-script/SKILL.md`, `skills/open-in-vscode/SKILL.md`
+
+#### Types
+
+```txt
+SkillInput {
+  agentContext: string (the task description or file path provided by the consuming agent)
+}
+
+SkillOutput {
+  result: string (what the consuming agent produces after following skill steps)
+}
+
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `install.pluginMarketplace` | `SkillInput{marketplace install}` | `SkillOutput` | `happy path` | Installs via `claude plugin marketplace add` then `claude plugin install dark-factory` |
+| `install-plugin.localPath` | `SkillInput{local plugin path}` | `SkillOutput` | `happy path` | Installs a Claude Code plugin from a local directory path |
+| `logging.instrumentFlow` | `SkillInput{plan/bug/doc path}` | `SkillOutput{logging-checklist checked}` | `happy path` | Extracts flows, adds structured log statements at entry/branch/error/exit |
+| `create-mermaid-diagram.fromPlan` | `SkillInput{plan or codebase}` | `SkillOutput{mermaid diagram}` | `happy path` | Produces a Mermaid flowchart from a plan file or codebase exploration |
+| `find-dead-code.scan` | `SkillInput{codebase}` | `SkillOutput{dead code report}` | `happy path` | Finds exported symbols with no callers, unreachable branches, unused imports |
+| `declare-tools-in-agent-frontmatter.fix` | `SkillInput{agent file}` | `SkillOutput{front-matter updated}` | `happy path` | Adds missing tool declarations to agent YAML front-matter |
+| `handle-idempotent-setup-script.guard` | `SkillInput{setup script}` | `SkillOutput{script is idempotent}` | `happy path` | Adds existence checks so script is safe to run more than once |
+| `open-in-vscode.open` | `SkillInput{file/dir path}` | `SkillOutput{VS Code opened}` | `happy path` | Opens a file or directory in VS Code from an agent context |
 
 ---
 
-### install-plugin
+### Flow: `documentationSkills`
 
-**File:** `skills/install-plugin/SKILL.md`
+- Core files: `agents/documentation/skills/investigate/SKILL.md`, `agents/documentation/skills/documentation/SKILL.md`, `agents/documentation/skills/detect-drift/SKILL.md`
 
-Instructions for installing a Claude Code plugin from a local path.
+#### Types
 
----
+```txt
+InvestigateInput {
+  systemName: string (name of system to document)
+}
 
-### logging
+DocumentationInput {
+  systemName: string
+  findings: object (from investigate skill)
+}
 
-**File:** `skills/logging/SKILL.md`
+DriftInput {
+  docPath: string (docs/docs/ file to audit)
+}
+```
 
-Instruments code flows with structured log statements. Log format: `log<flow><step><data>`. Steps:
+#### Paths
 
-1. Accept a path to a plan, bug, or doc file.
-2. Extract every flow and write a checklist to `tmp/logging-checklist.md` using `skills/logging/templates/logging-checklist-template.md`.
-3. Add a log at each meaningful step (entry, branch, error, exit) in the implementation file.
-4. Delete `tmp/logging-checklist.md` after all flows are instrumented.
-
-Does not introduce new dependencies — uses the project's existing logger (`console.log`, `logger.info`, Python `logging`, etc.).
-
----
-
-### create-mermaid-diagram
-
-**File:** `skills/create-mermaid-diagram/SKILL.md`
-
-Produces a Mermaid diagram from a codebase or plan. Used to visualize flows.
-
----
-
-### find-dead-code
-
-**File:** `skills/find-dead-code/SKILL.md`
-
-Scans the codebase for dead code: exported symbols with no callers, unreachable branches, and unused imports.
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `investigate.success` | `InvestigateInput` | system intent, flows, logs, deployment findings | `happy path` | Explores codebase via grep/glob to fill documentation template sections |
+| `documentation.write` | `DocumentationInput` | `docs/docs/<system>.md` written | `happy path` | Writes or updates a docs/docs/ file using the documentation template |
+| `detect-drift.audit` | `DriftInput` | drift report with stale/missing items | `happy path` | Audits parity between docs/docs/ and actual implementation |
+| `detect-drift.fixInPlace` | `DriftInput` | `docs/docs/<system>.md` updated | `branch` | Fixes straightforward drift without escalating |
 
 ---
 
-### declare-tools-in-agent-frontmatter
+### Flow: `debuggerSkills`
 
-**File:** `skills/declare-tools-in-agent-frontmatter/SKILL.md`
+- Core files: `agents/debugger/skills/debug/SKILL.md`
 
-Procedure for ensuring all tools called in an agent body are also declared in its YAML front-matter `tools:` field, preventing silent runtime failures.
+#### Types
+
+```txt
+DebugInput {
+  bugDescription: string
+  logPath: string | null
+}
+
+DebugOutput {
+  bugFilePath: string (docs/bugs/<date>-<slug>.md)
+  rootCauseConfirmed: boolean
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `debug.systematicDebugging` | `DebugInput` | `DebugOutput` | `happy path` | Follows Lewibs bug template: failing test → root cause → fix → confirm pass |
 
 ---
 
-### handle-idempotent-setup-script
+### Flow: `fixFlowSkills`
 
-**File:** `skills/handle-idempotent-setup-script/SKILL.md`
+- Core files: `agents/fix-flow/skills/generate-fetch-logs/SKILL.md`, `agents/fix-flow/skills/generate-wait-for-completion/SKILL.md`, `agents/fix-flow/skills/generate-trigger/SKILL.md`, `agents/fix-flow/skills/generate-deploy/SKILL.md`
 
-Pattern for writing setup scripts that are safe to run more than once (idempotent). Guards against re-creating directories or resources that already exist.
+#### Types
+
+```txt
+ScriptGenInput {
+  systemDiagramPath: string (docs/plans/system-diagram.md)
+}
+
+ScriptOutput {
+  scriptPath: string (path to generated .sh file)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `generate-trigger.create` | `ScriptGenInput` | `ScriptOutput{trigger.sh}` | `happy path` | Generates a script to fire the integration flow |
+| `generate-wait-for-completion.create` | `ScriptGenInput` | `ScriptOutput{wait-for-completion.sh}` | `happy path` | Generates a polling script that waits for flow to reach terminal state |
+| `generate-fetch-logs.create` | `ScriptGenInput` | `ScriptOutput{fetch-logs.sh}` | `happy path` | Generates a script to pull all relevant logs |
+| `generate-deploy.create` | `ScriptGenInput` | `ScriptOutput{deploy.sh}` | `branch` | Optional; only generated when fixes cannot be tested locally |
 
 ---
 
-### open-in-vscode
+### Flow: `prSkills`
 
-**File:** `skills/open-in-vscode/SKILL.md`
+- Core files: `agents/pr/skills/create-pr/SKILL.md`
 
-Opens a file or directory in VS Code from within an agent context.
+#### Types
 
-## Agent-Local Skills
+```txt
+PRSkillInput {
+  branchName: string
+  prBodyPath: string
+}
 
-Agent-local skills live under `agents/<agent-name>/skills/` and are referenced in the agent's front-matter `skills:` field.
+PRSkillOutput {
+  prUrl: string
+  merged: boolean
+}
+```
 
-### documentation (agents/documentation/skills/)
+#### Paths
 
-| Skill | File | Purpose |
-|---|---|---|
-| `investigate` | `skills/investigate/SKILL.md` | Explore an unknown codebase — entry points, data flow, log sources, failure modes, deployment discovery |
-| `documentation` | `skills/documentation/SKILL.md` | Write or update a `docs/docs/` file using the documentation template |
-| `detect-drift` | `skills/detect-drift/SKILL.md` | Audit parity between `docs/plans/` or `docs/docs/` and actual implementation |
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `create-pr.open` | `PRSkillInput` | `PRSkillOutput` | `happy path` | Opens PR via `gh pr create`, watches CI, resolves comments, squash-merges |
 
-### debugger (agents/debugger/skills/)
+---
 
-| Skill | File | Purpose |
-|---|---|---|
-| `debug` | `skills/debug/SKILL.md` | Step-by-step systematic debugging checklist with bug audit log template |
+### Flow: `deviationProtocol`
 
-### fix-flow (agents/fix-flow/skills/)
+- Core files: `agents/featurework/execution/skills/deviation-protocol/SKILL.md`
 
-| Skill | File | Purpose |
-|---|---|---|
-| `generate-fetch-logs` | `skills/generate-fetch-logs/SKILL.md` | Generates a script to fetch logs from a running integration flow |
-| `generate-wait-for-completion` | `skills/generate-wait-for-completion/SKILL.md` | Generates a polling script that waits for a flow to complete |
-| `generate-trigger` | `skills/generate-trigger/SKILL.md` | Generates a script to trigger an integration flow |
-| `generate-deploy` | `skills/generate-deploy/SKILL.md` | Generates a deploy script for a flow |
+#### Types
 
-### pr (agents/pr/skills/)
+```txt
+DeviationInput {
+  conflictDescription: string (what in the plan cannot be resolved)
+}
 
-| Skill | File | Purpose |
-|---|---|---|
-| `create-pr` | `skills/create-pr/SKILL.md` | Scripts and procedures for opening, watching, and merging a GitHub PR via `gh` |
+DeviationOutput {
+  action: "course-correct" | "hard-stop"
+  instructions: string | null
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `deviation-protocol.courseCorrect` | `DeviationInput` | `DeviationOutput{action=course-correct}` | `happy path` | Developer provides updated instructions; implementation-agent resumes |
+| `deviation-protocol.hardStop` | `DeviationInput` | `DeviationOutput{action=hard-stop}` | `error` | Developer cannot resolve conflict; implementation halts |
+
+## Logs
+
+| Source | Location |
+|--------|----------|
+| N/A | Skills are markdown procedure files; they produce no structured runtime log output. The consuming agent's session text is the only observable output. |
+
+## Deployment
+
+- Mechanism: `local only`
+- Deploy command:
+  ```bash
+  # Skills are bundled with the plugin and loaded by agents at runtime.
+  # No deployment step — install the plugin with:
+  claude plugin install dark-factory
+  ```
+- Notes: Skills live in the plugin repository. They are read by agents during Claude Code sessions on the developer's local machine. There is no remote runtime.
 
 ## Skill File Format
 
