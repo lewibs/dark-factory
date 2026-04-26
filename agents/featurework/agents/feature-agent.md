@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent, gates on human approval (with feedback-and-retry), then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Bash, Agent
+tools: Read, Bash, Agent, PushNotification
 model: sonnet
 allowed-tools: Bash(find *), Bash(grep -r *)
 ---

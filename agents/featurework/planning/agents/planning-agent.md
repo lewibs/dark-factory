@@ -2,7 +2,7 @@
 name: planning-agent
 user-invocable: false
 description: "High-level planning agent. Works with the user to design architecture for a new feature or system before any code is written. Produces a plan in docs/plans/ using staged gates: Mermaid diagram, black-box I/O contracts, acceptance criteria, and optional pseudocode."
-tools: Read, Grep, Glob, Bash, Write, Edit, Agent
+tools: Read, Grep, Glob, Bash, Write, Edit, Agent, PushNotification
 skills: create-mermaid-diagram, open-in-vscode
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *)"

@@ -2,7 +2,7 @@
 name: fix-flow-orchestrator
 user-invocable: false
 description: "Autonomously drives a failing integration flow to green. Generates test/log/deploy scripts, then loops: trigger, debug, PR, deploy until the flow passes."
-tools: Read, Bash
+tools: Read, Bash, PushNotification
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *)"
 ---
