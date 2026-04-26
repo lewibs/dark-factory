@@ -6,18 +6,18 @@ user-invocable: true
 
 ## Install (one-time)
 
-```bash
-# 1. Register the local repo as a marketplace
-claude plugin marketplace add /home/lewibs/github/dark_factory/dark_factory
+From anywhere inside the cloned repo:
 
-# 2. Install the plugin
-claude plugin install dark-factory
+```bash
+bash agents/initialization/scripts/install-plugin.sh
 ```
+
+This script auto-detects the repo location — works for any user on any machine.
 
 ## Update (after pulling new changes)
 
 ```bash
-git -C /home/lewibs/github/dark_factory/dark_factory pull
+git pull
 claude plugin update dark-factory
 ```
 
@@ -31,5 +31,6 @@ claude plugin list
 
 | Command | Description |
 |---|---|
-| `/dark-factory:dark-factory` | Full orchestration — feature, debug, or fix-flow end-to-end |
+| `/dark-factory:manufacture` | Full orchestration — feature, debug, or fix-flow end-to-end |
 | `/dark-factory:init` | Initialize a new project with dark factory |
+| `/dark-factory:update` | Update the plugin to the latest version |
