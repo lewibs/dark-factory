@@ -34,7 +34,8 @@ When the dark-factory plugin needs a new release: increment the patch segment of
    DARK_FACTORY_ROOT=$(git worktree list | head -1 | awk '{print $1}')
    claude plugin marketplace add "$DARK_FACTORY_ROOT"
    claude plugin marketplace update dark-factory
-   claude plugin update "dark-factory@dark-factory"
+   claude plugin uninstall "dark-factory@dark-factory"
+   claude plugin install "dark-factory@dark-factory"
    claude plugin list   # confirm new version appears
    ```
 

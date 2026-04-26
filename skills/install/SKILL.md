@@ -19,7 +19,8 @@ claude plugin install dark-factory
 git pull
 claude plugin marketplace add "$(pwd)"
 claude plugin marketplace update dark-factory
-claude plugin update "dark-factory@dark-factory"
+claude plugin uninstall "dark-factory@dark-factory"
+claude plugin install "dark-factory@dark-factory"
 ```
 
 ## Verify
@@ -33,6 +34,5 @@ claude plugin list
 | Command | Description |
 |---|---|
 | `/dark-factory:manufacture` | Full orchestration — feature, debug, or fix-flow end-to-end |
-| `/dark-factory:repair` | Lightweight targeted fix — no planning phase |
 | `/dark-factory:init` | Initialize a new project with dark factory |
 | `/dark-factory:update` | Update the plugin to the latest version |
