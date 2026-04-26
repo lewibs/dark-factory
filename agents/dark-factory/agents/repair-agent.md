@@ -1,6 +1,6 @@
 ---
 name: repair-agent
-user-invocable: true
+user-invocable: false
 description: Lightweight repair orchestrator. Skips planning, code review, and full doc cycle. Makes the change, fixes test breakage, optionally updates related docs, and ships a PR.
 tools: Read, Bash, Agent, PushNotification
 model: sonnet
