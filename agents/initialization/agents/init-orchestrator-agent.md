@@ -1,6 +1,6 @@
 ---
 name: init-orchestrator-agent
-user-invocable: false
+user-invocable: true
 description: Sets up a project to use dark factory. Runs init.sh, generates CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".
 tools: Bash, Agent
 model: sonnet
