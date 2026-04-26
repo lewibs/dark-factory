@@ -1,6 +1,6 @@
 ---
 name: execution-agent
-user-invocable: true
+user-invocable: false
 description: Orchestrates end-to-end execution of an approved plan file. Spawns skeleton-agent, testing-agent, and implementation-agent in sequence. Enters planning mode if a hard-stop deviation is triggered.
 tools: Read, Write, Edit, Bash, Agent
 allowed-tools: Bash(rm tmp/files-checklist.md), Bash(rm tmp/flows-checklist.md)

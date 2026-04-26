@@ -5,6 +5,7 @@ description: Phase 3 of plan execution. Implements each flow from the flows chec
 tools: Read, Write, Edit, Bash, Glob, Agent
 skills: deviation-protocol
 model: sonnet
+allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
 ---
 
 You are the implementation-agent. Your job is Phase 3 of plan execution: implement each flow from the flows checklist one at a time, run its tests, and confirm they pass before moving on.

@@ -1,5 +1,6 @@
 ---
 name: detect-drift
+user-invocable: false
 description: Audit parity between docs/docs/ system documentation and actual implementation. Detects stale references, undocumented flows, and broken behavioral claims. Use when validating whether documented systems match implemented code.
 ---
 
