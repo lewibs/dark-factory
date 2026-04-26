@@ -1,4 +1,6 @@
-# Dark Factory
+# dark_factory
+
+A fully autonomous coding plugin for Claude Code that builds features, fixes bugs, and repairs broken integration flows end-to-end — from planning through code review, PR, and merge — with no manual intervention.
 
 This project is documented in `docs/`. See:
 
