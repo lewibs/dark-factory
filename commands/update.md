@@ -2,4 +2,9 @@
 description: Update the dark-factory plugin to the latest version.
 ---
 
-Follow the update instructions in `skills/install/SKILL.md`.
+Run these two commands:
+
+```bash
+git pull
+claude plugin update dark-factory
+```

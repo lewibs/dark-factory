@@ -4,17 +4,14 @@ description: Install or update the dark-factory plugin in Claude Code.
 user-invocable: true
 ---
 
-## Install (one-time)
-
-From anywhere inside the cloned repo:
+## Install (one-time, run from inside the cloned repo)
 
 ```bash
-bash skills/install/install-plugin.sh
+claude plugin marketplace add .
+claude plugin install dark-factory
 ```
 
-This script auto-detects the repo location — works for any user on any machine.
-
-## Update (after pulling new changes)
+## Update
 
 ```bash
 git pull
@@ -27,7 +24,7 @@ claude plugin update dark-factory
 claude plugin list
 ```
 
-## Available commands after install
+## Commands available after install
 
 | Command | Description |
 |---|---|
