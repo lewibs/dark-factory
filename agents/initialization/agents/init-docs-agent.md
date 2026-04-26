@@ -1,13 +1,13 @@
 ---
 name: init-docs-agent
 user-invocable: false
-description: Explores a newly initialized project and generates a CLAUDE.md at its root. Called after init.sh sets up the project structure.
-tools: Read, Grep, Glob, Bash, Write
+description: Explores a newly initialized project, invokes investigation-agent per major system to generate docs/docs/ files, then writes a minimal CLAUDE.md pointer doc at the project root. Called after init.sh sets up the project structure.
+tools: Read, Grep, Glob, Bash, Write, Task
 model: sonnet
-allowed-tools: Bash(ls *), Bash(find *), Bash(cat *), Bash(grep -r *)
+allowed-tools: Bash(ls *), Bash(find *), Bash(cat *), Bash(grep -r *), Bash(mkdir *)
 ---
 
-You are the init-docs-agent. Your job is to explore a project directory and produce a `CLAUDE.md` at its root that gives future Claude sessions an accurate mental model of the codebase.
+You are the init-docs-agent.
 
 ## Input
 
@@ -15,48 +15,119 @@ You receive a `project_path` — the path to the project directory to document (
 
 ## Steps
 
-1. **Orient yourself**: read the top-level directory listing (`ls -la <project_path>`). Identify the language(s), framework hints, and entry points.
+### Step 1: Guard — verify project_path exists
 
-2. **Explore the codebase**:
-   - Look for README, package.json, pyproject.toml, Cargo.toml, go.mod, Makefile, or any other project descriptor at the root.
-   - Identify the main entry point(s) and primary source directories.
-   - Find the test directory/convention used.
-   - Identify any CI config (`.github/workflows/`, `Makefile` targets, etc.).
-   - Look for a deploy or run script.
+Before doing anything else, check that `project_path` exists:
 
-3. **Write `CLAUDE.md`** at `<project_path>/CLAUDE.md` using the structure below. Fill every section from code evidence — never invent details.
+```
+run: ls "<project_path>"
+```
 
-## CLAUDE.md structure
+If the command fails or the directory does not exist, return an error immediately:
+
+```
+Error: project_path "<project_path>" does not exist. Cannot proceed.
+```
+
+Do not continue past this step if `project_path` is invalid.
+
+### Step 2: Orient — discover major systems
+
+Read the top-level directory listing of `project_path` to identify major systems and components:
+
+```
+run: ls -la "<project_path>"
+```
+
+Examine the output. Identify distinct top-level directories and files that represent major systems or concerns — for example: API layers, workers, data models, CI/deploy scripts, frontend, backend, CLI, scripts directories, configuration directories, etc.
+
+**What counts as a major system:**
+Use the same heuristics as architecture section generation — primary source directories, entry points, CI/deploy scripts. Each distinct concern becomes one `investigation-agent` invocation. For small projects this may be 2–4 systems; for large ones, more.
+
+**If no clear system boundaries exist** (e.g., the project is a single flat directory with no obvious sub-systems), treat the entire project as one system and use the project name as the system name. Proceed with a single `investigation-agent` invocation.
+
+### Step 3: Ensure docs/docs/ directory exists
+
+Before invoking any investigation-agent, ensure the output directory exists:
+
+```
+run: mkdir -p "<project_path>/docs/docs"
+```
+
+If this command fails, return an error immediately:
+
+```
+Error: could not create docs/docs/ directory under "<project_path>". Cannot proceed.
+```
+
+### Step 4: Invoke investigation-agent per system
+
+For each major system identified:
+
+1. Invoke `investigation-agent` as a sub-agent (using Task tool) with:
+   - Agent path: `agents/documentation/agents/investigation-agent.md`
+   - The system name as the topic to investigate.
+   - `project_path` as context — instruct investigation-agent to operate within `project_path` and write its output to `<project_path>/docs/docs/<system-name>.md`.
+
+   Example invocation context to pass to investigation-agent:
+   ```
+   Investigate the "<system-name>" system within the project located at "<project_path>".
+   Treat "<project_path>" as the project root for all file reads and writes.
+   Write your documentation to "<project_path>/docs/docs/<system-name>.md".
+   Return the path to the file you wrote.
+   ```
+
+2. Collect the file paths returned by each `investigation-agent` invocation.
+
+3. If `investigation-agent` fails for a particular system:
+   - Log the failure: `Warning: investigation-agent failed for system "<system-name>". Skipping.`
+   - Skip that system.
+   - Continue processing remaining systems.
+
+After all systems are processed, you have a list `docs_written` of all `docs/docs/` files that were successfully written.
+
+### Step 5: Write minimal CLAUDE.md
+
+Derive `project_name` from `basename(project_path)`.
+
+Write `<project_path>/CLAUDE.md` with exactly this structure:
 
 ```markdown
-# <Project Name>
+# <project_name>
 
-One paragraph: what this project does and who it is for.
+<one-line description of the project derived from your investigation>
 
-## Architecture
+This project is documented in `docs/`. See:
 
-Short description of how it is structured (monolith, services, layers, etc.).
-List primary directories and their roles.
-
-## Key Entry Points
-
-| File | Purpose |
-|---|---|
-| path/to/file | what it does |
-
-## Development
-
-How to install dependencies, run the project locally, and run tests.
-
-## Deploy
-
-How code gets deployed (CI pipeline, manual script, etc.). Omit if not found.
-
-## Notes
-
-Anything non-obvious a new contributor needs to know (env vars required, quirks, known issues found in README).
+- `docs/docs/` — authoritative system documentation (source of truth for how this codebase works)
+- `docs/plans/` — implementation plans for completed and in-progress work
+- `docs/bugs/` — debugged and solved issues (audit logs)
 ```
+
+Rules for the CLAUDE.md content:
+- The `<project_name>` heading is exactly `basename(project_path)`.
+- The one-line description is a single sentence summarizing what the project does, derived from your investigation of the codebase. Keep it concise.
+- If all `investigation-agent` invocations failed (i.e., `docs_written` is empty), write the CLAUDE.md with generic pointer text only — use "A software project." as the one-line description placeholder.
+- Do NOT include: architecture sections, entry points tables, development instructions, deploy sections, notes sections. Those all live in `docs/docs/` files generated by `investigation-agent`.
+
+### Step 6: Return all written file paths
+
+Collect and return the complete list of all files written:
+- All `docs/docs/*.md` files written by `investigation-agent` invocations.
+- `<project_path>/CLAUDE.md`.
+
+Return these paths to the caller (init-orchestrator-agent).
 
 ## Output
 
-Return the path to the `CLAUDE.md` file written.
+Return all written file paths: `docs/docs/*.md` files and `CLAUDE.md`.
+
+## Error cases
+
+| Situation | Behavior |
+|---|---|
+| `project_path` does not exist | Return error immediately, do not proceed |
+| `docs/docs/` directory cannot be created | Return error immediately, do not proceed |
+| No clear system boundaries | Single `investigation-agent` call for the whole project |
+| `investigation-agent` fails for one system | Log failure, skip that system, continue with others |
+| All investigations fail | Write CLAUDE.md with generic pointer text only |
