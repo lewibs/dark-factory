@@ -38,5 +38,7 @@ claude plugin list
 
 | Command | Description |
 |---|---|
-| `/dark-factory:dark-factory` | Full orchestration — feature, debug, or fix-flow end-to-end |
+| `/dark-factory:manufacture` | Full orchestration — feature, debug, or fix-flow end-to-end |
+| `/dark-factory:repair` | Lightweight targeted fix — no planning phase |
 | `/dark-factory:init` | Initialize a new project with dark factory |
+| `/dark-factory:update` | Update the plugin to the latest version |
