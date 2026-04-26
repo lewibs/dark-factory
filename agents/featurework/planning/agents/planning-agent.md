@@ -32,7 +32,7 @@ Before presenting each stage gate and asking for approval, call PushNotification
 
 | Stage | What to produce | Gate |
 |---|---|---|
-| 1 | Mermaid diagram — use the `create-mermaid-diagram` skill; nodes, boundaries, labeled data flows | User approval required |
+| 1 | Mermaid diagram — invoke the skill at `skills/create-mermaid-diagram/SKILL.md`; nodes, boundaries, labeled data flows | User approval required |
 | 2+ | For each flow identified in the diagram: types (input/output shapes), paths table (happy path + error paths), pseudocode if the flow has non-obvious implementation details | One approval per flow |
 
 ## Scope rule

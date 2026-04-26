@@ -35,7 +35,7 @@ flowchart TD
 ### Flow: `debugBug`
 
 - Test files: `tests/`
-- Core files: `agents/debugger/agents/debugger-agent.md`, `agents/debugger/skills/debug/SKILL.md`, `agents/debugger/skills/debug/templates/bug-audit-log-template.md`
+- Core files: `agents/debugger/agents/debugger-agent.md`, `agents/debugger/skills/debug/SKILL.md`, `agents/debugger/skills/debug/templates/bug-audit-log-template.md`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -90,6 +90,8 @@ debugger-agent(bugDescription, scriptPaths?, previousBugFiles?):
 
   # Step 4: fill bug file
   populate bug-audit-log-template fields with gathered context
+  # bug-audit-log-template instructs use of skills/create-mermaid-diagram/SKILL.md for the
+  # "Steps to cause failure" and "System" diagrams
 
   # Step 5: reproduce
   write a failing reproduction test

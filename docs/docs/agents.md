@@ -103,7 +103,7 @@ StandardError {
 
 ### Flow: `featurework`
 
-- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/execution/agents/execution-agent.md`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`, `agents/featurework/execution/agents/execution-agent.md`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`, `agents/featurework/execution/skills/deviation-protocol/SKILL.md`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -135,7 +135,7 @@ ReviewDecision {
 | `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; feature-agent opens it in VS Code, reads and displays it inline, sends PushNotification, developer replies "yes" or "approve"; execution-agent implements |
 | `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer replies with feedback text; feature-agent re-invokes planning-agent with feedback, re-opens in VS Code, re-displays, re-prompts; loop repeats until explicit approval |
 | `featurework.abort` | `FeatureInput` | `StandardError` | `error` | Developer replies "abort" during plan review; feature-agent stops all work |
-| `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol and cannot self-resolve |
+| `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting |
 
 ---
 

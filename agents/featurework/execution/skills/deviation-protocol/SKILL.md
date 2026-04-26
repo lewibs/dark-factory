@@ -25,7 +25,7 @@ You must follow this skill exactly when invoked. Do not write any code from the 
 4. **If course-correct:**
    - Apply the developer's guidance to the plan file:
      - Update the affected flow contracts, pseudocode, or file structure as needed.
-     - If the architecture changed, invoke the `create-mermaid-diagram` skill to update the diagram.
+     - If the architecture changed, invoke the skill at `skills/create-mermaid-diagram/SKILL.md` to update the diagram.
      - Add an entry to the `## Deviations` section at the end of the plan (create the section if it does not exist):
        ```
        - Date: <today>
