@@ -5,11 +5,11 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `commands/`
-- Command count: 3 slash commands
+- Command count: 4 slash commands
 
 ## System Intent
 
-- What this is: The `commands/` directory contains the three Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent. Commands carry a `description` field for the Claude Code command picker and a single delegation line in the body.
+- What this is: The `commands/` directory contains the four Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent. Commands carry a `description` field for the Claude Code command picker and a single delegation line in the body.
 - Primary consumer(s): Developers invoking slash commands from the Claude Code interface.
 - Boundary: Commands only contain front-matter and a delegation line. All orchestration logic lives in `agents/`.
 
@@ -18,10 +18,12 @@
 ```mermaid
 flowchart TD
   Dev([Developer]) -->|/dark-factory:manufacture task| CMD_M[commands/manufacture.md]
+  Dev -->|/dark-factory:repair task| CMD_R[commands/repair.md]
   Dev -->|/dark-factory:init github_url?| CMD_I[commands/init.md]
   Dev -->|/dark-factory:update| CMD_U[commands/update.md]
 
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
+  CMD_R -->|delegates to| RA[agents/dark-factory/agents/repair-agent.md]
   CMD_I -->|delegates to| IOA[agents/initialization/agents/init-orchestrator-agent.md]
   CMD_U -->|runs directly| GIT[git pull + claude plugin update]
 ```
@@ -80,6 +82,39 @@ InitOutput {
 | --- | --- | --- | --- | --- |
 | `init.newRepo` | `InitInput{githubUrl}` | `InitOutput` | `happy path` | Clones repo, runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
 | `init.existingCWD` | `InitInput{void}` | `InitOutput` | `happy path` | Treats CWD as target; runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
+
+---
+
+### Flow: `repair`
+
+- Core files: `commands/repair.md`, `agents/dark-factory/agents/repair-agent.md`
+
+#### Types
+
+```txt
+RepairInput {
+  taskDescription: string (free-text description of what to fix, e.g. "fix null check in login handler")
+  taskName: string (optional — short slug; derived from taskDescription if omitted)
+}
+
+RepairOutput {
+  prUrl: string
+  merged: boolean
+}
+
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to repair-agent; implements change, runs tests, optionally updates docs, opens and merges PR |
+| `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retry attempts; cleanup runs |
+| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open or merge; cleanup runs |
+| `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no work dir to clean up |
 
 ---
 
