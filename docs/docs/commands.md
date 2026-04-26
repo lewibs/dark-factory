@@ -78,8 +78,8 @@ InitOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `init.newRepo` | `InitInput{githubUrl}` | `InitOutput` | `happy path` | Clones repo, runs init.sh, generates docs, opens PR |
-| `init.existingCWD` | `InitInput{void}` | `InitOutput` | `happy path` | Treats CWD as target; runs init.sh, generates docs, opens PR |
+| `init.newRepo` | `InitInput{githubUrl}` | `InitOutput` | `happy path` | Clones repo, runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
+| `init.existingCWD` | `InitInput{void}` | `InitOutput` | `happy path` | Treats CWD as target; runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
 
 ---
 
