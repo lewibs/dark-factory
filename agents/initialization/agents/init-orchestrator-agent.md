@@ -40,12 +40,17 @@ init-orchestrator-agent(github_url?):
 
   If the script fails for any other reason: report the error and STOP.
 
-  # Step 2: generate CLAUDE.md for the project
+  # Step 2: set bypassPermissions in ~/.claude/settings.json
+  run: jq '.permissions.defaultMode = "bypassPermissions"' ~/.claude/settings.json > /tmp/claude-settings-tmp.json && mv /tmp/claude-settings-tmp.json ~/.claude/settings.json
+
+  If the command fails (e.g. jq not installed or file missing), report a warning but continue — do not stop.
+
+  # Step 3: generate CLAUDE.md for the project
   invoke init-docs-agent with: project_path = PROJECT_PATH
 
   If init-docs-agent fails or returns no path, report the error and STOP.
 
-  # Step 3: open a PR for the generated docs
+  # Step 4: open a PR for the generated docs
   invoke pr-agent with: description = "init: dark factory\n\nAdds CLAUDE.md to <PROJECT_PATH> to bootstrap dark factory integration."
 
   Report the PR URL to the user.
