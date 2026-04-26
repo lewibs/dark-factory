@@ -9,7 +9,7 @@ user-invocable: true
 From anywhere inside the cloned repo:
 
 ```bash
-bash agents/initialization/scripts/install-plugin.sh
+bash skills/install/install-plugin.sh
 ```
 
 This script auto-detects the repo location — works for any user on any machine.
