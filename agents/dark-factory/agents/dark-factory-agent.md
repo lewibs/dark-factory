@@ -31,6 +31,7 @@ All paths are relative to the inner project dir (`dark_factory/dark_factory/` fr
 | `code-review-orchestrator-agent` | `agents/code-review/agents/code-review-orchestrator-agent.md` |
 | `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
 | `detect-drift-agent` | `agents/documentation/agents/detect-drift-agent.md` |
+| `skill-update-agent` | `agents/skill-update/agents/skill-update-agent.md` |
 | `pr-agent` | `agents/pr/agents/pr-agent.md` |
 
 ## Orchestration
@@ -80,6 +81,16 @@ dark-factory-agent(taskDescription, taskName):
     /clear
     STOP
 
+  # Step 4c — skill update (non-fatal)
+  try:
+    skillResult = invoke skill-update-agent with:
+      planFilePath = planFilePath
+      workDir      = WORK_DIR
+      taskSummary  = taskDescription
+    log "Skills written: " + skillResult.skillsWritten
+  catch error:
+    warn developer: "skill-update-agent failed: <error>. Continuing to PR."
+
   # Step 5 — PR
   invoke pr-agent with: planFilePath ?? taskDescription
 
@@ -94,7 +105,7 @@ dark-factory-agent(taskDescription, taskName):
   cleanup(WORK_DIR)
   /clear
 
-  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed."
+  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed. Skills written: <skillResult.skillsWritten>."
   STOP
 ```
 
