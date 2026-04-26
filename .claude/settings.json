@@ -1,4 +1,17 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$DARK_FACTORY_WORK_DIR\" ] && [ -n \"$DARK_FACTORY_TASK_NAME\" ]; then bash agents/dark-factory/scripts/cleanup-worktree.sh \"$DARK_FACTORY_WORK_DIR\" \"$DARK_FACTORY_TASK_NAME\"; fi"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "WebSearch",

@@ -4,8 +4,8 @@ user-invocable: true
 description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/debug/fix-flow), runs code review and doc housekeeping, opens a PR, then removes the work dir.
 tools: Read, Bash, Agent, PushNotification
 model: sonnet
-scripts: agents/dark-factory/scripts/prep-feature-dir.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(git worktree remove *), Bash(git branch -D *)
+scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
+allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -106,10 +106,7 @@ dark-factory-agent(taskDescription, taskName):
 ## cleanup(WORK_DIR, taskName)
 
 ```
-git worktree remove WORK_DIR --force
-git branch -D feature/<taskName>
-
-If either command fails: warn developer but do not halt — this is non-fatal.
+bash agents/dark-factory/scripts/cleanup-worktree.sh WORK_DIR taskName
 ```
 
 ## Classification rules
