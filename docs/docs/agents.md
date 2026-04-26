@@ -5,7 +5,7 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `agents/`
-- Agent count: 24 agent markdown files across 9 subsystems
+- Agent count: 26 agent markdown files across 10 subsystems
 
 ## System Intent
 
@@ -18,6 +18,11 @@
 ```mermaid
 flowchart TD
   User([Developer]) -->|/dark-factory:manufacture| DFA[dark-factory-agent]
+  User -->|/dark-factory:repair| RepA[repair-agent]
+  RepA -->|taskDescription| RepIA[repair-implementation-agent]
+  RepIA -->|success, significantChange| RepA
+  RepA -->|if significantChange| UDA2[update-documentation-agent]
+  RepA -->|taskDescription| PRA2[pr-agent]
 
   DFA -->|new feature| FA[feature-agent]
   DFA -->|broken flow| FFO[fix-flow-orchestrator]
@@ -309,6 +314,45 @@ PROutput {
 | `pr.merged` | `PRInput` | `PROutput{merged=true}` | `happy path` | PR opens, CI passes, squash-merge succeeds |
 | `pr.ciFailure` | `PRInput` | spawn `resolve-pr-issue` | `branch` | CI red; resolve-pr-issue fixes and pushes |
 | `pr.reviewComment` | `PRInput` | spawn `resolve-pr-issue` | `branch` | Unresolved review thread; resolve-pr-issue addresses and resolves |
+
+---
+
+### Flow: `repair`
+
+- Core files: `agents/dark-factory/agents/repair-agent.md`, `agents/repair/agents/repair-implementation-agent.md`, `commands/repair.md`
+
+#### Types
+
+```txt
+RepairInput {
+  taskDescription: string (verbatim user request — what to fix or change)
+  taskName: string (optional short slug; derived from taskDescription if omitted)
+}
+
+RepairImplementationOutput {
+  success: boolean
+  significantChange: boolean  -- true if change touches agents, skills, commands, or public APIs
+  error?: StandardError
+}
+
+RepairOrchestrationOutput {
+  prUrl: string
+  merged: boolean
+}
+
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `repair.success` | `RepairInput` | `RepairOrchestrationOutput{merged: true}` | `happy path` | change applied, tests pass, PR merged; doc update runs only if significantChange=true |
+| `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no cleanup needed |
+| `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; cleanup runs |
+| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails; cleanup runs |
 
 ## Logs
 

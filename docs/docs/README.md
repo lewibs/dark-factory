@@ -10,3 +10,4 @@
 | [initialize-project.md](./initialize-project.md) | Project onboarding flow: run init.sh, set permissions, generate docs/docs/ and CLAUDE.md, then open an "init: dark factory" PR |
 | [code-review.md](./code-review.md) | Automated code review: parallel high-level and low-level reviewers feed a resolver loop that runs until all issues are cleared |
 | [update-documentation.md](./update-documentation.md) | Post-implementation doc maintenance: identify affected flows, update or create docs/docs/ files to reflect what was built |
+| [repair.md](./repair.md) | Lightweight repair flow: targeted fix without planning — implements change, runs tests with up to 5 retries, optionally updates docs, and opens a PR |
