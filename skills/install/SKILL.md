@@ -9,7 +9,7 @@ user-invocable: true
 ```bash
 git clone https://github.com/lewibs/dark-factory
 cd dark-factory
-claude plugin marketplace add .
+claude plugin marketplace add "$(pwd)"
 claude plugin install dark-factory
 ```
 
