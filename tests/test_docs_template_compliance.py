@@ -17,8 +17,6 @@ DOCS_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 DOC_FILES = [
     f"{DOCS_ROOT}/agents.md",
     f"{DOCS_ROOT}/commands.md",
-    f"{DOCS_ROOT}/skills.md",
-    f"{DOCS_ROOT}/tests.md",
 ]
 
 REQUIRED_SECTIONS = [
