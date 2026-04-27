@@ -1,7 +1,7 @@
 {
-  "taskDescription": "Restructure the planning agent into a two-agent system: planning-agent (Haiku orchestrator) and sub-planning-agent (worker). The orchestrator tracks state, displays data to the user, and creates TodoWrite tasks via PreToolUse hook. The worker does all thinking and writing. Phases: draft plan, mermaid diagram (with URL), flows (one at a time).",
-  "taskName": "restructure-planning-agent",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-restructure-planning-agent",
+  "taskDescription": "the repair agent should be in the same flow as the other three. the orchestrator decides what type of fix it's doing. update the orchestrator to also use haiku instead since it's not doing anything in-depth.",
+  "taskName": "unify-repair-agent-flow",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-unify-repair-agent-flow",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "feature",
   "planFilePath": null,
