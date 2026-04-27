@@ -5,7 +5,7 @@ description: Top-level dark-factory orchestrator. Preps an isolated work dir, ro
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: sonnet
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *)
+allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 scripts/update-metrics.py *)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -61,11 +61,15 @@ dark-factory-agent(taskDescription, taskName):
 
   # brain.create — write brain.json immediately after WORK_DIR is captured
   Determine the classification string: one of "feature" | "fix-flow" | "debugger"
+  Capture the original git project root (not the worktree):
+    PROJECT_DIR = git rev-parse --show-toplevel  (run from CWD before cd-ing into WORK_DIR)
+
   Write $WORK_DIR/brain.json with this exact structure:
     {
       "taskDescription": "<taskDescription>",
       "taskName": "<taskName>",
       "workDir": "<WORK_DIR>",
+      "projectDir": "<PROJECT_DIR>",
       "classification": "<classification>",
       "planFilePath": null,
       "bugFiles": null,
@@ -149,6 +153,10 @@ dark-factory-agent(taskDescription, taskName):
   prUrl = brain.json.prUrl
 
   # Step 7 — cleanup
+  # metrics.flush — flush brain.json metrics to the permanent project-level CSV before deleting brain.json
+  PROJECT_DIR = brain.json.projectDir  (the original git project root — not the worktree; stored at brain.create time)
+  python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
+
   # brain.delete — remove brain.json before cleaning the worktree
   rm -f $WORK_DIR/brain.json
   cleanup(WORK_DIR, taskName)

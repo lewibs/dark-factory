@@ -38,14 +38,15 @@ ALL_PHASES_FALSE = {
 }
 
 
-def make_brain(phases=None):
+def make_brain(phases=None, metrics=None):
     base_phases = dict(ALL_PHASES_FALSE)
     if phases:
         base_phases.update(phases)
-    return {
+    brain = {
         "taskDescription": "test task",
         "taskName": "test",
         "workDir": "/tmp/test",
+        "projectDir": "/tmp/project",
         "classification": "feature",
         "planFilePath": None,
         "bugFiles": None,
@@ -54,6 +55,9 @@ def make_brain(phases=None):
         "skillsWritten": None,
         "phases": base_phases,
     }
+    if metrics is not None:
+        brain["metrics"] = metrics
+    return brain
 
 
 def run_hook(hook_path, stdin_payload, env_override=None):
@@ -200,6 +204,107 @@ class TestPreHookEmitsValidJson:
 
 
 # ---------------------------------------------------------------------------
+# pre-tool-use-hook.sh metrics capture tests
+# ---------------------------------------------------------------------------
+
+
+class TestPreHookCapturesStart:
+    """Flow: preHookCapturesStart"""
+
+    def test_agent_tool_writes_start_ms(self):
+        """preHookCapturesStart.agent-tool: Agent tool call writes start_ms to brain.json metrics."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain()
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Agent",
+                "tool_input": {
+                    "subagent_type": "planning-agent",
+                    "prompt": "do the thing",
+                },
+            }
+
+            result = run_hook(PRE_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+            assert "metrics" in updated
+            assert "planning-agent" in updated["metrics"]
+            assert "start_ms" in updated["metrics"]["planning-agent"]
+            assert isinstance(updated["metrics"]["planning-agent"]["start_ms"], int)
+
+    def test_skill_tool_writes_start_ms(self):
+        """preHookCapturesStart.skill-tool: Skill tool call writes start_ms to brain.json metrics."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain()
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Skill",
+                "tool_input": {
+                    "skill": "dark-factory:documentation",
+                },
+            }
+
+            result = run_hook(PRE_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+            assert "metrics" in updated
+            assert "dark-factory:documentation" in updated["metrics"]
+            assert "start_ms" in updated["metrics"]["dark-factory:documentation"]
+
+    def test_other_tool_is_noop(self):
+        """preHookCapturesStart.other-tool: non-Agent/Skill tools do not write metrics."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain()
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Bash",
+                "tool_input": {"command": "ls"},
+                "prompt": "run ls",
+            }
+
+            result = run_hook(PRE_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+            # No metrics section should exist (or it should be empty)
+            assert updated.get("metrics", {}) == {}
+
+    def test_no_brain_is_noop(self):
+        """preHookCapturesStart.no-brain: missing brain.json does not crash hook."""
+        env = dict(os.environ)
+        env.pop("DARK_FACTORY_WORK_DIR", None)
+
+        hook_input = {
+            "tool_name": "Agent",
+            "tool_input": {"subagent_type": "planning-agent", "prompt": "x"},
+        }
+
+        result = subprocess.run(
+            ["bash", PRE_HOOK],
+            input=json.dumps(hook_input),
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        assert result.returncode == 0
+
+
+# ---------------------------------------------------------------------------
 # post-tool-use-hook.sh tests
 # ---------------------------------------------------------------------------
 
@@ -321,3 +426,145 @@ class TestPostHookNoBrain:
         assert result.returncode == 0, f"stderr: {result.stderr}"
         # Plan requires only exit 0 and no file changes; stdout content is unspecified.
         # We do not assert stdout == "" to avoid brittleness if the hook is updated.
+
+
+# ---------------------------------------------------------------------------
+# post-tool-use-hook.sh metrics accumulation tests
+# ---------------------------------------------------------------------------
+
+
+class TestPostHookAccumulatesMetrics:
+    """Flow: postHookAccumulatesMetrics"""
+
+    def test_success_accumulates_elapsed_tokens_runs(self):
+        """postHookAccumulatesMetrics.success: elapsed_ms, tokens, and runs accumulate; start_ms deleted."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain(
+                metrics={"planning-agent": {"start_ms": 1000000000000, "elapsed_ms": 0, "tokens": 0, "runs": 0}}
+            )
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Agent",
+                "tool_input": {"subagent_type": "planning-agent", "prompt": "x"},
+                "tool_response": {
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+            }
+
+            result = run_hook(POST_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+
+            m = updated["metrics"]["planning-agent"]
+            assert m["runs"] == 1
+            assert m["tokens"] == 150
+            assert "elapsed_ms" in m
+            assert m["elapsed_ms"] >= 0  # elapsed computed from now - start_ms
+            assert "start_ms" not in m  # must be deleted
+
+    def test_missing_start_ms_uses_zero_elapsed(self):
+        """postHookAccumulatesMetrics.missing-start: absent start_ms results in elapsed_ms=0 but still counts."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain(metrics={})
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Skill",
+                "tool_input": {"skill": "dark-factory:documentation"},
+                "tool_response": {
+                    "usage": {"input_tokens": 200, "output_tokens": 100},
+                },
+            }
+
+            result = run_hook(POST_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+
+            m = updated["metrics"]["dark-factory:documentation"]
+            assert m["runs"] == 1
+            assert m["tokens"] == 300
+            # When start_ms is absent, elapsed must be 0 (not NOW_MS - 0 = epoch-sized value)
+            assert m["elapsed_ms"] == 0
+
+    def test_no_usage_field_defaults_tokens_to_zero(self):
+        """postHookAccumulatesMetrics.no-usage: missing usage field defaults tokens to 0."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain(metrics={})
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Agent",
+                "tool_input": {"subagent_type": "execution-agent", "prompt": "x"},
+                # No tool_response.usage
+                "tool_response": {},
+            }
+
+            result = run_hook(POST_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+
+            m = updated["metrics"]["execution-agent"]
+            assert m["tokens"] == 0
+            assert m["runs"] == 1
+
+    def test_other_tool_is_noop(self):
+        """postHookAccumulatesMetrics.other-tool: non-Agent/Skill calls do not touch metrics."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain(metrics={})
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Read",
+                "tool_input": {"file_path": "/tmp/foo"},
+                "tool_response": {"content": "hello"},
+            }
+
+            result = run_hook(POST_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+
+            assert updated.get("metrics", {}) == {}
+
+    def test_accumulation_across_multiple_calls(self):
+        """Multiple post-hook invocations for the same key accumulate correctly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            brain = make_brain(
+                metrics={"execution-agent": {"start_ms": 1000000000000, "elapsed_ms": 1000, "tokens": 100, "runs": 1}}
+            )
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            hook_input = {
+                "tool_name": "Agent",
+                "tool_input": {"subagent_type": "execution-agent", "prompt": "x"},
+                "tool_response": {"usage": {"input_tokens": 50, "output_tokens": 50}},
+            }
+
+            # Second invocation
+            result = run_hook(POST_HOOK, hook_input, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+
+            m = updated["metrics"]["execution-agent"]
+            assert m["runs"] == 2
+            assert m["tokens"] == 200  # 100 accumulated + 100 new

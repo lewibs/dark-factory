@@ -1,7 +1,7 @@
 {
-  "taskDescription": "Write real unit tests for the Claude Code hook scripts pre-tool-use-hook.sh and post-tool-use-hook.sh. Do NOT just read the code and assert strings exist — actually execute the scripts and assert their behavior. Tests must: (1) set up a real brain.json in a temp dir, (2) pipe real JSON to the scripts via stdin, (3) capture and assert stdout/stderr and file state changes. Cover: pre-hook injects brain state into prompt, pre-hook sets *-running phase flag, pre-hook exits cleanly when no brain.json exists, pre-hook emits valid JSON on stdout, post-hook merges brain-patch.json into brain.json, post-hook sets *-complete and clears *-running, post-hook deletes brain-patch.json after merge, post-hook exits cleanly when no brain.json exists. Tests should live in tests/test_hooks.py and use subprocess to actually invoke the shell scripts. Follow the same pytest style as tests/test_docs_template_compliance.py.",
-  "taskName": "hook-unit-tests",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-hook-unit-tests",
+  "taskDescription": "make a way to save data in a local file in the project dir. I think the project dir will be saved in the brain.\n\nbut ideally, all ai data will be saved in a .csv file with headers\n\nagent | skill | avg runtime | avg tokens | runs \n\nsince we count the runs, we can calculate the averages too. this should be used as a running total to see if updates help the system. I want to keep this file permanently. \n\ntry to do this deterministically where the agent calls a script in the hook which saves this data .\n\nhow would you do this? shoe me the plan when it's ready",
+  "taskName": "metrics-csv-tracking",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-metrics-csv-tracking",
   "classification": "feature",
   "planFilePath": null,
   "bugFiles": null,

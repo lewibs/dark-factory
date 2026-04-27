@@ -36,7 +36,8 @@ flowchart TD
   CodeReview --> UpdateDocs["update-documentation-agent"]
   UpdateDocs --> SkillUpdate["skill-update-agent (non-fatal)"]
   SkillUpdate --> PR["pr-agent"]
-  PR --> BrainDelete["rm brain.json"]
+  PR --> MetricsFlush["scripts/update-metrics.py\n(flush metrics.csv — non-fatal)"]
+  MetricsFlush --> BrainDelete["rm brain.json"]
   BrainDelete --> Cleanup["cleanup-worktree.sh"]
   Cleanup --> Done["Report: Done. PR: <url>"]
 ```
@@ -83,6 +84,8 @@ StandardError {
 | `manufacture.ambiguous` | `ManufactureInput` | paused | clarification | agent asks developer one question before routing |
 | `manufacture.worker-error` | `ManufactureInput` | `StandardError` | error | worker agent returns hard-stop; WORK_DIR cleaned up |
 | `manufacture.prep-fail` | `ManufactureInput` | `StandardError` | error | prep-feature-dir.sh fails; no cleanup (work dir never created); does not apply to repair route (no prep is run) |
+| `manufacture.metrics-flush` | brain.json with metrics section | metrics.csv upserted at `$PROJECT_DIR/metrics.csv` | happy path | runs before `rm -f brain.json`; non-fatal — `|| true` ensures failure never blocks cleanup |
+| `manufacture.metrics-flush-error` | scripts/update-metrics.py error | error logged to stderr; manufacture continues | error | Non-fatal; metrics failure never blocks a PR or worktree cleanup |
 
 #### Pseudocode
 
@@ -145,6 +148,11 @@ dark-factory-agent(taskDescription, taskName):
   prUrl = brain.json.prUrl
 
   # Step 7 — cleanup
+  # metrics.flush — flush accumulated brain.json metrics to permanent CSV before deleting brain.json
+  PROJECT_DIR = jq '.workDir' $WORK_DIR/brain.json
+  python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
+  # Non-fatal: metrics failure never blocks the PR or cleanup.
+
   # brain.delete — remove brain.json before cleaning the worktree
   rm -f $WORK_DIR/brain.json
   cleanup(WORK_DIR, taskName)
