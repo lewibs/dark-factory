@@ -6,18 +6,20 @@
 
 ## System Intent
 
-- What this is: A lightweight repair worker. Given a task description, it delegates implementation directly to `repair-implementation-agent` (no planning phase) and returns. Worktree prep, code review, documentation update, skills update, PR, and cleanup are all handled by the `dark-factory-agent` orchestrator. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
+- What this is: A lightweight repair worker. Given a task description, it delegates implementation directly to `repair-agent` (no planning phase) and returns. Worktree prep, code review, documentation update, skills update, PR, and cleanup are all handled by the `dark-factory-agent` orchestrator. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  DFA[dark-factory-agent\norchestrator] -->|taskDescription| RIA[repair-implementation-agent.md]
+  DFA[dark-factory-agent\norchestrator] -->|taskDescription| RA[repair-agent\nagents/dark-factory/agents/]
+  RA -->|taskDescription| RIA[repair-agent\nagents/repair/agents/]
   RIA -->|makes changes| CODE[Codebase Files]
   RIA -->|runs tests| TESTS[Test Suite]
   TESTS -->|pass| RIA
   TESTS -->|fail - fix and retry| RIA
-  RIA -->|success or failure| DFA
+  RIA -->|success or failure| RA
+  RA -->|returns to orchestrator| DFA
   DFA --> CRO[code-review-orchestrator-agent]
   CRO --> UDA[update-documentation-agent]
   UDA --> SUA[skill-update-agent]
@@ -30,7 +32,7 @@ flowchart TD
 
 ### Flow: `repairWorker`
 
-- Core files: `agents/repair/agents/repair-implementation-agent.md`
+- Core files: `agents/dark-factory/agents/repair-agent.md`
 
 #### Types
 
@@ -53,17 +55,17 @@ StandardError {
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
 | `repairWorker.success` | `RepairWorkerInput` | `RepairWorkerOutput{success: true}` | `happy path` | change applied, tests pass; orchestrator continues to code review, docs, PR, cleanup |
-| `repairWorker.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; orchestrator runs cleanup |
+| `repairWorker.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-agent returns success=false; repair-agent reports error; orchestrator runs cleanup |
 
 #### Pseudocode
 
 ```
-repair-implementation-agent(taskDescription):
+repair-agent(taskDescription):
 
   # Already inside the isolated worktree when invoked — no prep needed.
 
   # Step 1 — implement directly (no planning, no routing)
-  Apply the targeted change. Stay minimal — do not refactor or expand scope.
+  result = invoke repair-agent with: taskDescription
 
   If result.success == false:
     report result.error.message and STOP
@@ -76,7 +78,7 @@ repair-implementation-agent(taskDescription):
 
 ### Flow: `repairImplementation`
 
-- Core files: `agents/repair/agents/repair-implementation-agent.md`
+- Core files: `agents/repair/agents/repair-agent.md`
 
 #### Types
 
@@ -104,7 +106,7 @@ RepairImplementationOutput {
 #### Pseudocode
 
 ```
-repair-implementation-agent(taskDescription):
+repair-agent(taskDescription):
 
   # Step 1 — understand what needs to change
   Read relevant files. Identify the minimal set of files that need modification.
@@ -145,7 +147,8 @@ repair-implementation-agent(taskDescription):
 
 | Source | Location |
 |--------|----------|
-| repair-implementation-agent | stdout / Claude Code conversation |
+| repair-agent | stdout / Claude Code conversation |
+| repair-agent | stdout / Claude Code conversation |
 
 ## Deployment
 
