@@ -6,9 +6,9 @@
 
 ## System Intent
 
-- What this is: Hook-driven brain.json state management and metrics capture for dark-factory. Claude Code PreToolUse and PostToolUse hooks on the Agent and Skill tools automatically inject brain state into every sub-agent prompt, merge each sub-agent's output patch back into brain.json, and accumulate per-agent/skill runtime and token metrics into brain.json for later flush to metrics.csv. Phase transition flags (`*-running`, `*-complete`) are managed exclusively by the hooks — not by agent instruction text.
-- Primary consumer(s): dark-factory-agent (creates, exports, and deletes brain.json; flushes metrics.csv at cleanup); all sub-agents (write brain-patch.json with their specific outputs); pre-tool-use-hook.sh and post-tool-use-hook.sh (inject brain state, merge patches, and capture metrics).
-- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `.claude/settings.json` hooks configuration, `scripts/update-metrics.py`, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
+- What this is: Hook-driven brain.json state management, metrics capture, and per-agent TodoWrite checklist injection for dark-factory. Claude Code PreToolUse and PostToolUse hooks on the Agent and Skill tools automatically inject brain state into every sub-agent prompt, prepend a TodoWrite checklist instruction for known agents, merge each sub-agent's output patch back into brain.json, and accumulate per-agent/skill runtime and token metrics into brain.json for later flush to metrics.csv. Phase transition flags (`*-running`, `*-complete`) are managed exclusively by the hooks — not by agent instruction text.
+- Primary consumer(s): dark-factory-agent (creates, exports, and deletes brain.json; flushes metrics.csv at cleanup); all sub-agents (write brain-patch.json with their specific outputs); pre-tool-use-hook.sh and post-tool-use-hook.sh (inject brain state, inject checklists, merge patches, and capture metrics).
+- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `scripts/generate_checklist.sh`, `.claude/settings.json` hooks configuration, `scripts/update-metrics.py`, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
 
 ## Mermaid Diagram
 
@@ -19,8 +19,10 @@ graph TD
   DFA -->|invokes Agent/Skill tool| SubAgent[sub-agent]:::unchanged
   BrainFile -->|read by pre-hook| PreHook[pre-tool-use-hook.sh]:::created
   PreHook -->|injects brain context into prompt| SubAgent
+  PreHook -->|prepends TodoWrite checklist for known agents| SubAgent
   PreHook -->|sets *-running=true| BrainFile
   PreHook -->|writes start_ms for Agent/Skill| BrainFile
+  PreHook -->|calls| ChecklistScript[scripts/generate_checklist.sh]:::created
   SubAgent -->|writes specific outputs| BrainPatch[brain-patch.json]:::created
   BrainPatch -->|read by post-hook| PostHook[post-tool-use-hook.sh]:::created
   PostHook -->|merges patch + sets *-complete| BrainFile
@@ -98,6 +100,13 @@ pre-tool-use-hook.sh:
     NOW_MS = $(date +%s%3N)
     jq --arg key "$KEY" --argjson now $NOW_MS '.metrics[$key].start_ms = $now' brain.json > brain.tmp && mv brain.tmp brain.json
 
+  # Checklist injection: prepend TodoWrite instruction for known Agent sub-agents (see generateChecklist flow)
+  if TOOL_NAME == "Agent":
+    AGENT_NAME = jq '.tool_input.subagent_type' <<< TOOL_INPUT
+    if AGENT_NAME in AGENT_CHECKLISTS map:
+      CHECKLIST_JSON = bash scripts/generate_checklist.sh <items for AGENT_NAME>
+      TOOL_INPUT.tool_input.prompt = prepend checklist instruction to prompt
+
   # Inject brain context into agent prompt (Agent tool only)
   BRAIN_CONTEXT = jq -c '.' brain.json
   ORIGINAL_PROMPT = TOOL_INPUT | jq -r '.prompt'
@@ -106,6 +115,115 @@ pre-tool-use-hook.sh:
   # Output modified tool call — Claude Code reads stdout to override tool input
   TOOL_INPUT | jq --arg p "$NEW_PROMPT" '.prompt = $p'
 ```
+
+---
+
+### Flow: `generateChecklist`
+
+- Core files: `scripts/generate_checklist.sh`
+- Test files: `tests/test_generate_checklist.py`
+
+#### Types
+
+```txt
+GenerateChecklistInput {
+  args: string[] (positional shell arguments, one per checklist item)
+}
+
+GenerateChecklistOutput {
+  stdout: TodoWriteBody (JSON string)
+}
+
+TodoWriteBody {
+  todos: ChecklistItem[]
+}
+
+ChecklistItem {
+  id: string (1-based integer as string)
+  content: string
+  status: "pending"
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `generateChecklist.success` | >=1 args | TodoWriteBody with all items as pending, IDs 1-based strings | happy path | |
+| `generateChecklist.empty` | 0 args | `{"todos":[]}` | edge case | valid empty array |
+| `generateChecklist.single` | 1 arg | single-item TodoWriteBody | happy path | |
+| `generateChecklist.special-chars` | item with quotes or spaces | item content preserved verbatim | edge case | shell quoting preserves content |
+
+#### Pseudocode
+
+```
+#!/usr/bin/env bash
+# generate_checklist.sh "item1" "item2" ...
+items=("$@")
+printf '{"todos":['
+for i in "${!items[@]}"; do
+  id=$((i + 1))
+  content="${items[$i]}"
+  encoded=$(printf '%s' "$content" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  if [ "$i" -gt 0 ]; then printf ','; fi
+  printf '{"id":"%d","content":"%s","status":"pending"}' "$id" "$encoded"
+done
+printf ']}'
+```
+
+---
+
+### Flow: `preHookInjectsChecklist`
+
+- Core files: `agents/dark-factory/scripts/pre-tool-use-hook.sh`
+- Test files: `tests/test_generate_checklist.py`
+
+#### Types
+
+```txt
+HookInput {
+  tool_name: string
+  tool_input: {
+    subagent_type?: string   (for Agent tool calls)
+    prompt?: string
+  }
+}
+
+HookOutput {
+  tool_input.prompt: string  (modified with TodoWrite instruction prepended if agent is in map)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `preHookInjectsChecklist.known-agent` | Agent tool call with subagent_type matching a known agent | prompt prepended with TodoWrite instruction containing checklist JSON | happy path | script call hardcoded per agent |
+| `preHookInjectsChecklist.unknown-agent` | Agent tool call with subagent_type not in map | prompt unchanged (only brain injection) | happy path | falls through to existing brain inject logic |
+| `preHookInjectsChecklist.no-brain` | DARK_FACTORY_WORK_DIR not set | stdin passed through unchanged | happy path | existing no-brain path, no checklist added |
+| `preHookInjectsChecklist.non-agent-tool` | tool_name != Agent | no checklist injection | happy path | hook only intercepts Agent tool |
+
+#### Known Agent Checklist Map
+
+| Agent | Checklist Items |
+|-------|----------------|
+| `dark-factory-agent` | Classify task, Prep work dir, Run worker agent, Code review, Update docs, Update skills, Open PR, Cleanup |
+| `feature-agent` | Plan feature, Get plan approval, Execute plan |
+| `execution-agent` | Build skeleton, Write tests, Implement flows |
+| `skeleton-agent` | Read plan, Build files checklist, Create skeleton files |
+| `testing-agent` | Read plan, Build flows checklist, Write failing tests |
+| `implementation-agent` | Read plan, Implement each flow, Run tests |
+| `planning-agent` | Explore codebase, Draft Mermaid diagram, Define I/O contracts, Write acceptance criteria, Get approval |
+| `code-review-orchestrator-agent` | Run high-level review, Run low-level review, Resolve issues |
+| `high-level-review-agent` | Read plan, Review code structure, Append issues |
+| `low-level-review-agent` | Review functions, Check edge cases, Append issues |
+| `resolver-agent` | Read issues, Apply fixes, Check off resolved items |
+| `debugger-agent` | Reproduce bug, Identify root cause, Apply fix, Write audit log |
+| `pr-agent` | Open PR, Wait for CI, Address review comments |
+| `update-documentation-agent` | Identify affected docs, Update stale content, Add new information |
+| `skill-update-agent` | Review completed work, Identify patterns, Write skill files |
+| `repair-agent` | Apply fix, Run tests, Open PR |
+| `fix-flow-orchestrator` | Understand system, Generate scripts, Run flow, Debug failures, Ship PR |
 
 ---
 
@@ -315,7 +433,7 @@ BrainPatch {
 
 ## Testing
 
-The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. Each test executes the actual shell script via `subprocess.run()` and asserts real outcomes: stdout content, brain.json file state, and exit codes.
+The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py` and `tests/test_generate_checklist.py`. Each test executes the actual shell script via `subprocess.run()` and asserts real outcomes: stdout content, brain.json file state, and exit codes.
 
 | Test class | Flow covered | Script under test |
 |---|---|---|
@@ -327,11 +445,19 @@ The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. 
 | `TestPostHookSetsCompleteAndClearsRunning` | `post_hook.phase.success`, `post_hook.phase.no_running` | `post-tool-use-hook.sh` |
 | `TestPostHookNoBrain` | `post_hook.no_brain.success` | `post-tool-use-hook.sh` |
 | `TestPostHookAccumulatesMetrics` | `post-hook.accumulate-metrics-success`, `post-hook.accumulate-metrics-missing-start`, `post-hook.accumulate-metrics-no-usage`, `post-hook.accumulate-metrics-other-tool` | `post-tool-use-hook.sh` |
+| `TestGenerateChecklistSuccess` | `generateChecklist.success` | `scripts/generate_checklist.sh` |
+| `TestGenerateChecklistEmpty` | `generateChecklist.empty` | `scripts/generate_checklist.sh` |
+| `TestGenerateChecklistSingle` | `generateChecklist.single` | `scripts/generate_checklist.sh` |
+| `TestGenerateChecklistSpecialChars` | `generateChecklist.special-chars` | `scripts/generate_checklist.sh` |
+| `TestPreHookInjectsChecklistKnownAgent` | `preHookInjectsChecklist.known-agent` | `pre-tool-use-hook.sh` |
+| `TestPreHookInjectsChecklistUnknownAgent` | `preHookInjectsChecklist.unknown-agent` | `pre-tool-use-hook.sh` |
+| `TestPreHookInjectsChecklistNoBrain` | `preHookInjectsChecklist.no-brain` | `pre-tool-use-hook.sh` |
+| `TestPreHookInjectsChecklistNonAgentTool` | `preHookInjectsChecklist.non-agent-tool` | `pre-tool-use-hook.sh` |
 
 Run the tests with:
 
 ```bash
-pytest tests/test_hooks.py -v
+pytest tests/test_hooks.py tests/test_generate_checklist.py -v
 ```
 
 Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `brain.json` using the `make_brain()` helper, invokes the hook via `run_hook()`, and asserts the resulting file state and/or stdout/stderr content. `DARK_FACTORY_WORK_DIR` is set or cleared via `env_override` to control whether hooks see a brain file.
@@ -340,7 +466,8 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
 
 | Source | Location |
 |--------|----------|
-| pre-tool-use-hook.sh | stderr only (errors, phase-running events, and metrics start captures e.g. `pre-tool-use-hook \| metrics-capture \| key=feature-agent start_ms=1234567890`); stdout reserved for modified tool input JSON |
+| pre-tool-use-hook.sh | stderr only (errors, phase-running events, metrics start captures, and checklist injection events e.g. `pre-tool-use-hook \| checklist-inject \| agent=feature-agent`); stdout reserved for modified tool input JSON |
+| pre-tool-use-hook.sh checklist skip | stderr: `pre-tool-use-hook \| checklist-skip \| agent=<name>` when agent not in map |
 | post-tool-use-hook.sh | stderr only (merge-patch events, phase-complete events, warnings, and metrics accumulation e.g. `post-tool-use-hook \| metrics-accumulate \| key=feature-agent elapsed_ms=4523 tokens=12400 runs=1`) |
 | update-metrics.py flush | stderr — `update-metrics \| flush \| rows=3 csv=/path/metrics.csv`; non-fatal errors also to stderr |
 | brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — readable at any point during a run; deleted at cleanup after metrics flush |
@@ -354,6 +481,7 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
   # Hook scripts must be executable:
   chmod +x agents/dark-factory/scripts/pre-tool-use-hook.sh
   chmod +x agents/dark-factory/scripts/post-tool-use-hook.sh
+  chmod +x scripts/generate_checklist.sh
   # All changes take effect immediately after files are written.
   ```
-- Notes: Hook scripts must be executable (`chmod +x`). The `.claude/settings.json` hooks section must be valid JSON. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops.
+- Notes: Hook scripts must be executable (`chmod +x`). `generate_checklist.sh` must also be executable — the pre-hook calls it directly. The `.claude/settings.json` hooks section must be valid JSON. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops.
