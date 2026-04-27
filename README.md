@@ -28,9 +28,15 @@ For a deeper look at how it works, see the [system documentation](https://github
 ## Install
 
 ```sh
-git clone https://github.com/lewibs/dark-factory
-cd dark-factory
-claude plugin marketplace add "$(pwd)"
+claude plugin marketplace add https://github.com/lewibs/dark-factory
+claude plugin install dark-factory
+```
+
+## Update
+
+```sh
+claude plugin marketplace update dark-factory
+claude plugin uninstall dark-factory
 claude plugin install dark-factory
 ```
 
