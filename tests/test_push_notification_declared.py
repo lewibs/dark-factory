@@ -14,10 +14,13 @@ import pytest
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Agent files known to call PushNotification in their body.
-# These are the 8 agents identified in docs/bugs/2026-04-25-push-notification-missing-from-tools.md
+# Originally 8 agents (docs/bugs/2026-04-25-push-notification-missing-from-tools.md).
+# planning-agent was removed from this list because all PushNotification calls moved to
+# feature-agent as part of the planning-approval-gate fix
+# (docs/bugs/2026-04-27-planning-approval-gate-bypassed.md).
+# planning-agent is now a pure phase-delegator with no user interaction.
 AGENTS_USING_PUSH_NOTIFICATION = [
     "agents/featurework/agents/feature-agent.md",
-    "agents/featurework/planning/agents/planning-agent.md",
     "agents/featurework/execution/agents/execution-agent.md",
     "agents/fix-flow/agents/fix-flow-orchestrator.md",
     "agents/fix-flow/agents/ralph-fix-and-push.md",
