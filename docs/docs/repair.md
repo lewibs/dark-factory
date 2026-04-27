@@ -6,46 +6,43 @@
 
 ## System Intent
 
-- What this is: A lightweight repair orchestrator. Given a task description, it creates an isolated work directory, delegates implementation directly to `repair-implementation-agent` (no planning phase), optionally updates documentation for significant changes, opens a PR (pr-agent returns it as ready), merges it, then cleans up. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
+- What this is: A lightweight repair worker. Given a task description, it delegates implementation directly to `repair-implementation-agent` (no planning phase) and returns. Worktree prep, code review, documentation update, skills update, PR, and cleanup are all handled by the `dark-factory-agent` orchestrator. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  User([Developer]) -->|/dark-factory:repair| CMD[commands/repair.md]
-  CMD -->|taskDescription, taskName| RA[repair-agent.md]
-  RA -->|taskName| PREP[prep-feature-dir.sh]
-  PREP -->|WORK_DIR| RA
+  DFA[dark-factory-agent\norchestrator] -->|taskDescription| RA[repair-agent.md]
   RA -->|taskDescription| RIA[repair-implementation-agent.md]
   RIA -->|makes changes| CODE[Codebase Files]
   RIA -->|runs tests| TESTS[Test Suite]
   TESTS -->|pass| RIA
   TESTS -->|fail - fix and retry| RIA
-  RIA -->|success, significantChange| RA
-  RA -->|if significantChange| UDA[update-documentation-agent]
-  UDA --> RA
-  RA -->|taskDescription| PRA[pr-agent]
-  PRA -->|pr_url, status: ready| RA
-  RA -->|cleanup| CLEANUP[rm -rf WORK_DIR]
-  CLEANUP --> Done([Done])
+  RIA -->|success or failure| RA
+  RA -->|returns to orchestrator| DFA
+  DFA --> CRO[code-review-orchestrator-agent]
+  CRO --> UDA[update-documentation-agent]
+  UDA --> SUA[skill-update-agent]
+  SUA --> PRA[pr-agent]
+  PRA --> Cleanup[cleanup-worktree.sh]
+  Cleanup --> Done([Done])
 ```
 
 ## Flows
 
-### Flow: `repairOrchestration`
+### Flow: `repairWorker`
 
-- Core files: `agents/dark-factory/agents/repair-agent.md`, `commands/repair.md`
+- Core files: `agents/dark-factory/agents/repair-agent.md`
 
 #### Types
 
 ```txt
-RepairInput {
+RepairWorkerInput {
   taskDescription: string (verbatim user request — what to fix or change)
-  taskName: string (short slug for the work dir, e.g. "fix-login-bug"; derived if omitted)
 }
 
-RepairOrchestrationOutput {
-  prUrl: string
+RepairWorkerOutput {
+  success: boolean
 }
 
 StandardError {
@@ -57,51 +54,24 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repairOrchestration.success` | `RepairInput` | `RepairOrchestrationOutput` | `happy path` | change applied, tests pass, PR opened (pr-agent returns ready), repair-agent merges |
-| `repairOrchestration.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no cleanup needed (work dir never created) |
-| `repairOrchestration.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false; cleanup runs before halt |
-| `repairOrchestration.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs before halt |
+| `repairWorker.success` | `RepairWorkerInput` | `RepairWorkerOutput{success: true}` | `happy path` | change applied, tests pass; orchestrator continues to code review, docs, PR, cleanup |
+| `repairWorker.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false; repair-agent reports error; orchestrator runs cleanup |
 
 #### Pseudocode
 
 ```
-repair-agent(taskDescription, taskName):
+repair-agent(taskDescription):
 
-  # Step 1 — derive taskName if not provided
-  if taskName not provided:
-    taskName = slugify(taskDescription, maxLen=30)
+  # Already inside the isolated worktree when invoked — no prep needed.
 
-  # Step 2 — prep isolated work dir
-  Run from the outer wrapper (dark_factory/):
-    bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
-  Capture WORK_DIR from stdout line: WORK_DIR=<value>
-  If script fails: report error and STOP (no cleanup needed)
-
-  # Step 3 — implement directly (no planning, no routing)
-  cd into WORK_DIR
+  # Step 1 — implement directly (no planning, no routing)
   result = invoke repair-implementation-agent with: taskDescription
+
   If result.success == false:
-    run cleanup(WORK_DIR)
     report result.error.message and STOP
 
-  # Step 4 — optionally update docs
-  If result.significantChange == true:
-    invoke update-documentation-agent with: taskDescription
-    (non-fatal: if it errors, warn and continue)
-
-  # Step 5 — PR
-  invoke pr-agent with: taskDescription
-  // pr-agent returns { pr_url, status: "ready" } — caller is responsible for merge
-  If pr-agent errors:
-    run cleanup(WORK_DIR)
-    report error and STOP
-  prUrl = result.pr_url
-  merge PR (squash-merge and delete branch)
-
-  # Step 6 — cleanup
-  cleanup(WORK_DIR)
-  Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed."
-  STOP
+  Return: success
+  # Orchestrator (dark-factory-agent) handles code review, docs, skills, PR, and cleanup.
 ```
 
 ---

@@ -16,6 +16,17 @@ Any time a new route is added to `dark-factory-agent.md` where the target agent 
 
 ## Notes
 
-- The repair-agent is the canonical example: it calls `prep-feature-dir.sh` itself and returns `{ prUrl }`. The orchestrator's repair route appears before Step 2 and terminates with `STOP` after capturing `prUrl`.
 - Self-managed routes also intentionally skip code review, skill-update-agent, and the full doc cycle. Document these omissions explicitly in the route comment so future readers know the skips are deliberate, not accidental.
-- Agents that do NOT manage their own worktree (feature-agent, debugger-agent, fix-flow-orchestrator) should not be placed before Step 2, because they rely on the orchestrator's worktree and cleanup.
+- Agents that do NOT manage their own worktree (feature-agent, debugger-agent, fix-flow-orchestrator, repair-agent) should not be placed before Step 2, because they rely on the orchestrator's worktree and cleanup.
+- **Historical note:** repair-agent was previously a self-managed route (called `prep-feature-dir.sh` internally and short-circuited the orchestrator). It was unified into the full orchestrator flow in April 2026. The repair-agent is no longer a self-managed route — it is invoked in Step 3 like any other worker and relies on the orchestrator for worktree, review, docs, skills, PR, and cleanup.
+
+## Inverse: unifying a self-managed route back into the orchestrator
+
+When an agent that previously used the early-exit pattern is folded back into the full orchestrator flow, reverse all of the steps above:
+
+1. Remove the early-exit block from the orchestrator (the block that appears before Step 2 and ends with `STOP`).
+2. Add the route to the Step 3 routing table (alongside other workers).
+3. Update the brain.json `classification` field comment to include the new classification value.
+4. Update the worker agent's description (frontmatter and prose) to clarify that it no longer manages its own worktree, PR, or cleanup — the orchestrator does.
+5. Remove any `prep-feature-dir.sh` call and PR/cleanup logic from the worker agent itself.
+6. Verify the worker agent's `tools:` list does not include tools it no longer needs (e.g. if it previously used `Bash` only for `prep-feature-dir.sh` and cleanup scripts, those can be removed if no other Bash usage remains).

@@ -6,29 +6,31 @@
 
 ## System Intent
 
-- What this is: The top-level user-facing orchestration flow. Given a task description, classifies the request and routes to the correct worker agent (repair, feature, debugger, or fix-flow). Repair tasks short-circuit before worktree prep and delegate entirely to `repair-agent`. All other routes create an isolated work directory, run code review, update documentation, update skills, open a PR, and clean up — all without manual intervention.
+- What this is: The top-level user-facing orchestration flow. Given a task description, classifies the request and routes to the correct worker agent (repair, feature, debugger, or fix-flow). All routes — including repair — create an isolated work directory, run code review, update documentation, update skills, open a PR, and clean up without manual intervention.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  User["User: /dark-factory:manufacture <task>"] --> DarkFactory["dark-factory-agent"]
+  User["User: /dark-factory:manufacture <task>"] --> DarkFactory["dark-factory-agent\n(model: haiku)"]
   DarkFactory --> Classify{Classify task}
-  Classify -->|repair signals| RepairAgent["repair-agent\n(manages own worktree + PR)"]
-  RepairAgent --> Done2["Report: Done. PR: <url>"]
-  Classify -->|new feature| Prep["prep-feature-dir.sh\n(creates isolated WORK_DIR)"]
+  Classify -->|repair signals| Prep["prep-feature-dir.sh\n(creates isolated WORK_DIR)"]
+  Classify -->|new feature| Prep
   Classify -->|bug/crash/fix| Prep
   Classify -->|broken integration flow| Prep
   Classify -->|ambiguous| Push["PushNotification: Clarification Required"]
   Push --> User2["Ask developer one question"]
   Prep --> BrainCreate["Write brain.json\n(export DARK_FACTORY_WORK_DIR)"]
+  BrainCreate --> RepairAgent["repair-agent"]
   BrainCreate --> Feature["feature-agent"]
   BrainCreate --> Debug["debugger-agent"]
   BrainCreate --> FixFlow["fix-flow-orchestrator"]
-  PreHook["pre-tool-use-hook.sh\n(injects brain state + sets *-running)"] -.->|fires before each Agent call| Feature
+  PreHook["pre-tool-use-hook.sh\n(injects brain state + sets *-running)"] -.->|fires before each Agent call| RepairAgent
+  PreHook -.->|fires before each Agent call| Feature
   PreHook -.->|fires before each Agent call| Debug
   PreHook -.->|fires before each Agent call| FixFlow
-  Feature -->|writes brain-patch.json| PostHook["post-tool-use-hook.sh\n(merges patch + sets *-complete)"]
+  RepairAgent -->|writes brain-patch.json| PostHook["post-tool-use-hook.sh\n(merges patch + sets *-complete)"]
+  Feature -->|writes brain-patch.json| PostHook
   Debug -->|writes brain-patch.json| PostHook
   FixFlow -->|writes brain-patch.json| PostHook
   PostHook --> ReadBrain["Read brain.json\n(planFilePath, prUrl from hooks)"]
@@ -77,13 +79,13 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `manufacture.repair` | `ManufactureInput` | `{ prUrl: string }` | happy path | taskDescription signals repair (small change / tweak / rename / minor update / quick fix / adjust / alter); delegates to repair-agent which manages its own worktree and PR; short-circuits before prep |
+| `manufacture.repair` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals repair (small change / tweak / rename / minor update / quick fix / adjust / alter); preps worktree, delegates to repair-agent, then runs full review, docs, skills, PR, and cleanup — same as all other routes |
 | `manufacture.feature` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals new feature; routes to feature-agent |
 | `manufacture.debug` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals bug/crash; routes to debugger-agent |
 | `manufacture.fix-flow` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals broken integration; routes to fix-flow-orchestrator |
 | `manufacture.ambiguous` | `ManufactureInput` | paused | clarification | agent asks developer one question before routing |
 | `manufacture.worker-error` | `ManufactureInput` | `StandardError` | error | worker agent returns hard-stop; WORK_DIR cleaned up |
-| `manufacture.prep-fail` | `ManufactureInput` | `StandardError` | error | prep-feature-dir.sh fails; no cleanup (work dir never created); does not apply to repair route (no prep is run) |
+| `manufacture.prep-fail` | `ManufactureInput` | `StandardError` | error | prep-feature-dir.sh fails; no cleanup (work dir never created) |
 | `manufacture.metrics-flush` | brain.json with metrics section | metrics.csv upserted at `$PROJECT_DIR/metrics.csv` | happy path | runs before `rm -f brain.json`; non-fatal — `|| true` ensures failure never blocks cleanup |
 | `manufacture.metrics-flush-error` | scripts/update-metrics.py error | error logged to stderr; manufacture continues | error | Non-fatal; metrics failure never blocks a PR or worktree cleanup |
 
@@ -94,18 +96,13 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 1 — classify and route
   classify taskDescription (first match wins):
-    - repair signals ("small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter"):
-        result = invoke repair-agent(taskDescription, taskName)
-        if result is error: report error, STOP
-        report "Done. PR: <result.prUrl>."
-        STOP  # repair-agent manages its own worktree, PR, and cleanup — no further steps
-
+    - repair signals ("small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter") → will route to repair-agent (Step 3)
     - feature keywords ("add", "build", "create", "implement", "new feature") → will route to feature-agent (Step 3)
     - flow keywords ("broken flow", "integration failing", "end-to-end", "pipeline") → will route to fix-flow-orchestrator (Step 3)
     - bug keywords ("bug", "crash", "error", "fix", "broken", "not working", "debug") → will route to debugger-agent (Step 3)
     - ambiguous → PushNotification("Clarification Required"), ask developer one question, then route
 
-  # Step 2 — prep work dir (feature / fix-flow / debugger routes only)
+  # Step 2 — prep work dir (all routes)
   bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
   capture WORK_DIR from stdout
   if fail: report error, STOP
@@ -121,7 +118,11 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 3 — delegate to worker
   cd WORK_DIR
-  invoke classified worker agent with taskDescription
+  invoke classified worker agent with taskDescription:
+    - repair signals → repair-agent(taskDescription)
+    - feature → feature-agent(taskDescription)
+    - fix-flow → fix-flow-orchestrator(taskDescription)
+    - debugger → debugger-agent(taskDescription)
   if worker errors: cleanup(WORK_DIR), STOP
 
   # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)

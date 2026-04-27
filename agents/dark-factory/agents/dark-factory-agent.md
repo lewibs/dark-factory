@@ -1,9 +1,9 @@
 ---
 name: dark-factory-agent
 user-invocable: true
-description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/debug/fix-flow), runs code review and doc housekeeping, opens a PR, then removes the work dir.
+description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir.
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
-model: sonnet
+model: haiku
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
 allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 scripts/update-metrics.py *)
 ---
@@ -42,17 +42,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 1 — classify and route
   Classify taskDescription using the Classification rules table below.
 
-  # Repair route: repair-agent manages its own worktree, PR, and cleanup internally.
-  # Do NOT prep a worktree; just invoke repair-agent and stop.
-  If classified as repair (small change, tweak, rename, minor update, quick fix, adjust, alter):
-    result = invoke repair-agent with: taskDescription, taskName
-    If result is error or hard-stop:
-      report error and STOP
-    prUrl = result.prUrl
-    Report: "Done. PR: <prUrl>."
-    STOP
-
-  # Step 2 — prep isolated work dir (feature / fix-flow / debugger routes only)
+  # Step 2 — prep isolated work dir (all routes)
   Run from the project root (git repo):
     bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
 
@@ -60,7 +50,7 @@ dark-factory-agent(taskDescription, taskName):
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
   # brain.create — write brain.json immediately after WORK_DIR is captured
-  Determine the classification string: one of "feature" | "fix-flow" | "debugger"
+  Determine the classification string: one of "feature" | "fix-flow" | "debugger" | "repair"
   Capture the original git project root (not the worktree):
     PROJECT_DIR = git rev-parse --show-toplevel  (run from CWD before cd-ing into WORK_DIR)
 
@@ -104,6 +94,7 @@ dark-factory-agent(taskDescription, taskName):
     - New feature or capability → invoke feature-agent with taskDescription
     - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription
     - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription
+    - Small change / tweak / rename / quick fix → invoke repair-agent with taskDescription
 
   If worker returns error or hard-stop:
     run cleanup(WORK_DIR)
