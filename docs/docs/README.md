@@ -11,3 +11,4 @@
 | [code-review.md](./code-review.md) | Automated code review: parallel high-level and low-level reviewers feed a resolver loop that runs until all issues are cleared |
 | [update-documentation.md](./update-documentation.md) | Post-implementation doc maintenance: identify affected flows, update or create docs/docs/ files to reflect what was built |
 | [repair.md](./repair.md) | Lightweight repair flow: targeted fix without planning — implements change, runs tests with up to 5 retries, optionally updates docs, and opens a PR |
+| [mermaid-to-image.md](./mermaid-to-image.md) | Script that extracts a Mermaid block from a plan file, base64-encodes it, and returns a mermaid.ink URL; called by planning-agent to push a tappable diagram link to the developer's phone |

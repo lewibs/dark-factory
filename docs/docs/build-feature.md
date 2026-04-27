@@ -14,6 +14,9 @@
 flowchart TD
   Input["feature-agent(description)"] --> Plan["planning-agent\n(Mermaid diagram → flow contracts → pseudocode)"]
   Plan --> PlanFile["docs/plans/<date>-<slug>.md"]
+  PlanFile --> MermaidScript["python3 scripts/mermaid_to_image.py\n(optional URL push)"]
+  MermaidScript -->|URL| PushDiagram["PushNotification: Plan diagram URL"]
+  MermaidScript -->|no block / error| PlanFile2["continue silently"]
   PlanFile --> Push1["PushNotification: Plan Approval Required"]
   Push1 --> Gate{Developer approval}
   Gate -->|feedback| Plan
@@ -57,7 +60,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planFeature.success` | `PlanFeatureInput` | `PlanFeatureOutput` | happy path | planning-agent invokes `skills/create-mermaid-diagram/SKILL.md` to produce the diagram, writes plan, opens it in VSCode, returns planPath |
+| `planFeature.success` | `PlanFeatureInput` | `PlanFeatureOutput` | happy path | planning-agent invokes `skills/create-mermaid-diagram/SKILL.md` to produce the diagram, writes plan, opens it in VSCode, runs `scripts/mermaid_to_image.py` and pushes the diagram URL to the developer's phone via PushNotification, returns planPath |
 | `planFeature.error` | `PlanFeatureInput` | `StandardError` | error | planning-agent fails or returns no planPath |
 
 ### Flow: `approveFeature`
