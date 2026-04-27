@@ -9,7 +9,7 @@
       "description": "Reusable skills and agents for feature work, debugging, PR management, documentation, and fix flows.",
       "source": {
         "source": "url",
-        "url": "https://github.com/lewibs/skills.git"
+        "url": "https://github.com/lewibs/dark-factory.git"
       }
     }
   ]
