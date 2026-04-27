@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The full PR lifecycle flow. Takes already-applied code changes, stages everything, opens a PR from a plan or description, waits for CI, resolves CI failures and review threads in a loop, then squash-merges the PR and cleans up the branch.
+- What this is: The PR preparation flow. Takes already-applied code changes, stages everything, opens a PR from a plan or description, runs a CI watch loop, resolves CI failures and review threads in explicit named loops, then returns the PR URL with status `"ready"` for the caller to merge. Merging is not performed by pr-agent.
 
 ## Mermaid Diagram
 
@@ -15,21 +15,22 @@ flowchart TD
   Input["pr-agent(planFilePath or description)"] --> BuildBody["Build PR body from pr-template.md\n(paste plan content verbatim)"]
   BuildBody --> RunTests["Run test suite (if exists)"]
   RunTests --> OpenPR["Write /tmp/pr-body.md\ngh pr create --body-file /tmp/pr-body.md"]
-  OpenPR --> WatchCI["Wait for CI checks"]
-  WatchCI -->|pass| ReviewThreads{Unresolved\nreview threads?}
-  WatchCI -->|fail| ResolvCI["resolve-pr-issue(PR URL, failing run)"]
-  ResolvCI -->|fixed| WatchCI
-  ResolvCI -->|skipped quota| ReviewThreads
-  ReviewThreads -->|yes| ResolvThread["resolve-pr-issue(PR URL, threadId)"]
-  ResolvThread --> WatchCI
-  ReviewThreads -->|no| Merge["gh pr merge --squash --delete-branch"]
-  Merge --> Cleanup["git checkout main && git pull\ngit branch -d <branch>\ngit push origin --delete <branch>"]
-  Cleanup --> Done["Return { pr_url, merged: true }"]
+  OpenPR --> CILoop["ciWatchLoop(pr_url)"]
+  CILoop -->|pass| CommentLoop["commentResolutionLoop(pr_url, pr_node_id)"]
+  CILoop -->|fail - fixable| ResolvCI["resolve-pr-issue(PR URL, failing run)"]
+  ResolvCI -->|fixed| CILoop
+  ResolvCI -->|skipped quota| CommentLoop
+  CILoop -->|unfixable / max iterations| Error["STOP with error"]
+  CommentLoop -->|unresolved threads| ResolvThread["resolve-pr-issue(PR URL, threadId)"]
+  ResolvThread -->|fixed| CILoop2["ciWatchLoop re-check"]
+  CILoop2 --> CommentLoop
+  CommentLoop -->|unfixable / max iterations| Error
+  CommentLoop -->|all resolved| Done["Return { pr_url, status: 'ready' }"]
 ```
 
 ## Flows
 
-### Flow: `openAndMergePR`
+### Flow: `openPR`
 
 - Core files: `agents/pr/agents/pr-agent.md`, `agents/pr/skills/create-pr/SKILL.md`, `agents/pr/templates/pr-template.md`, `agents/pr/agents/resolve-pr-issue.md`
 
@@ -42,7 +43,7 @@ OpenPRInput {
 
 OpenPROutput {
   pr_url: string
-  merged: true
+  status: "ready"
 }
 
 StandardError {
@@ -54,11 +55,141 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `openAndMergePR.success` | `OpenPRInput` | `OpenPROutput` | happy path | CI passes, no unresolved threads, squash merged |
-| `openAndMergePR.ci-failure-resolved` | `OpenPRInput` | `OpenPROutput` | happy path | CI failed, resolve-pr-issue fixed it, CI re-ran and passed |
-| `openAndMergePR.review-thread-resolved` | `OpenPRInput` | `OpenPROutput` | happy path | reviewer left comments, resolve-pr-issue addressed them |
-| `openAndMergePR.quota-skip` | `OpenPRInput` | `OpenPROutput` | happy path | CI failure is credits/quota exhaustion; treated as pass |
-| `openAndMergePR.unfixable` | `OpenPRInput` | `StandardError` | error | resolve-pr-issue returns fixed: false; pr-agent reports error |
+| `openPR.success` | `OpenPRInput` | `OpenPROutput` | happy path | CI passes, no unresolved threads, returns ready |
+| `openPR.ci-fixed` | `OpenPRInput` | `OpenPROutput` | happy path | CI failed, ciWatchLoop resolved it, returns ready |
+| `openPR.comments-resolved` | `OpenPRInput` | `OpenPROutput` | happy path | Review threads resolved, CI re-checked, returns ready |
+| `openPR.ci-unfixable` | `OpenPRInput` | `StandardError` | error | ciWatchLoop aborted with unfixable error or max iterations exceeded |
+| `openPR.comment-unfixable` | `OpenPRInput` | `StandardError` | error | commentResolutionLoop aborted with unfixable thread or max iterations exceeded |
+
+### Flow: `ciWatchLoop`
+
+- Core files: `agents/pr/agents/pr-agent.md`
+
+#### Types
+
+```txt
+CIWatchLoopInput {
+  pr_url: string
+}
+
+CIWatchLoopOutput {
+  status: "pass"
+}
+
+CIWatchLoopError {
+  message: string   (reason loop was aborted — unfixable failure or max iterations)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `ciWatchLoop.pass` | `CIWatchLoopInput` | `CIWatchLoopOutput` | happy path | All CI checks pass on first watch |
+| `ciWatchLoop.fail-fixed` | `CIWatchLoopInput` | `CIWatchLoopOutput` | happy path | CI failed, resolve-pr-issue fixed it, loop re-runs and passes |
+| `ciWatchLoop.quota-skip` | `CIWatchLoopInput` | `CIWatchLoopOutput` | happy path | CI failure is quota exhaustion; treated as pass |
+| `ciWatchLoop.unfixable` | `CIWatchLoopInput` | `CIWatchLoopError` | error | resolve-pr-issue returns fixed: false; loop aborts |
+| `ciWatchLoop.max-iterations` | `CIWatchLoopInput` | `CIWatchLoopError` | error | CI keeps failing after MAX_CI_ITERATIONS (5) fix attempts |
+
+#### Pseudocode
+
+```
+MAX_CI_ITERATIONS = 5
+
+ciWatchLoop(pr_url):
+  iterations = 0
+
+  LOOP:
+    if iterations >= MAX_CI_ITERATIONS:
+      STOP with error "CI watch loop exceeded MAX_CI_ITERATIONS without passing"
+
+    result = gh pr checks <pr_url> --watch
+    // --watch blocks until all checks complete or one fails
+
+    if all checks passed:
+      RETURN { status: "pass" }
+
+    failedRuns = gh pr checks <pr_url> --fail-fast  // get failing run IDs
+
+    for each run in failedRuns:
+      fixResult = spawn resolve-pr-issue(pr_url, { type: "ci", runId: run.runId, failedChecks: [run.checkName] })
+
+      if fixResult.skipped == true:
+        RETURN { status: "pass" }  // quota exhaustion — treat as pass
+
+      if fixResult.fixed == false:
+        STOP with error "CI failure unfixable: " + fixResult.reason
+
+      BREAK  // fix pushed — re-watch CI (remaining runs may already be fixed)
+
+    iterations += 1
+    CONTINUE LOOP
+```
+
+### Flow: `commentResolutionLoop`
+
+- Core files: `agents/pr/agents/pr-agent.md`
+
+#### Types
+
+```txt
+CommentResolutionLoopInput {
+  pr_url: string
+  pr_node_id: string
+}
+
+CommentResolutionLoopOutput {
+  status: "all-resolved"
+}
+
+CommentResolutionLoopError {
+  message: string   (reason loop was aborted — unfixable thread or max iterations)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `commentResolutionLoop.no-threads` | `CommentResolutionLoopInput` | `CommentResolutionLoopOutput` | happy path | No unresolved threads; returns immediately |
+| `commentResolutionLoop.threads-resolved` | `CommentResolutionLoopInput` | `CommentResolutionLoopOutput` | happy path | All threads resolved by resolve-pr-issue; CI re-checked and passes |
+| `commentResolutionLoop.unfixable` | `CommentResolutionLoopInput` | `CommentResolutionLoopError` | error | resolve-pr-issue returns fixed: false for a thread; loop aborts |
+| `commentResolutionLoop.max-iterations` | `CommentResolutionLoopInput` | `CommentResolutionLoopError` | error | Threads keep appearing after MAX_COMMENT_ITERATIONS (5) rounds |
+
+#### Pseudocode
+
+```
+MAX_COMMENT_ITERATIONS = 5
+
+commentResolutionLoop(pr_url, pr_node_id):
+  iterations = 0
+
+  LOOP:
+    if iterations >= MAX_COMMENT_ITERATIONS:
+      STOP with error "Comment resolution loop exceeded MAX_COMMENT_ITERATIONS"
+
+    unresolvedThreads = gh api graphql list-review-threads(pr_node_id)
+      // filter to isResolved == false
+
+    if unresolvedThreads is empty:
+      RETURN { status: "all-resolved" }
+
+    for each thread in unresolvedThreads:
+      fixResult = spawn resolve-pr-issue(pr_url, { type: "review", threadId: thread.threadId, comments: thread.comments })
+
+      if fixResult.fixed == false:
+        STOP with error "Review thread unfixable: " + fixResult.reason
+
+      // fixResult.fixed == true — fix pushed and thread resolved via GraphQL
+
+    // After resolving all threads in this round, re-check CI before checking for more threads
+    ciResult = ciWatchLoop(pr_url)
+    if ciResult is error:
+      STOP with error ciResult.message
+
+    iterations += 1
+    CONTINUE LOOP  // check for any newly added threads
+```
 
 ### Flow: `resolvePRIssue`
 
@@ -108,7 +239,7 @@ ResolvePRIssueOutput {
 |--------|----------|
 | CI check output | `gh run view <run-id> --log-failed` |
 | PR body | `/tmp/pr-body.md` (ephemeral) |
-| Review thread comments | `gh pr view <pr-url> --json reviewDecision,reviewThreads` |
+| Review thread comments | GraphQL `reviewThreads` query on PR node ID |
 
 ## Deployment
 

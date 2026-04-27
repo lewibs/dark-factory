@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: A lightweight repair orchestrator. Given a task description, it creates an isolated work directory, delegates implementation directly to `repair-implementation-agent` (no planning phase), optionally updates documentation for significant changes, opens and merges a PR, then cleans up. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
+- What this is: A lightweight repair orchestrator. Given a task description, it creates an isolated work directory, delegates implementation directly to `repair-implementation-agent` (no planning phase), optionally updates documentation for significant changes, opens a PR (pr-agent returns it as ready), merges it, then cleans up. It is designed for quick targeted fixes where the change is already clear and no design phase is needed.
 
 ## Mermaid Diagram
 
@@ -25,7 +25,7 @@ flowchart TD
   RA -->|if significantChange| UDA[update-documentation-agent]
   UDA --> RA
   RA -->|taskDescription| PRA[pr-agent]
-  PRA -->|prUrl, merged| RA
+  PRA -->|pr_url, status: ready| RA
   RA -->|cleanup| CLEANUP[rm -rf WORK_DIR]
   CLEANUP --> Done([Done])
 ```
@@ -46,7 +46,6 @@ RepairInput {
 
 RepairOrchestrationOutput {
   prUrl: string
-  merged: boolean
 }
 
 StandardError {
@@ -58,10 +57,10 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repairOrchestration.success` | `RepairInput` | `RepairOrchestrationOutput{merged: true}` | `happy path` | change applied, tests pass, PR merged |
+| `repairOrchestration.success` | `RepairInput` | `RepairOrchestrationOutput` | `happy path` | change applied, tests pass, PR opened (pr-agent returns ready), repair-agent merges |
 | `repairOrchestration.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no cleanup needed (work dir never created) |
 | `repairOrchestration.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false; cleanup runs before halt |
-| `repairOrchestration.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open or merge; cleanup runs before halt |
+| `repairOrchestration.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs before halt |
 
 #### Pseudocode
 
@@ -92,10 +91,12 @@ repair-agent(taskDescription, taskName):
 
   # Step 5 — PR
   invoke pr-agent with: taskDescription
-  If pr-agent errors or cannot merge:
+  // pr-agent returns { pr_url, status: "ready" } — caller is responsible for merge
+  If pr-agent errors:
     run cleanup(WORK_DIR)
     report error and STOP
-  prUrl = result from pr-agent
+  prUrl = result.pr_url
+  merge PR (squash-merge and delete branch)
 
   # Step 6 — cleanup
   cleanup(WORK_DIR)

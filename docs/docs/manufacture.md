@@ -50,7 +50,7 @@ ManufactureInput {
 }
 
 ManufactureOutput {
-  pr_url: string (URL of the merged PR)
+  pr_url: string (URL of the opened PR)
   workDir: string (path that was cleaned up)
   skillsWritten: SkillFile[] (may be empty)
 }

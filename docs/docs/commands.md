@@ -43,7 +43,6 @@ ManufactureInput {
 
 ManufactureOutput {
   prUrl: string
-  merged: boolean
 }
 
 StandardError {
@@ -99,7 +98,6 @@ RepairInput {
 
 RepairOutput {
   prUrl: string
-  merged: boolean
 }
 
 StandardError {
@@ -111,9 +109,9 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to repair-agent; implements change, runs tests, optionally updates docs, opens and merges PR |
+| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to repair-agent; implements change, runs tests, optionally updates docs, opens PR (pr-agent returns ready), repair-agent merges |
 | `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retry attempts; cleanup runs |
-| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open or merge; cleanup runs |
+| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs |
 | `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no work dir to clean up |
 
 ---

@@ -79,7 +79,6 @@ WorkerResult {
 
 ManufactureOutput {
   prUrl: string
-  merged: boolean
   skillsWritten: string[]
 }
 
@@ -303,7 +302,7 @@ PRInput {
 
 PROutput {
   pr_url: string
-  merged: boolean
+  status: "ready"
 }
 ```
 
@@ -311,9 +310,10 @@ PROutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `pr.merged` | `PRInput` | `PROutput{merged=true}` | `happy path` | PR opens, CI passes, squash-merge succeeds |
-| `pr.ciFailure` | `PRInput` | spawn `resolve-pr-issue` | `branch` | CI red; resolve-pr-issue fixes and pushes |
-| `pr.reviewComment` | `PRInput` | spawn `resolve-pr-issue` | `branch` | Unresolved review thread; resolve-pr-issue addresses and resolves |
+| `pr.ready` | `PRInput` | `PROutput{status="ready"}` | `happy path` | PR opens, CI passes, comment threads resolved, returns ready for caller to merge |
+| `pr.ciFailure` | `PRInput` | spawn `resolve-pr-issue` via ciWatchLoop | `branch` | CI red; ciWatchLoop spawns resolve-pr-issue, fixes and pushes |
+| `pr.reviewComment` | `PRInput` | spawn `resolve-pr-issue` via commentResolutionLoop | `branch` | Unresolved review thread; commentResolutionLoop spawns resolve-pr-issue, addresses and resolves |
+| `pr.unfixable` | `PRInput` | `StandardError` | `error` | resolve-pr-issue returns fixed: false or max iterations exceeded; pr-agent reports error |
 
 ---
 
@@ -337,7 +337,6 @@ RepairImplementationOutput {
 
 RepairOrchestrationOutput {
   prUrl: string
-  merged: boolean
 }
 
 StandardError {
@@ -349,10 +348,10 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repair.success` | `RepairInput` | `RepairOrchestrationOutput{merged: true}` | `happy path` | change applied, tests pass, PR merged; doc update runs only if significantChange=true |
+| `repair.success` | `RepairInput` | `RepairOrchestrationOutput` | `happy path` | change applied, tests pass, PR opened and merged by repair-agent; doc update runs only if significantChange=true |
 | `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no cleanup needed |
 | `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; cleanup runs |
-| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails; cleanup runs |
+| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs |
 
 ## Logs
 
