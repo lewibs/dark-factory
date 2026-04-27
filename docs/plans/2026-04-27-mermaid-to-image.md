@@ -31,12 +31,13 @@ Update rule:
 
 ```mermaid
 graph TD
-  PA[planning-agent]:::updated -->|plan_file_path| MTE[mermaid_to_image.py | scripts/mermaid_to_image.py]:::created
-  PF[plan file | docs/plans/DATE-slug.md]:::unchanged -->|mermaid block extracted| MTE
-  MTE -->|base64-encoded mermaid| URL[mermaid.ink URL]:::unchanged
+  PA[planning-agent]:::updated -->|plan_file_path| MTE["mermaid_to_image.py"]:::created
+  PF["plan file"]:::unchanged -->|mermaid block extracted| MTE
+  MTE -->|base64-encoded mermaid| URL["mermaid.ink URL"]:::unchanged
+  MTE -->|validates URL| VAL["urllib HEAD check"]:::created
   MTE -->|URL string| PA
-  PA -->|URL via PushNotification| PN[PushNotification tool]:::unchanged
-  TM[test_mermaid_to_image.py | tests/test_mermaid_to_image.py]:::created -->|import| MTE
+  PA -->|URL via PushNotification| PN["PushNotification tool"]:::unchanged
+  TM["test_mermaid_to_image.py"]:::created -->|import| MTE
 
 classDef unchanged fill:#d3d3d3,stroke:#666,stroke-width:1px;
 classDef updated fill:#ffe58a,stroke:#666,stroke-width:1px;

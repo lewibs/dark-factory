@@ -7,12 +7,13 @@ Tests for scripts/mermaid_to_image.py
 import subprocess
 import sys
 import os
+from unittest.mock import MagicMock, patch
 import pytest
 
 # Ensure scripts/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
-from mermaid_to_image import extract_mermaid_from_plan, generate_mermaid_ink_url
+from mermaid_to_image import extract_mermaid_from_plan, generate_mermaid_ink_url, validate_mermaid_syntax
 
 SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "scripts", "mermaid_to_image.py")
 
@@ -87,15 +88,49 @@ def test_generateMermaidInkUrl_empty_input():
 
 
 # ---------------------------------------------------------------------------
+# Flow: validateMermaidSyntax
+# ---------------------------------------------------------------------------
+
+def test_validateMermaidSyntax_success():
+    # Plan path: validateMermaidSyntax.success
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    with patch("subprocess.run", return_value=mock_result):
+        valid, err = validate_mermaid_syntax("graph TD\n  A --> B\n")
+    assert valid is True
+    assert err == ""
+
+def test_validateMermaidSyntax_parse_error():
+    # Plan path: validateMermaidSyntax.parse-error
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stderr = "Parse error on line 1"
+    mock_result.stdout = ""
+    with patch("subprocess.run", return_value=mock_result):
+        valid, err = validate_mermaid_syntax("not valid mermaid |||")
+    assert valid is False
+    assert "Parse error" in err
+
+def test_validateMermaidSyntax_npx_not_found():
+    # Plan path: validateMermaidSyntax.npx-not-found
+    with patch("subprocess.run", side_effect=FileNotFoundError):
+        valid, err = validate_mermaid_syntax("graph TD\n  A --> B\n")
+    assert valid is False
+    assert "npx not found" in err
+
+
+# ---------------------------------------------------------------------------
 # Flow: cliEntryPoint
 # ---------------------------------------------------------------------------
 
 def _run_cli(*args):
     """Helper: run mermaid_to_image.py as a subprocess, return (stdout, stderr, returncode)."""
+    env = {**os.environ, "MERMAID_SKIP_VALIDATE": "1"}
     result = subprocess.run(
         [sys.executable, SCRIPT_PATH] + list(args),
         capture_output=True,
         text=True,
+        env=env,
     )
     return result.stdout.strip(), result.stderr.strip(), result.returncode
 

@@ -7,8 +7,11 @@ a mermaid.ink URL for rendering.
 
 import argparse
 import base64
+import os
 import re
+import subprocess
 import sys
+import tempfile
 
 
 def extract_mermaid_from_plan(plan_file_path: str, block_index: int = 1) -> str:
@@ -55,6 +58,43 @@ def generate_mermaid_ink_url(mermaid_string: str) -> str:
     return f"https://mermaid.ink/img/{encoded}"
 
 
+def validate_mermaid_syntax(mermaid_string: str) -> tuple:
+    """
+    Parse mermaid_string with mmdc (npx @mermaid-js/mermaid-cli).
+    Returns (is_valid: bool, error: str).
+
+    Flow: validateMermaidSyntax
+    """
+    import json
+
+    tmp_in = tmp_out = tmp_cfg = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".mmd", delete=False) as f:
+            f.write(mermaid_string)
+            tmp_in = f.name
+        tmp_out = tmp_in.replace(".mmd", ".svg")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump({"args": ["--no-sandbox", "--disable-setuid-sandbox"]}, f)
+            tmp_cfg = f.name
+        result = subprocess.run(
+            ["npx", "--yes", "@mermaid-js/mermaid-cli", "-i", tmp_in, "-o", tmp_out, "-p", tmp_cfg, "--quiet"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            return False, (result.stderr or result.stdout).strip()
+        return True, ""
+    except subprocess.TimeoutExpired:
+        return False, "mmdc timed out"
+    except FileNotFoundError:
+        return False, "npx not found — cannot validate mermaid syntax"
+    finally:
+        for p in (tmp_in, tmp_out, tmp_cfg):
+            if p and os.path.exists(p):
+                os.unlink(p)
+
+
 def main() -> None:
     """
     CLI entry point.
@@ -93,6 +133,11 @@ def main() -> None:
     # flow | cli | extracting_mermaid | plan_file_path={args.plan_file_path} block_index={args.block_index}
     try:
         mermaid_string = extract_mermaid_from_plan(args.plan_file_path, args.block_index)
+        if not os.environ.get("MERMAID_SKIP_VALIDATE"):
+            valid, err = validate_mermaid_syntax(mermaid_string)
+            if not valid:
+                print(f"Error: mermaid diagram failed validation: {err}", file=sys.stderr)
+                sys.exit(1)
         url = generate_mermaid_ink_url(mermaid_string)
         print(url)
         sys.exit(0)
