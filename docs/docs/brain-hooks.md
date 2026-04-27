@@ -35,7 +35,7 @@ classDef unchanged fill:#d3d3d3,stroke:#666,stroke-width:1px;
 ### Flow: `pre-tool-use-hook`
 
 - Core files: `agents/dark-factory/scripts/pre-tool-use-hook.sh`
-- Test files: N/A
+- Test files: `tests/test_hooks.py`
 
 #### Types
 
@@ -93,7 +93,7 @@ pre-tool-use-hook.sh:
 ### Flow: `post-tool-use-hook`
 
 - Core files: `agents/dark-factory/scripts/post-tool-use-hook.sh`
-- Test files: N/A
+- Test files: `tests/test_hooks.py`
 
 #### Types
 
@@ -264,6 +264,27 @@ BrainPatch {
 - Sub-agents MUST NOT set phase flags — hooks own those.
 - brain-patch.json is deleted by post-tool-use-hook.sh after merge.
 - If a sub-agent has no output fields to write, it does not write brain-patch.json.
+
+## Testing
+
+The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. Each test executes the actual shell script via `subprocess.run()` and asserts real outcomes: stdout content, brain.json file state, and exit codes.
+
+| Test class | Flow covered | Script under test |
+|---|---|---|
+| `TestPreHookInjectsBrainState` | `pre_hook.inject.success`, `pre_hook.inject.no_brain` | `pre-tool-use-hook.sh` |
+| `TestPreHookSetsRunningPhase` | `pre_hook.set_running.success`, `pre_hook.set_running.no_incomplete` | `pre-tool-use-hook.sh` |
+| `TestPreHookEmitsValidJson` | `pre_hook.valid_json.success` | `pre-tool-use-hook.sh` |
+| `TestPostHookMergesPatch` | `post_hook.merge.success`, `post_hook.merge.no_patch` | `post-tool-use-hook.sh` |
+| `TestPostHookSetsCompleteAndClearsRunning` | `post_hook.phase.success`, `post_hook.phase.no_running` | `post-tool-use-hook.sh` |
+| `TestPostHookNoBrain` | `post_hook.no_brain.success` | `post-tool-use-hook.sh` |
+
+Run the tests with:
+
+```bash
+pytest tests/test_hooks.py -v
+```
+
+Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `brain.json` using the `make_brain()` helper, invokes the hook via `run_hook()`, and asserts the resulting file state and/or stdout/stderr content. `DARK_FACTORY_WORK_DIR` is set or cleared via `env_override` to control whether hooks see a brain file.
 
 ## Logs
 
