@@ -1,23 +1,34 @@
-# open-pr
+# PR Agent: Implement ciWatchLoop and commentResolutionLoop
 
-## Metadata
+## Plan Metadata
 
-- System type: `flow`
+- Plan type: `plan`
+- Parent plan: N/A
+- Depends on: `docs/plans/2026-04-26-pr-agent-ci-comment-loops.md`
+- Status: `implemented`
 
 ## System Intent
 
-- What this is: The PR lifecycle flow. Takes already-applied code changes, stages everything, opens a PR from a plan or description, waits for CI via `ciWatchLoop`, resolves CI failures and review threads via `commentResolutionLoop`, and stops once CI is green and all threads are resolved. Does not merge. Returns `{ pr_url, status: "ready" }` to the caller.
+- What is being built: Full implementation of the `ciWatchLoop` and `commentResolutionLoop` pseudocode (designed in the parent plan) into `agents/pr/agents/pr-agent.md`. PR #82 added the pseudocode to the plan file but did not update the agent's "Your task" section. This plan replaces the terse numbered steps 3-5 with the rigorous named loops, max-iteration guards, BREAK-after-first-fix pattern, and CI re-entrance after comment resolution.
+- Primary consumer(s): `dark-factory-agent`, `repair-agent` (any caller that invokes `pr-agent`)
+- Boundary (black-box scope only): Only `agents/pr/agents/pr-agent.md` is modified. `resolve-pr-issue`, `create-pr`, and all other agents are unchanged.
+
+## Stage Gate Tracker
+
+- [x] Stage 1 Mermaid approved
+- [x] Stage 2 Flows approved
+- [x] Stage 3 Logs + Deployment approved or skipped
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  Caller["dark-factory-agent\nagents/dark-factory/agents/dark-factory-agent.md"]
-  PrAgent["pr-agent\nagents/pr/agents/pr-agent.md"]
-  CreatePR["create-pr skill\nagents/pr/skills/create-pr/SKILL.md"]
-  ResolvePRIssue["resolve-pr-issue\nagents/pr/agents/resolve-pr-issue.md"]
-  GitHub["GitHub Actions CI\nexternal"]
-  GitHubReview["GitHub Review Threads\nexternal"]
+  Caller["dark-factory-agent\nagents/dark-factory/agents/dark-factory-agent.md"]:::unchanged
+  PrAgent["pr-agent\nagents/pr/agents/pr-agent.md"]:::updated
+  CreatePR["create-pr skill\nagents/pr/skills/create-pr/SKILL.md"]:::unchanged
+  ResolvePRIssue["resolve-pr-issue\nagents/pr/agents/resolve-pr-issue.md"]:::unchanged
+  GitHub["GitHub Actions CI\nexternal"]:::unchanged
+  GitHubReview["GitHub Review Threads\nexternal"]:::unchanged
 
   Caller -->|"planFilePath or description"| PrAgent
   PrAgent -->|"branch + body"| CreatePR
@@ -31,6 +42,9 @@ flowchart TD
   PrAgent -->|"PR URL + threadId + comments"| ResolvePRIssue
   ResolvePRIssue -->|"fixed result + resolved thread"| PrAgent
   PrAgent -->|"pr_url + status: ready"| Caller
+
+classDef unchanged fill:#d3d3d3,stroke:#666,stroke-width:1px;
+classDef updated fill:#ffe58a,stroke:#666,stroke-width:1px;
 ```
 
 ## Flows
@@ -42,12 +56,34 @@ StandardError {
   message: string (human-readable description of what went wrong)
 }
 
+CIWatchLoopInput {
+  pr_url: string
+}
+
+CIWatchLoopOutput {
+  status: "pass"
+}
+
+CommentResolutionLoopInput {
+  pr_url: string
+  pr_node_id: string
+}
+
+CommentResolutionLoopOutput {
+  status: "all-resolved"
+}
+
 ResolvePRIssueResult {
   fixed: boolean
   type: "ci" | "review"
   threadId?: string
   skipped?: boolean
   reason?: string
+}
+
+OpenPROutput {
+  pr_url: string
+  status: "ready"
 }
 ```
 
@@ -196,7 +232,7 @@ commentResolutionLoop(pr_url, pr_node_id):
 
 ```txt
 OpenPRInput {
-  planFilePathOrDescription: string (required — either an absolute path to a plan/bug file, or a description string)
+  planFilePathOrDescription: string
 }
 
 OpenPROutput {
@@ -237,47 +273,29 @@ openPR(planFilePathOrDescription):
   RETURN { pr_url: prUrl, status: "ready" }
 ```
 
-### Flow: `resolvePRIssue`
+## What Needs to Change in pr-agent.md
 
-- Core files: `agents/pr/agents/resolve-pr-issue.md`
+The current "Your task" section steps 3-5 must be replaced with the explicit `ciWatchLoop` and `commentResolutionLoop` pseudocode above. Specifically:
 
-#### Types
-
-```txt
-ResolvePRIssueInput {
-  pr_url: string (required)
-  issue: CIFailure | ReviewThread
-}
-
-CIFailure {
-  type: "ci"
-  runId: string
-  failedChecks: string[]
-}
-
-ReviewThread {
-  type: "review"
-  threadId: string
-  comments: string[]
-}
-
-ResolvePRIssueOutput {
-  fixed: boolean
-  type: "ci" | "review"
-  threadId: string (only for review threads)
-  skipped: boolean (only when CI failure is quota exhaustion)
-  reason: string (only when fixed: false)
-}
+**Current (terse, missing guards):**
+```
+3. Wait for CI checks to complete using the watch script.
+4. If CI fails:
+   - Spawn resolve-pr-issue with the PR URL and failing run details.
+   - If it returns skipped: true, treat CI as passed.
+   - Otherwise go back to step 3.
+5. After CI passes, list all unresolved review threads...
+   - For each unresolved thread, spawn resolve-pr-issue...
+   - After all threads are resolved, go back to step 3 to confirm CI still passes.
+   - If no unresolved threads → return { pr_url, status: "ready" }
 ```
 
-#### Paths
-
-| path | input | output | path-type | notes |
-| --- | --- | --- | --- | --- |
-| `resolvePRIssue.ci-fixed` | `ResolvePRIssueInput (CIFailure)` | `{ fixed: true, type: "ci" }` | happy path | fix applied, committed, pushed |
-| `resolvePRIssue.ci-quota` | `ResolvePRIssueInput (CIFailure)` | `{ fixed: true, type: "ci", skipped: true }` | happy path | failure is quota exhaustion; no fix applied |
-| `resolvePRIssue.review-fixed` | `ResolvePRIssueInput (ReviewThread)` | `{ fixed: true, type: "review", threadId }` | happy path | fix applied, pushed, thread resolved via GraphQL |
-| `resolvePRIssue.unfixable` | `ResolvePRIssueInput` | `{ fixed: false, reason }` | error | agent cannot safely determine a fix |
+**Replacement:** The full `ciWatchLoop` and `commentResolutionLoop` pseudocode with:
+- Named loops with `MAX_CI_ITERATIONS = 5` and `MAX_COMMENT_ITERATIONS = 5`
+- BREAK-after-first-fix pattern in the CI loop (push one fix, then re-watch; don't process remaining failures)
+- CI re-entrance after resolving comment threads
+- Explicit `fixed: false` → STOP (hard stop) behavior
+- `skipped: true` → treat as pass behavior
 
 ## Logs
 
@@ -289,5 +307,6 @@ ResolvePRIssueOutput {
 
 ## Deployment
 
-- Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent and repair-agent
-- Notes: Always stages with `git add --all` before committing — never stages individual files. Always writes PR body to `/tmp/pr-body.md` and uses `--body-file` (never `--body` inline) to avoid "Parser aborted" interactive prompt on large bodies. Does not merge — caller is responsible for merge after receiving `status: "ready"`.
+- Mechanism: `local only` — agent file edit only; no deploy step required
+- Deploy command: N/A
+- Notes: Only `agents/pr/agents/pr-agent.md` is modified. All other files are unchanged.
