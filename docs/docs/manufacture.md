@@ -21,7 +21,7 @@ flowchart TD
   Classify -->|ambiguous| Push["PushNotification: Clarification Required"]
   Push --> User2["Ask developer one question"]
   Prep --> BrainCreate["Write brain.json\n(export DARK_FACTORY_WORK_DIR)"]
-  BrainCreate --> RepairAgent["repair-agent"]
+  BrainCreate --> RepairAgent["repair-implementation-agent"]
   BrainCreate --> Feature["feature-agent"]
   BrainCreate --> Debug["debugger-agent"]
   BrainCreate --> FixFlow["fix-flow-orchestrator"]
@@ -79,7 +79,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `manufacture.repair` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals repair (small change / tweak / rename / minor update / quick fix / adjust / alter); preps worktree, delegates to repair-agent, then runs full review, docs, skills, PR, and cleanup — same as all other routes |
+| `manufacture.repair` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals repair (small change / tweak / rename / minor update / quick fix / adjust / alter); preps worktree, delegates directly to repair-implementation-agent, then runs full review, docs, skills, PR, and cleanup — same as all other routes |
 | `manufacture.feature` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals new feature; routes to feature-agent |
 | `manufacture.debug` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals bug/crash; routes to debugger-agent |
 | `manufacture.fix-flow` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals broken integration; routes to fix-flow-orchestrator |
@@ -96,7 +96,7 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 1 — classify and route
   classify taskDescription (first match wins):
-    - repair signals ("small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter") → will route to repair-agent (Step 3)
+    - repair signals ("small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter") → will route to repair-implementation-agent (Step 3)
     - feature keywords ("add", "build", "create", "implement", "new feature") → will route to feature-agent (Step 3)
     - flow keywords ("broken flow", "integration failing", "end-to-end", "pipeline") → will route to fix-flow-orchestrator (Step 3)
     - bug keywords ("bug", "crash", "error", "fix", "broken", "not working", "debug") → will route to debugger-agent (Step 3)
@@ -119,7 +119,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 3 — delegate to worker
   cd WORK_DIR
   invoke classified worker agent with taskDescription:
-    - repair signals → repair-agent(taskDescription)
+    - repair signals → repair-implementation-agent(taskDescription)
     - feature → feature-agent(taskDescription)
     - fix-flow → fix-flow-orchestrator(taskDescription)
     - debugger → debugger-agent(taskDescription)

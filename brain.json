@@ -1,7 +1,7 @@
 {
-  "taskDescription": "the repair agent should be in the same flow as the other three. the orchestrator decides what type of fix it's doing. update the orchestrator to also use haiku instead since it's not doing anything in-depth.",
-  "taskName": "unify-repair-agent-flow",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-unify-repair-agent-flow",
+  "taskDescription": "remove the repair-agent middle manager. dark-factory-agent should route repair tasks directly to repair-implementation-agent. delete repair-agent.md entirely and update the routing in dark-factory-agent.md.",
+  "taskName": "remove-repair-middleman",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-remove-repair-middleman",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "feature",
   "planFilePath": null,

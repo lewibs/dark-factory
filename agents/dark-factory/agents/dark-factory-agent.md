@@ -1,7 +1,7 @@
 ---
 name: dark-factory-agent
 user-invocable: true
-description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir.
+description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair-implementation), runs code review and doc housekeeping, opens a PR, then removes the work dir.
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
@@ -28,7 +28,7 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 | `feature-agent` | `agents/featurework/agents/feature-agent.md` |
 | `debugger-agent` | `agents/debugger/agents/debugger-agent.md` |
 | `fix-flow-orchestrator` | `agents/fix-flow/agents/fix-flow-orchestrator.md` |
-| `repair-agent` | `agents/dark-factory/agents/repair-agent.md` |
+| `repair-implementation-agent` | `agents/repair/agents/repair-implementation-agent.md` |
 | `code-review-orchestrator-agent` | `agents/code-review/agents/code-review-orchestrator-agent.md` |
 | `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
 | `skill-update-agent` | `agents/skill-update/agents/skill-update-agent.md` |
@@ -94,7 +94,7 @@ dark-factory-agent(taskDescription, taskName):
     - New feature or capability → invoke feature-agent with taskDescription
     - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription
     - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription
-    - Small change / tweak / rename / quick fix → invoke repair-agent with taskDescription
+    - Small change / tweak / rename / quick fix → invoke repair-implementation-agent with taskDescription
 
   If worker returns error or hard-stop:
     run cleanup(WORK_DIR)
@@ -168,7 +168,7 @@ Match signals in the order listed below — first match wins.
 
 | Signal in taskDescription | Route to |
 |---|---|
-| "small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter" | `repair-agent` |
+| "small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter" | `repair-implementation-agent` |
 | "add", "build", "create", "implement", "new feature" | `feature-agent` |
 | "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow-orchestrator` |
 | "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger-agent` |

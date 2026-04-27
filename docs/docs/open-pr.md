@@ -289,5 +289,5 @@ ResolvePRIssueOutput {
 
 ## Deployment
 
-- Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent and repair-agent
+- Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent
 - Notes: Always stages with `git add --all` before committing — never stages individual files. Always writes PR body to `/tmp/pr-body.md` and uses `--body-file` (never `--body` inline) to avoid "Parser aborted" interactive prompt on large bodies. Does not merge — caller is responsible for merge after receiving `status: "ready"`.
