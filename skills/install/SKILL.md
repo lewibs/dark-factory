@@ -33,7 +33,7 @@ claude plugin list
 
 ## Launcher script
 
-`scripts/reopen-remote-control.sh` opens a new terminal in your current directory running Claude in remote-control mode, then closes the current terminal.
+`scripts/reopen-remote-control.sh` opens a new terminal in your current directory running Claude in remote-control mode.
 
 ```bash
 # Usage: pass a name for the remote-control session
