@@ -21,16 +21,23 @@ flowchart TD
   Classify -->|broken integration flow| Prep
   Classify -->|ambiguous| Push["PushNotification: Clarification Required"]
   Push --> User2["Ask developer one question"]
-  Prep --> Feature["feature-agent"]
-  Prep --> Debug["debugger-agent"]
-  Prep --> FixFlow["fix-flow-orchestrator"]
-  Feature --> CodeReview["code-review-orchestrator-agent"]
-  Debug --> CodeReview
-  FixFlow --> CodeReview
+  Prep --> BrainCreate["Write brain.json\n(export DARK_FACTORY_WORK_DIR)"]
+  BrainCreate --> Feature["feature-agent"]
+  BrainCreate --> Debug["debugger-agent"]
+  BrainCreate --> FixFlow["fix-flow-orchestrator"]
+  PreHook["pre-tool-use-hook.sh\n(injects brain state + sets *-running)"] -.->|fires before each Agent call| Feature
+  PreHook -.->|fires before each Agent call| Debug
+  PreHook -.->|fires before each Agent call| FixFlow
+  Feature -->|writes brain-patch.json| PostHook["post-tool-use-hook.sh\n(merges patch + sets *-complete)"]
+  Debug -->|writes brain-patch.json| PostHook
+  FixFlow -->|writes brain-patch.json| PostHook
+  PostHook --> ReadBrain["Read brain.json\n(planFilePath, prUrl from hooks)"]
+  ReadBrain --> CodeReview["code-review-orchestrator-agent"]
   CodeReview --> UpdateDocs["update-documentation-agent"]
   UpdateDocs --> SkillUpdate["skill-update-agent (non-fatal)"]
   SkillUpdate --> PR["pr-agent"]
-  PR --> Cleanup["rm -rf WORK_DIR"]
+  PR --> BrainDelete["rm brain.json"]
+  BrainDelete --> Cleanup["cleanup-worktree.sh"]
   Cleanup --> Done["Report: Done. PR: <url>"]
 ```
 
@@ -100,11 +107,23 @@ dark-factory-agent(taskDescription, taskName):
   capture WORK_DIR from stdout
   if fail: report error, STOP
 
+  # brain.create — write brain.json immediately after WORK_DIR is captured
+  Write $WORK_DIR/brain.json with BrainState (taskDescription, taskName, workDir, classification,
+    planFilePath=null, bugFiles=null, prUrl=null, docsWritten=null, skillsWritten=null,
+    phases all false except prep-complete=true)
+  export DARK_FACTORY_WORK_DIR=<WORK_DIR>
+  # Hooks (pre-tool-use-hook.sh / post-tool-use-hook.sh) automatically inject brain context
+  # into every Agent tool call and merge brain-patch.json outputs back into brain.json.
+  # dark-factory-agent MUST NOT pass brain fields to sub-agents manually.
+
   # Step 3 — delegate to worker
   cd WORK_DIR
   invoke classified worker agent with taskDescription
   if worker errors: cleanup(WORK_DIR), STOP
-  planFilePath = path worker wrote its plan to (null if debugger-agent)
+
+  # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)
+  Read $WORK_DIR/brain.json
+  planFilePath = brain.json.planFilePath  (null if worker produced no plan)
 
   # Step 4 — code review
   code-review-orchestrator-agent(planFilePath ?? "Task: <taskDescription>", WORK_DIR)
@@ -121,9 +140,15 @@ dark-factory-agent(taskDescription, taskName):
   pr-agent(planFilePath ?? taskDescription)
   if error: cleanup(WORK_DIR), STOP
 
+  # Read prUrl from brain.json (merged by post-hook after pr-agent wrote brain-patch.json)
+  Read $WORK_DIR/brain.json
+  prUrl = brain.json.prUrl
+
   # Step 7 — cleanup
-  cleanup(WORK_DIR)
-  report "Done. PR: <prUrl>. Skills written: <skillsWritten>."
+  # brain.delete — remove brain.json before cleaning the worktree
+  rm -f $WORK_DIR/brain.json
+  cleanup(WORK_DIR, taskName)
+  report "Done. PR: <prUrl>. Worktree <WORK_DIR> removed."
 ```
 
 ## Logs
@@ -132,6 +157,9 @@ dark-factory-agent(taskDescription, taskName):
 |--------|----------|
 | dark-factory-agent output | Claude Code session transcript |
 | prep-feature-dir.sh | stdout captured by dark-factory-agent |
+| pre-tool-use-hook.sh | stderr only (errors and phase-running events); stdout is reserved for modified tool input |
+| post-tool-use-hook.sh | stderr only (errors/warnings and phase-complete events) |
+| brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — readable at any point during a run; deleted on cleanup |
 
 ## Deployment
 

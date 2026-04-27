@@ -73,8 +73,35 @@ TaskInput {
   taskName: string (optional short slug; derived from taskDescription if omitted)
 }
 
-WorkerResult {
-  planFilePath: string | null (path written by worker; null if debugger-agent)
+BrainState {
+  taskDescription:  string
+  taskName:         string
+  workDir:          string   (absolute path to worktree)
+  classification:   string   (one of: feature | fix-flow | debugger)
+  planFilePath:     string | null  (written by worker via brain-patch.json; null until planning completes)
+  bugFiles:         string[] | null
+  prUrl:            string | null  (written by pr-agent via brain-patch.json)
+  docsWritten:      string[] | null
+  skillsWritten:    string[] | null
+  phases: {
+    prep-running, prep-complete,
+    worker-running, worker-complete,
+    review-running, review-complete,
+    docs-running, docs-complete,
+    skills-running, skills-complete,
+    pr-running, pr-complete,
+    cleanup-running, cleanup-complete
+  }  (boolean flags; *-running set by pre-tool-use-hook, *-complete set by post-tool-use-hook)
+}
+
+BrainPatch {
+  // Subset of BrainState output fields written by sub-agents to $WORK_DIR/brain-patch.json.
+  // Sub-agents never set phase flags — hooks own those.
+  planFilePath?:  string
+  bugFiles?:      string[]
+  prUrl?:         string
+  docsWritten?:   string[]
+  skillsWritten?: string[]
 }
 
 ManufactureOutput {
@@ -353,11 +380,76 @@ StandardError {
 | `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; cleanup runs |
 | `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs |
 
+---
+
+### Flow: `brain-hooks`
+
+- Core files: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `.claude/settings.json`
+
+#### Types
+
+```txt
+HookPhaseEvent {
+  hook:  "pre-tool-use-hook" | "post-tool-use-hook"
+  phase: string   (e.g. "worker", "docs", "pr")
+  event: "set-phase-running" | "set-phase-complete" | "inject" | "merge-patch" | "no-brain" | "no-patch"
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `brain-hooks.pre-inject` | Agent tool call + brain.json | modified Agent prompt with brain state prepended | happy path | pre-tool-use-hook reads brain.json, prepends it to the agent prompt, sets current phase *-running=true |
+| `brain-hooks.pre-no-brain` | Agent tool call (no brain.json) | pass-through unchanged | happy path | DARK_FACTORY_WORK_DIR unset or brain.json absent — not a dark-factory session |
+| `brain-hooks.post-merge` | brain-patch.json + brain.json | brain.json updated, brain-patch.json deleted | happy path | post-tool-use-hook merges patch fields into brain.json using jq -s merge |
+| `brain-hooks.post-no-patch` | (no brain-patch.json) | brain.json phase flag updated only | happy path | sub-agent wrote no patch; only *-running=false and *-complete=true set |
+| `brain-hooks.post-no-brain` | (no brain.json) | exit 0 silently | happy path | not a dark-factory session |
+
+#### Pseudocode
+
+```
+pre-tool-use-hook.sh (fires before every Agent tool call):
+  if DARK_FACTORY_WORK_DIR unset or brain.json absent: pass stdin through, exit 0
+  PHASE = first phase in brain.json where -running=false and -complete=false
+  if PHASE found: set brain.json.phases["<PHASE>-running"] = true
+  prepend brain.json content to the Agent prompt (stdout = modified tool input JSON)
+
+post-tool-use-hook.sh (fires after every Agent tool call):
+  if DARK_FACTORY_WORK_DIR unset or brain.json absent: exit 0
+  if brain-patch.json exists: jq -s merge brain.json + brain-patch.json → brain.json; rm brain-patch.json
+  RUNNING_PHASE = phase where *-running=true in brain.json
+  if RUNNING_PHASE found: set *-running=false, set *-complete=true in brain.json
+```
+
+#### Sub-agent contract
+
+Every sub-agent that produces output fields writes `$DARK_FACTORY_WORK_DIR/brain-patch.json` with only its output fields:
+
+| Sub-agent | Patch fields written |
+|---|---|
+| feature-agent (via planning-agent) | `planFilePath` |
+| debugger-agent | `bugFiles` |
+| update-documentation-agent | `docsWritten` |
+| skill-update-agent | `skillsWritten` |
+| pr-agent | `prUrl` |
+
+Rules:
+- Sub-agents MUST NOT read brain.json directly — context is injected by pre-hook.
+- Sub-agents MUST NOT write brain.json directly — only write brain-patch.json.
+- Sub-agents MUST NOT set phase flags — hooks own those.
+- brain-patch.json is deleted by post-tool-use-hook.sh after merge.
+
+---
+
 ## Logs
 
 | Source | Location |
 |--------|----------|
-| N/A | Agents are markdown instruction files; they produce no structured runtime log output. All observable output is Claude Code session text. |
+| Agents (general) | Claude Code session transcript — agents produce no structured runtime log files |
+| pre-tool-use-hook.sh | stderr (phase-running events, inject confirmation); stdout reserved for modified tool input |
+| post-tool-use-hook.sh | stderr (merge-patch events, phase-complete events) |
+| brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — live state readable during any run; deleted on cleanup |
 
 ## Deployment
 

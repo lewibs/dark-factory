@@ -101,3 +101,21 @@ user-invocable: false
 - If you cannot read `planFilePath` or run `git` in `workDir`, report the error to the caller. This is non-fatal — the caller (dark-factory-agent) will log a warning and continue to the PR step.
 - A skill file path is always `skills/<slug>/SKILL.md` relative to `workDir`.
 - When updating an existing skill, preserve all existing content and merge new knowledge in — do not overwrite.
+
+## Brain Patch
+
+After Step 5 (return), before returning to the caller:
+
+Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
+```json
+{
+  "skillsWritten": ["<relative path within workDir for each skill file written or updated>"]
+}
+```
+
+If `skillsWritten` is empty (no skills were written), omit writing the patch entirely.
+
+Rules:
+- Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
+- Do NOT write `brain.json` directly — only write `brain-patch.json`.
+- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.
