@@ -1,7 +1,7 @@
 {
-  "taskDescription": "update all of the agents to use these checklists. 1. create the script to make them. make unit tests and truly validate it works. 2. make a list of all agents and their Todo list items. 3. update the hook for each one and hardcode calling. the script with each Todo list item.",
-  "taskName": "add-agent-checklists",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-add-agent-checklists",
+  "taskDescription": "Restructure the planning agent into a two-agent system: planning-agent (Haiku orchestrator) and sub-planning-agent (worker). The orchestrator tracks state, displays data to the user, and creates TodoWrite tasks via PreToolUse hook. The worker does all thinking and writing. Phases: draft plan, mermaid diagram (with URL), flows (one at a time).",
+  "taskName": "restructure-planning-agent",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-restructure-planning-agent",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "feature",
   "planFilePath": null,

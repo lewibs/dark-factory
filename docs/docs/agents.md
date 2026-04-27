@@ -29,11 +29,15 @@ flowchart TD
   DFA -->|bug / crash| DA[debugger-agent]
   DFA -->|ambiguous| PN[PushNotification → clarify]
 
-  FA --> PA[planning-agent]
+  FA --> PA[planning-agent\n(Haiku orchestrator)]
+  PA -->|phase=draft_plan / mermaid / flows| SPA[sub-planning-agent\n(Sonnet worker)]
+  SPA -->|researches codebase| IVA2[investigation-agent]
+  SPA -->|writes plan file| PF[docs/plans/YYYY-MM-DD-slug.md]
+  SPA -->|url + summary| PA
+  PA -->|PushNotification: diagram URL| Dev2([Developer])
+  PA -->|AskUserQuestion: approve each phase| Dev2
+  Dev2 -->|feedback| PA
   PA -->|planPath| FA
-  FA -->|open-in-vscode| VSC[VS Code]
-  FA -->|python3 scripts/mermaid_to_image.py| MTE[mermaid_to_image.py]
-  MTE -->|diagram URL| PNDiagram[PushNotification: Plan diagram URL]
   FA -->|inline display + PushNotification| Dev([Developer])
   Dev -->|approve| EA[execution-agent]
   Dev -->|feedback| FA
@@ -131,7 +135,7 @@ StandardError {
 
 ### Flow: `featurework`
 
-- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`, `agents/featurework/execution/agents/execution-agent.md`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`, `agents/featurework/execution/skills/deviation-protocol/SKILL.md`, `skills/create-mermaid-diagram/SKILL.md`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/agents/sub-planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`, `agents/featurework/execution/agents/execution-agent.md`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`, `agents/featurework/execution/skills/deviation-protocol/SKILL.md`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -160,8 +164,8 @@ ReviewDecision {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; feature-agent opens it in VS Code, runs `scripts/mermaid_to_image.py` and pushes diagram URL to phone via PushNotification, reads and displays plan inline, sends PushNotification for approval, developer replies "yes" or "approve"; execution-agent implements |
-| `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer replies with feedback text; feature-agent re-invokes planning-agent with feedback, re-opens in VS Code, re-displays, re-prompts; loop repeats until explicit approval |
+| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent (Haiku orchestrator) delegates to sub-planning-agent (Sonnet worker) for each phase (draft, mermaid, flows); orchestrator manages developer interaction via AskUserQuestion and PushNotification per phase; returns planPath to feature-agent after all phases approved; execution-agent implements |
+| `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer provides feedback during any phase; planning-agent re-spawns sub-planning-agent for that phase, re-displays updated section, re-prompts; loop repeats per-phase until explicit approval |
 | `featurework.abort` | `FeatureInput` | `StandardError` | `error` | Developer replies "abort" during plan review; feature-agent stops all work |
 | `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting |
 
@@ -430,7 +434,7 @@ Every sub-agent that produces output fields writes `$DARK_FACTORY_WORK_DIR/brain
 
 | Sub-agent | Patch fields written |
 |---|---|
-| feature-agent (via planning-agent) | `planFilePath` |
+| feature-agent (via planning-agent / sub-planning-agent) | `planFilePath` |
 | debugger-agent | `bugFiles` |
 | update-documentation-agent | `docsWritten` |
 | skill-update-agent | `skillsWritten` |
