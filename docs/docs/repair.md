@@ -12,14 +12,12 @@
 
 ```mermaid
 flowchart TD
-  DFA[dark-factory-agent\norchestrator] -->|taskDescription| RA[repair-agent.md]
-  RA -->|taskDescription| RIA[repair-implementation-agent.md]
+  DFA[dark-factory-agent\norchestrator] -->|taskDescription| RIA[repair-implementation-agent.md]
   RIA -->|makes changes| CODE[Codebase Files]
   RIA -->|runs tests| TESTS[Test Suite]
   TESTS -->|pass| RIA
   TESTS -->|fail - fix and retry| RIA
-  RIA -->|success or failure| RA
-  RA -->|returns to orchestrator| DFA
+  RIA -->|success or failure| DFA
   DFA --> CRO[code-review-orchestrator-agent]
   CRO --> UDA[update-documentation-agent]
   UDA --> SUA[skill-update-agent]
@@ -32,7 +30,7 @@ flowchart TD
 
 ### Flow: `repairWorker`
 
-- Core files: `agents/dark-factory/agents/repair-agent.md`
+- Core files: `agents/repair/agents/repair-implementation-agent.md`
 
 #### Types
 
@@ -55,17 +53,17 @@ StandardError {
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
 | `repairWorker.success` | `RepairWorkerInput` | `RepairWorkerOutput{success: true}` | `happy path` | change applied, tests pass; orchestrator continues to code review, docs, PR, cleanup |
-| `repairWorker.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false; repair-agent reports error; orchestrator runs cleanup |
+| `repairWorker.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; orchestrator runs cleanup |
 
 #### Pseudocode
 
 ```
-repair-agent(taskDescription):
+repair-implementation-agent(taskDescription):
 
   # Already inside the isolated worktree when invoked — no prep needed.
 
   # Step 1 — implement directly (no planning, no routing)
-  result = invoke repair-implementation-agent with: taskDescription
+  Apply the targeted change. Stay minimal — do not refactor or expand scope.
 
   If result.success == false:
     report result.error.message and STOP
@@ -147,7 +145,6 @@ repair-implementation-agent(taskDescription):
 
 | Source | Location |
 |--------|----------|
-| repair-agent | stdout / Claude Code conversation |
 | repair-implementation-agent | stdout / Claude Code conversation |
 
 ## Deployment

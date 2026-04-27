@@ -89,7 +89,7 @@ AGENT_CHECKLISTS["debugger-agent"]="Reproduce bug|Identify root cause|Apply fix|
 AGENT_CHECKLISTS["pr-agent"]="Open PR|Wait for CI|Address review comments"
 AGENT_CHECKLISTS["update-documentation-agent"]="Identify affected docs|Update stale content|Add new information"
 AGENT_CHECKLISTS["skill-update-agent"]="Review completed work|Identify patterns|Write skill files"
-AGENT_CHECKLISTS["repair-agent"]="Apply fix|Run tests|Open PR"
+AGENT_CHECKLISTS["repair-implementation-agent"]="Apply fix|Run tests|Return success"
 AGENT_CHECKLISTS["fix-flow-orchestrator"]="Understand system|Generate scripts|Run flow|Debug failures|Ship PR"
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

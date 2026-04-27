@@ -23,7 +23,7 @@ flowchart TD
   Dev -->|/dark-factory:update| CMD_U[commands/update.md]
 
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
-  CMD_R -->|delegates to| RA[agents/dark-factory/agents/repair-agent.md]
+  CMD_R -->|delegates to| DFA
   CMD_I -->|delegates to| IOA[agents/initialization/agents/init-orchestrator-agent.md]
   CMD_U -->|runs directly| GIT[git pull + claude plugin update]
 ```
@@ -86,7 +86,7 @@ InitOutput {
 
 ### Flow: `repair`
 
-- Core files: `commands/repair.md`, `agents/dark-factory/agents/repair-agent.md`
+- Core files: `commands/repair.md`, `agents/dark-factory/agents/dark-factory-agent.md`
 
 #### Types
 
@@ -109,7 +109,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to repair-agent; implements change, runs tests, optionally updates docs, opens PR (pr-agent returns ready), repair-agent merges |
+| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to dark-factory-agent which routes directly to repair-implementation-agent; implements change, runs tests, code review, docs, skills, opens PR, cleanup |
 | `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retry attempts; cleanup runs |
 | `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs |
 | `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no work dir to clean up |

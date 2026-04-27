@@ -19,14 +19,12 @@
 flowchart TD
   User([Developer]) -->|/dark-factory:manufacture| DFA[dark-factory-agent\nmodel: haiku]
 
-  DFA -->|repair signals| RepA[repair-agent]
+  DFA -->|repair signals| RepIA[repair-implementation-agent]
   DFA -->|new feature| FA[feature-agent]
   DFA -->|broken flow| FFO[fix-flow-orchestrator]
   DFA -->|bug / crash| DA[debugger-agent]
   DFA -->|ambiguous| PN[PushNotification → clarify]
-  RepA -->|taskDescription| RepIA[repair-implementation-agent]
-  RepIA -->|success or failure| RepA
-  RepA -->|returns to orchestrator| DFA
+  RepIA -->|success or failure| DFA
 
   FA --> PA[planning-agent\n(Haiku orchestrator)]
   PA -->|phase=draft_plan / mermaid / flows| SPA[sub-planning-agent\n(Sonnet worker)]
@@ -123,7 +121,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `manufacture.repair` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to repair-agent; runs code-review, docs, skills, PR, cleanup — same as all other routes |
+| `manufacture.repair` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes directly to repair-implementation-agent; runs code-review, docs, skills, PR, cleanup — same as all other routes |
 | `manufacture.feature` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to feature-agent; runs code-review, docs, skills, PR, cleanup |
 | `manufacture.fixFlow` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to fix-flow-orchestrator |
 | `manufacture.debug` | `TaskInput` | `ManufactureOutput` | `happy path` | Routes to debugger-agent; planFilePath is null |
@@ -352,7 +350,7 @@ PROutput {
 
 ### Flow: `repair`
 
-- Core files: `agents/dark-factory/agents/repair-agent.md`, `agents/repair/agents/repair-implementation-agent.md`
+- Core files: `agents/repair/agents/repair-implementation-agent.md`
 
 #### Types
 
@@ -376,8 +374,8 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repair.success` | `RepairWorkerInput` | `RepairImplementationOutput{success: true}` | `happy path` | change applied, tests pass; repair-agent returns to orchestrator; orchestrator handles code review, docs, skills, PR, cleanup |
-| `repair.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; repair-agent reports error; orchestrator runs cleanup |
+| `repair.success` | `RepairWorkerInput` | `RepairImplementationOutput{success: true}` | `happy path` | change applied, tests pass; repair-implementation-agent returns to orchestrator; orchestrator handles code review, docs, skills, PR, cleanup |
+| `repair.implementation-failure` | `RepairWorkerInput` | `StandardError` | `error` | repair-implementation-agent returns success=false after 5 retries; orchestrator runs cleanup |
 
 ---
 
