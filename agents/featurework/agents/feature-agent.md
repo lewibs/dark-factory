@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent, gates on human approval (with feedback-and-retry), then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
+tools: Read, Write, Bash, Agent, PushNotification, AskUserQuestion, Skill
 model: sonnet
 allowed-tools: Bash(find *), Bash(grep -r *)
 ---
@@ -99,3 +99,19 @@ feature-agent(description):
 - After a hard-stop from `execution-agent`, stop completely. The developer will manually edit the plan and re-invoke `execution-agent`.
 - `planPath` comes from the output of `planning-agent` — it writes the plan file itself and returns (or reports) the path.
 - Do not invoke `pr-agent`. The caller (dark-factory-agent) handles the PR after its documentation steps complete.
+
+## Brain Patch
+
+After `execution-agent` returns successfully (before reporting completion):
+
+Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
+```json
+{
+  "planFilePath": "<absolute path to the plan file written by planning-agent>"
+}
+```
+
+Rules:
+- Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
+- Do NOT write `brain.json` directly — only write `brain-patch.json`.
+- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.

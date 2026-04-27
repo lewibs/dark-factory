@@ -80,3 +80,19 @@ Mark each checklist item in `tmp/update-docs-flows.md` as done (`[x]`) after com
 ## Completion
 
 Return the paths to every file written or updated.
+
+## Brain Patch
+
+After all documentation files have been written or updated (at the Completion step):
+
+Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
+```json
+{
+  "docsWritten": ["<absolute path to each doc file written or updated>"]
+}
+```
+
+Rules:
+- Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
+- Do NOT write `brain.json` directly — only write `brain-patch.json`.
+- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.
