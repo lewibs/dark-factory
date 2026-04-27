@@ -10,4 +10,5 @@ claude plugin marketplace add "$(pwd)"
 claude plugin marketplace update dark-factory
 claude plugin uninstall "dark-factory@dark-factory"
 claude plugin install "dark-factory@dark-factory"
+bash scripts/reopen-remote-control.sh "dark factory"
 ```
