@@ -32,6 +32,8 @@ flowchart TD
   FA --> PA[planning-agent]
   PA -->|planPath| FA
   FA -->|open-in-vscode| VSC[VS Code]
+  FA -->|python3 scripts/mermaid_to_image.py| MTE[mermaid_to_image.py]
+  MTE -->|diagram URL| PNDiagram[PushNotification: Plan diagram URL]
   FA -->|inline display + PushNotification| Dev([Developer])
   Dev -->|approve| EA[execution-agent]
   Dev -->|feedback| FA
@@ -158,7 +160,7 @@ ReviewDecision {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; feature-agent opens it in VS Code, reads and displays it inline, sends PushNotification, developer replies "yes" or "approve"; execution-agent implements |
+| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent writes plan; feature-agent opens it in VS Code, runs `scripts/mermaid_to_image.py` and pushes diagram URL to phone via PushNotification, reads and displays plan inline, sends PushNotification for approval, developer replies "yes" or "approve"; execution-agent implements |
 | `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer replies with feedback text; feature-agent re-invokes planning-agent with feedback, re-opens in VS Code, re-displays, re-prompts; loop repeats until explicit approval |
 | `featurework.abort` | `FeatureInput` | `StandardError` | `error` | Developer replies "abort" during plan review; feature-agent stops all work |
 | `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting |

@@ -48,3 +48,18 @@ Invoke the `investigation-agent` when you need to understand an existing system 
 Use the Write tool to save the plan directly to `docs/plans/<yyyy-mm-dd>-<what-it-updates>.md`. Do not return the plan content to the caller and expect them to save it — write the file yourself. Set status to `approved` after all stages pass and update the stage gate tracker.
 
 After writing the plan file, invoke the `open-in-vscode` skill with the absolute path to the plan file so the developer can review it immediately in their editor.
+
+After invoking `open-in-vscode`, run the following to push a diagram URL to the developer's phone:
+
+```
+# flow | planning_agent | push_mermaid_url | plan_file_path=<plan_file_path>
+run: python3 scripts/mermaid_to_image.py <plan_file_path>
+capture stdout as url
+if exit code == 0 and url is non-empty:
+  call PushNotification with message: "Plan diagram: <url>"
+else:
+  # flow | planning_agent | push_mermaid_url | skipped (no mermaid block or script error)
+  log warning — skip URL push, continue to approval gate
+```
+
+Do not block the approval gate if the script fails or if the plan has no mermaid block.
