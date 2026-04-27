@@ -12,14 +12,28 @@
 
 ```mermaid
 flowchart TD
-  Input["feature-agent(description)"] --> Plan["planning-agent\n(Mermaid diagram → flow contracts → pseudocode)"]
-  Plan --> PlanFile["docs/plans/<date>-<slug>.md"]
-  PlanFile --> MermaidScript["python3 scripts/mermaid_to_image.py\n(optional URL push)"]
-  MermaidScript -->|URL| PushDiagram["PushNotification: Plan diagram URL"]
-  MermaidScript -->|no block / error| PlanFile2["continue silently"]
-  PlanFile --> Push1["PushNotification: Plan Approval Required"]
-  Push1 --> Gate{Developer approval}
-  Gate -->|feedback| Plan
+  Input["feature-agent(description)"] --> PA["planning-agent\n(Haiku orchestrator)"]
+  PA -->|phase=draft_plan| SPA["sub-planning-agent\n(Sonnet worker)"]
+  SPA -->|planPath + summary| PA
+  PA -->|AskUserQuestion: draft review| Dev([Developer])
+  Dev -->|feedback| PA
+  Dev -->|approve| PA
+
+  PA -->|phase=mermaid| SPA
+  SPA -->|url + summary| PA
+  PA -->|PushNotification: diagram URL| Dev
+  PA -->|AskUserQuestion: mermaid review| Dev
+  Dev -->|feedback| PA
+  Dev -->|approve| PA
+
+  PA -->|phase=flows (one at a time)| SPA
+  SPA -->|summary| PA
+  PA -->|AskUserQuestion: flow review| Dev
+  Dev -->|feedback| PA
+  Dev -->|approve| PA
+
+  PA -->|planPath| Input
+  Input --> Gate{Developer approval\nvia feature-agent}
   Gate -->|abort| Abort["Stop"]
   Gate -->|approve| Exec["execution-agent(planPath)"]
   Exec --> Skeleton["skeleton-agent\n(creates file stubs)"]
@@ -37,18 +51,31 @@ flowchart TD
 
 ### Flow: `planFeature`
 
-- Test files: `tests/`
-- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`, `skills/create-mermaid-diagram/SKILL.md`
+- Test files: `N/A`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/featurework/planning/agents/planning-agent.md`, `agents/featurework/planning/agents/sub-planning-agent.md`, `agents/featurework/planning/templates/plan-template.md`
 
 #### Types
 
 ```txt
 PlanFeatureInput {
-  description: string (required — feature description or feedback-prefixed revision request)
+  description: string (required — feature description passed to planning-agent)
 }
 
 PlanFeatureOutput {
   planPath: string (absolute path to the written plan file, e.g. docs/plans/2026-04-26-add-oauth.md)
+}
+
+SubPlanningAgentInput {
+  phase: "draft_plan" | "mermaid" | "flows"
+  planPath: string | null  (null for draft_plan phase)
+  feedback: string         (user feedback or initial feature description)
+  flowName: string | null  (only for flows phase)
+}
+
+SubPlanningAgentOutput {
+  planPath: string (absolute path to the written/updated plan file)
+  url: string | null (mermaid.ink URL; only for mermaid phase)
+  summary: string (short description of what was done)
 }
 
 StandardError {
@@ -60,8 +87,11 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planFeature.success` | `PlanFeatureInput` | `PlanFeatureOutput` | happy path | planning-agent invokes `skills/create-mermaid-diagram/SKILL.md` to produce the diagram, writes plan, opens it in VSCode, runs `scripts/mermaid_to_image.py` and pushes the diagram URL to the developer's phone via PushNotification, returns planPath |
-| `planFeature.error` | `PlanFeatureInput` | `StandardError` | error | planning-agent fails or returns no planPath |
+| `planFeature.draftApproved` | `PlanFeatureInput` | proceeds to mermaid phase | happy path | planning-agent (Haiku) spawns sub-planning-agent (Sonnet) with phase=draft_plan; worker researches codebase (optionally via investigation-agent), creates plan file from template; orchestrator reads System Intent section, shows developer via AskUserQuestion |
+| `planFeature.mermaidApproved` | planPath from draft | proceeds to flows phase | happy path | orchestrator spawns sub-planning-agent with phase=mermaid; worker updates diagram section and runs `python3 scripts/mermaid_to_image.py`; orchestrator pushes diagram URL via PushNotification if url is non-null |
+| `planFeature.flowsApproved` | planPath | `PlanFeatureOutput` | happy path | orchestrator iterates each `### Flow:` section one at a time, shows developer, collects feedback if needed, re-spawns sub-planning-agent with phase=flows for updates; returns planPath after all flows approved |
+| `planFeature.phaseRetry` | any phase | revised content | loop | developer provides feedback during any phase; orchestrator re-spawns sub-planning-agent for that phase |
+| `planFeature.error` | `PlanFeatureInput` | `StandardError` | error | sub-planning-agent fails to complete a phase |
 
 ### Flow: `approveFeature`
 

@@ -79,7 +79,8 @@ AGENT_CHECKLISTS["execution-agent"]="Build skeleton|Write tests|Implement flows"
 AGENT_CHECKLISTS["skeleton-agent"]="Read plan|Build files checklist|Create skeleton files"
 AGENT_CHECKLISTS["testing-agent"]="Read plan|Build flows checklist|Write failing tests"
 AGENT_CHECKLISTS["implementation-agent"]="Read plan|Implement each flow|Run tests"
-AGENT_CHECKLISTS["planning-agent"]="Explore codebase|Draft Mermaid diagram|Define I/O contracts|Write acceptance criteria|Get approval"
+AGENT_CHECKLISTS["planning-agent"]="Spawn draft-plan sub-agent|Run mermaid phase|Run flows phase (one at a time)|Return planPath"
+AGENT_CHECKLISTS["sub-planning-agent"]="Research phase context|Update plan file|Run mermaid script (mermaid phase only)|Return structured output"
 AGENT_CHECKLISTS["code-review-orchestrator-agent"]="Run high-level review|Run low-level review|Resolve issues"
 AGENT_CHECKLISTS["high-level-review-agent"]="Read plan|Review code structure|Append issues"
 AGENT_CHECKLISTS["low-level-review-agent"]="Review functions|Check edge cases|Append issues"
@@ -112,12 +113,15 @@ elif [ "$TOOL_NAME" = "Agent" ]; then
 fi
 
 # pre-hook.inject: inject brain context into the agent prompt
+# NOTE: TOOL_INPUT may already have the checklist prepended by the block above.
+# We read the current prompt from the (possibly already modified) TOOL_INPUT so
+# that we prepend brain context to the full prompt, not just the original prompt.
 BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
-ORIGINAL_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
+CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
 NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
 ${BRAIN_CONTEXT}
 
-${ORIGINAL_PROMPT}"
+${CURRENT_PROMPT}"
 
 echo "pre-tool-use-hook | inject | brain_context_bytes=$(printf '%s' "$BRAIN_CONTEXT" | wc -c)" >&2
 
