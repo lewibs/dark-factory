@@ -1,9 +1,9 @@
 {
-  "taskDescription": "remove the repair-agent middle manager. dark-factory-agent should route repair tasks directly to repair-implementation-agent. delete repair-agent.md entirely and update the routing in dark-factory-agent.md.",
-  "taskName": "remove-repair-middleman",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-remove-repair-middleman",
+  "taskDescription": "rename repair-implementation-agent to repair-agent. rename the file agents/repair/agents/repair-implementation-agent.md to agents/repair/agents/repair-agent.md and update all references to it across the codebase.",
+  "taskName": "rename-repair-impl-agent",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-rename-repair-impl-agent",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "feature",
+  "classification": "repair",
   "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,

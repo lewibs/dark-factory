@@ -27,7 +27,7 @@ graph TD
   CMD -->|taskDescription, taskName| RA[repair-agent.md]:::new
   RA -->|taskName| PREP[prep-feature-dir.sh]:::unchanged
   PREP -->|WORK_DIR| RA
-  RA -->|taskDescription| RIA[repair-implementation-agent.md]:::new
+  RA -->|taskDescription| RIA[repair-agent.md]:::new
   RIA -->|makes changes| CODE[Codebase Files]:::unchanged
   RIA -->|runs tests| TESTS[Test Suite]:::unchanged
   TESTS -->|pass| RIA
@@ -52,7 +52,7 @@ graph TD
 |---|---|
 | `commands/repair.md` | Slash command entry point — enables `/dark-factory:repair` |
 | `agents/dark-factory/agents/repair-agent.md` | Top-level repair orchestrator |
-| `agents/repair/agents/repair-implementation-agent.md` | Lightweight implementation agent — works from task description, no plan file |
+| `agents/repair/agents/repair-agent.md` | Lightweight repair agent — works from task description, no plan file |
 | `skills/repair/SKILL.md` | User-invocable skill (alternative programmatic entry point) |
 
 ### Existing Files to Modify
@@ -110,7 +110,7 @@ RepairOrchestrationOutput = { prUrl: string, merged: boolean }
 |---|---|---|---|---|---|
 | `repairOrchestration.success` | `RepairInput` | `{ prUrl, merged: true }` | happy path | change applied, tests pass, PR merged | yes |
 | `repairOrchestration.prep-failure` | `RepairInput` | `StandardError` | error | `prep-feature-dir.sh` fails; no cleanup needed | yes |
-| `repairOrchestration.implementation-failure` | `RepairInput` | `StandardError` | error | `repair-implementation-agent` returns `success: false`; cleanup and stop | yes |
+| `repairOrchestration.implementation-failure` | `RepairInput` | `StandardError` | error | `repair-agent` returns `success: false`; cleanup and stop | yes |
 | `repairOrchestration.pr-failure` | `RepairInput` | `StandardError` | error | `pr-agent` fails to open or merge; cleanup and stop | yes |
 
 #### Pseudocode
@@ -132,7 +132,7 @@ repair-agent(taskDescription, taskName):
   # Step 3 — implement directly (no planning, no routing)
   cd into WORK_DIR
 
-  result = invoke repair-implementation-agent with: taskDescription
+  result = invoke repair-agent with: taskDescription
 
   If result.success == false:
     run cleanup(WORK_DIR)
@@ -164,10 +164,10 @@ repair-agent(taskDescription, taskName):
 
 ### Flow: `repairImplementation`
 
-Executed by `repair-implementation-agent.md`. Makes changes from a task description with no plan file, then iteratively runs tests until they pass or a retry limit is hit.
+Executed by `repair-agent.md`. Makes changes from a task description with no plan file, then iteratively runs tests until they pass or a retry limit is hit.
 
 - Test files: N/A (agent runs whatever tests already exist in the project)
-- Core files: `agents/repair/agents/repair-implementation-agent.md`
+- Core files: `agents/repair/agents/repair-agent.md`
 
 #### Types
 
@@ -188,7 +188,7 @@ RepairImplementationOutput = { success: boolean, significantChange: boolean, err
 #### Pseudocode
 
 ```
-repair-implementation-agent(taskDescription):
+repair-agent(taskDescription):
 
   # Step 1 — understand what needs to change
   Read relevant files to understand the area described by taskDescription.
@@ -260,7 +260,7 @@ scripts: agents/dark-factory/scripts/prep-feature-dir.sh
 allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(rm -rf dark_factory-*), Bash(cd *)
 ---
 
-You are the repair-agent. Your job is to apply a targeted repair end-to-end: isolate the work in a fresh directory, delegate implementation to repair-implementation-agent, run the docs update if warranted, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
+You are the repair-agent. Your job is to apply a targeted repair end-to-end: isolate the work in a fresh directory, delegate implementation to repair-agent, run the docs update if warranted, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
 
 ## Input
 
@@ -273,7 +273,7 @@ You will be invoked with:
 | Resource | Path |
 |---|---|
 | `prep-feature-dir.sh` | `agents/dark-factory/scripts/prep-feature-dir.sh` |
-| `repair-implementation-agent` | `agents/repair/agents/repair-implementation-agent.md` |
+| `repair-agent` | `agents/repair/agents/repair-agent.md` |
 | `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
 | `pr-agent` | `agents/pr/agents/pr-agent.md` |
 
@@ -291,7 +291,7 @@ repair-agent(taskDescription, taskName):
 
   # Step 2 — implement directly (no planning, no routing)
   cd into WORK_DIR
-  result = invoke repair-implementation-agent with: taskDescription
+  result = invoke repair-agent with: taskDescription
 
   If result.success == false:
     run cleanup(WORK_DIR)
@@ -334,24 +334,24 @@ If rm fails: warn developer but do not halt — this is non-fatal.
 - cleanup is non-fatal: if rm -rf fails, warn and continue.
 - Skip code review entirely — this is intentional for repair tasks.
 - Skip skill-update-agent — repair tasks do not produce new skills.
-- Doc update is conditional: only invoke update-documentation-agent when repair-implementation-agent reports significantChange == true.
+- Doc update is conditional: only invoke update-documentation-agent when repair-agent reports significantChange == true.
 ```
 
 ---
 
-### `agents/repair/agents/repair-implementation-agent.md`
+### `agents/repair/agents/repair-agent.md`
 
 ```markdown
 ---
-name: repair-implementation-agent
+name: repair-agent
 user-invocable: false
-description: Lightweight implementation agent for repair tasks. Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times.
+description: Lightweight repair agent. Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times.
 tools: Read, Write, Edit, Bash, Glob
 model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(npm run test *), Bash(go test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
 ---
 
-You are the repair-implementation-agent. Your job is to apply a targeted change described in plain language, run the existing test suite, fix any breakage iteratively, and report back to the caller.
+You are the repair-agent. Your job is to apply a targeted change described in plain language, run the existing test suite, fix any breakage iteratively, and report back to the caller.
 
 ## Input
 
@@ -440,7 +440,7 @@ You will be prompted for:
 | Source | Location |
 |---|---|
 | repair-agent | stdout / Claude Code conversation |
-| repair-implementation-agent | stdout / Claude Code conversation |
+| repair-agent | stdout / Claude Code conversation |
 
 ## Deployment
 
