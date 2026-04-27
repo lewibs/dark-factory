@@ -6,9 +6,9 @@
 
 ## System Intent
 
-- What this is: Hook-driven brain.json state management for dark-factory. Claude Code PreToolUse and PostToolUse hooks on the Agent tool automatically inject brain state into every sub-agent prompt and merge each sub-agent's output patch back into brain.json. Phase transition flags (`*-running`, `*-complete`) are managed exclusively by the hooks — not by agent instruction text.
-- Primary consumer(s): dark-factory-agent (creates, exports, and deletes brain.json); all sub-agents (write brain-patch.json with their specific outputs); pre-tool-use-hook.sh and post-tool-use-hook.sh (inject brain state and merge patches).
-- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `.claude/settings.json` hooks configuration, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
+- What this is: Hook-driven brain.json state management and metrics capture for dark-factory. Claude Code PreToolUse and PostToolUse hooks on the Agent and Skill tools automatically inject brain state into every sub-agent prompt, merge each sub-agent's output patch back into brain.json, and accumulate per-agent/skill runtime and token metrics into brain.json for later flush to metrics.csv. Phase transition flags (`*-running`, `*-complete`) are managed exclusively by the hooks — not by agent instruction text.
+- Primary consumer(s): dark-factory-agent (creates, exports, and deletes brain.json; flushes metrics.csv at cleanup); all sub-agents (write brain-patch.json with their specific outputs); pre-tool-use-hook.sh and post-tool-use-hook.sh (inject brain state, merge patches, and capture metrics).
+- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `.claude/settings.json` hooks configuration, `scripts/update-metrics.py`, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
 
 ## Mermaid Diagram
 
@@ -16,14 +16,18 @@
 graph TD
   DFA[dark-factory-agent]:::created -->|creates brain.json| BrainFile[brain.json]:::created
   DFA -->|export DARK_FACTORY_WORK_DIR| Env[env var]:::created
-  DFA -->|invokes Agent tool| SubAgent[sub-agent]:::unchanged
+  DFA -->|invokes Agent/Skill tool| SubAgent[sub-agent]:::unchanged
   BrainFile -->|read by pre-hook| PreHook[pre-tool-use-hook.sh]:::created
   PreHook -->|injects brain context into prompt| SubAgent
   PreHook -->|sets *-running=true| BrainFile
+  PreHook -->|writes start_ms for Agent/Skill| BrainFile
   SubAgent -->|writes specific outputs| BrainPatch[brain-patch.json]:::created
   BrainPatch -->|read by post-hook| PostHook[post-tool-use-hook.sh]:::created
   PostHook -->|merges patch + sets *-complete| BrainFile
+  PostHook -->|accumulates elapsed_ms+tokens+runs| BrainFile
   PostHook -->|deletes| BrainPatch
+  DFA -->|flush metrics.csv then rm brain.json| MetricsScript[scripts/update-metrics.py]:::created
+  MetricsScript -->|upsert rows + recompute averages| CSV[metrics.csv]:::created
   DFA -->|rm brain.json on cleanup| Cleanup[cleanup]:::unchanged
 
 classDef created fill:#a8e6a3,stroke:#666,stroke-width:1px;
@@ -43,7 +47,7 @@ classDef unchanged fill:#d3d3d3,stroke:#666,stroke-width:1px;
 HookInput {
   // Provided by Claude Code hook environment
   DARK_FACTORY_WORK_DIR: string | unset  (absolute path to worktree; set by dark-factory-agent export)
-  stdin: JSON  (Agent tool call input — contains "prompt" field)
+  stdin: JSON  (Agent or Skill tool call input — contains "prompt" field for Agent, "skill" field for Skill)
 }
 
 HookOutput {
@@ -61,6 +65,10 @@ HookOutput {
 | `pre-hook.inject` | Agent tool call + brain.json | modified prompt with brain context prepended | happy path | brain.json exists; reads it, injects as read-only context header, sets current phase *-running=true |
 | `pre-hook.no-brain` | Agent tool call (DARK_FACTORY_WORK_DIR unset or brain.json absent) | stdin passed through unchanged | happy path | not a dark-factory session — hook is a no-op |
 | `pre-hook.set-phase-running` | brain.json | brain.json with current phase `*-running=true` | happy path | first phase where both -running and -complete are false is selected and set to running |
+| `pre-hook.capture-start-agent` | tool_name = "Agent" | brain.json metrics[key].start_ms written | happy path | key = agent name extracted from subagent_type or prompt |
+| `pre-hook.capture-start-skill` | tool_name = "Skill" | brain.json metrics[key].start_ms written | happy path | key = skill field from tool input |
+| `pre-hook.capture-start-other` | tool_name = anything else | no metrics write | happy path | hook exits after standard inject; no start_ms written |
+| `pre-hook.capture-start-no-brain` | DARK_FACTORY_WORK_DIR unset or brain.json missing | no-op, log to stderr | happy path | metrics disabled gracefully |
 
 #### Pseudocode
 
@@ -71,7 +79,8 @@ pre-tool-use-hook.sh:
     cat  # pass stdin through unchanged
     exit 0
 
-  TOOL_INPUT=$(cat)  # Agent tool call JSON from stdin
+  TOOL_INPUT=$(cat)  # Agent/Skill tool call JSON from stdin
+  TOOL_NAME = jq '.tool_name' <<< TOOL_INPUT
 
   # Find first phase that is not yet started (neither -running nor -complete)
   PHASE = jq: first .phases entry where key !endswith("-running") and !endswith("-complete") and value == false
@@ -79,7 +88,17 @@ pre-tool-use-hook.sh:
   if PHASE found:
     jq ".phases[\"${PHASE}-running\"] = true" brain.json > /tmp/brain-pre-tmp.json && mv → brain.json
 
-  # Inject brain context into agent prompt
+  # Metrics: capture start_ms for Agent or Skill tool calls
+  if TOOL_NAME in ["Agent", "Skill"]:
+    if TOOL_NAME == "Agent":
+      KEY = jq '.tool_input.subagent_type // "unknown"' <<< TOOL_INPUT
+      # fallback: grep agents/*.md path from prompt, take basename without .md
+    if TOOL_NAME == "Skill":
+      KEY = jq '.tool_input.skill // "unknown"' <<< TOOL_INPUT
+    NOW_MS = $(date +%s%3N)
+    jq --arg key "$KEY" --argjson now $NOW_MS '.metrics[$key].start_ms = $now' brain.json > brain.tmp && mv brain.tmp brain.json
+
+  # Inject brain context into agent prompt (Agent tool only)
   BRAIN_CONTEXT = jq -c '.' brain.json
   ORIGINAL_PROMPT = TOOL_INPUT | jq -r '.prompt'
   NEW_PROMPT = "BRAIN STATE (read-only context — do not modify brain.json directly):\n${BRAIN_CONTEXT}\n\n${ORIGINAL_PROMPT}"
@@ -100,7 +119,7 @@ pre-tool-use-hook.sh:
 ```txt
 HookInput {
   DARK_FACTORY_WORK_DIR: string | unset
-  // stdin: Agent tool result JSON (not read by this hook)
+  // stdin: Agent or Skill tool result JSON — contains tool_name, tool_response.usage for metrics
 }
 ```
 
@@ -112,6 +131,10 @@ HookInput {
 | `post-hook.no-patch` | (no brain-patch.json) | brain.json phase flag updated only | happy path | sub-agent wrote no patch; only *-running and *-complete flags are updated |
 | `post-hook.set-phase-complete` | brain.json with a *-running=true phase | brain.json with that phase's *-running=false and *-complete=true | happy path | always runs after any patch merge |
 | `post-hook.no-brain` | DARK_FACTORY_WORK_DIR unset or brain.json absent | exit 0 | happy path | not a dark-factory session |
+| `post-hook.accumulate-metrics-success` | tool completed, brain.json has start_ms for key | brain.json metrics[key] updated: elapsed_ms += delta, tokens += n, runs += 1; start_ms deleted | happy path | |
+| `post-hook.accumulate-metrics-missing-start` | start_ms absent for key | elapsed_ms = 0, still accumulates tokens + runs | happy path | Handles out-of-order or first-run edge case |
+| `post-hook.accumulate-metrics-no-usage` | tool_response has no usage field | tokens defaults to 0 | happy path | |
+| `post-hook.accumulate-metrics-other-tool` | tool_name not Agent or Skill | no metrics accumulation | happy path | |
 
 #### Pseudocode
 
@@ -123,6 +146,9 @@ post-tool-use-hook.sh:
   if DARK_FACTORY_WORK_DIR unset or brain.json absent:
     exit 0
 
+  TOOL_INPUT=$(cat)  # hook stdin — tool result JSON
+  TOOL_NAME = jq '.tool_name' <<< TOOL_INPUT
+
   if brain-patch.json exists:
     jq -s '.[0] * .[1]' brain.json brain-patch.json > /tmp/brain-post-tmp.json && mv → brain.json
     rm -f brain-patch.json
@@ -131,6 +157,20 @@ post-tool-use-hook.sh:
   if RUNNING_PHASE found:
     COMPLETE_PHASE = "${RUNNING_PHASE%-running}-complete"
     jq ".phases[\"${RUNNING_PHASE}\"] = false | .phases[\"${COMPLETE_PHASE}\"] = true" brain.json > tmp && mv → brain.json
+
+  # Metrics: accumulate elapsed_ms, tokens, runs for Agent or Skill tool calls
+  if TOOL_NAME in ["Agent", "Skill"]:
+    KEY = extract_key(TOOL_INPUT, TOOL_NAME)  # same logic as pre-hook
+    NOW_MS    = $(date +%s%3N)
+    START_MS  = jq --arg k "$KEY" '.metrics[$k].start_ms // 0' brain.json
+    ELAPSED   = $((NOW_MS - START_MS))
+    TOKENS    = jq '(.tool_response.usage.input_tokens // 0) + (.tool_response.usage.output_tokens // 0)' <<< TOOL_INPUT
+    jq --arg key "$KEY" --argjson elapsed $ELAPSED --argjson tokens $TOKENS '
+      .metrics[$key].elapsed_ms = ((.metrics[$key].elapsed_ms // 0) + $elapsed) |
+      .metrics[$key].tokens     = ((.metrics[$key].tokens     // 0) + $tokens)  |
+      .metrics[$key].runs       = ((.metrics[$key].runs       // 0) + 1)        |
+      del(.metrics[$key].start_ms)
+    ' brain.json > brain.tmp && mv brain.tmp brain.json
 ```
 
 ---
@@ -145,8 +185,14 @@ post-tool-use-hook.sh:
 ```txt
 HookConfig {
   hooks: {
-    PreToolUse: [{ matcher: "Agent", hooks: [{ type: "command", command: string }] }]
-    PostToolUse: [{ matcher: "Agent", hooks: [{ type: "command", command: string }] }]
+    PreToolUse: [
+      { matcher: "Agent", hooks: [{ type: "command", command: string }] },
+      { matcher: "Skill", hooks: [{ type: "command", command: string }] }
+    ]
+    PostToolUse: [
+      { matcher: "Agent", hooks: [{ type: "command", command: string }] },
+      { matcher: "Skill", hooks: [{ type: "command", command: string }] }
+    ]
     Stop: [{ matcher: "", hooks: [{ type: "command", command: string }] }]  // pre-existing
   }
 }
@@ -156,8 +202,10 @@ HookConfig {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `hooks.pre-agent` | Agent tool call | modified prompt with brain context | happy path | PreToolUse hook matched to "Agent" tool |
-| `hooks.post-agent` | Agent tool result | brain.json updated | happy path | PostToolUse hook matched to "Agent" tool |
+| `hooks.pre-agent` | Agent tool call | modified prompt with brain context + start_ms written to brain.json | happy path | PreToolUse hook matched to "Agent" tool |
+| `hooks.pre-skill` | Skill tool call | start_ms written to brain.json for skill key | happy path | PreToolUse hook matched to "Skill" tool |
+| `hooks.post-agent` | Agent tool result | brain.json updated (patch merge + phase flags + metrics accumulation) | happy path | PostToolUse hook matched to "Agent" tool |
+| `hooks.post-skill` | Skill tool result | brain.json metrics accumulated for skill key | happy path | PostToolUse hook matched to "Skill" tool |
 
 ---
 
@@ -274,9 +322,11 @@ The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. 
 | `TestPreHookInjectsBrainState` | `pre_hook.inject.success`, `pre_hook.inject.no_brain` | `pre-tool-use-hook.sh` |
 | `TestPreHookSetsRunningPhase` | `pre_hook.set_running.success`, `pre_hook.set_running.no_incomplete` | `pre-tool-use-hook.sh` |
 | `TestPreHookEmitsValidJson` | `pre_hook.valid_json.success` | `pre-tool-use-hook.sh` |
+| `TestPreHookCapturesStartMs` | `pre-hook.capture-start-agent`, `pre-hook.capture-start-skill`, `pre-hook.capture-start-other`, `pre-hook.capture-start-no-brain` | `pre-tool-use-hook.sh` |
 | `TestPostHookMergesPatch` | `post_hook.merge.success`, `post_hook.merge.no_patch` | `post-tool-use-hook.sh` |
 | `TestPostHookSetsCompleteAndClearsRunning` | `post_hook.phase.success`, `post_hook.phase.no_running` | `post-tool-use-hook.sh` |
 | `TestPostHookNoBrain` | `post_hook.no_brain.success` | `post-tool-use-hook.sh` |
+| `TestPostHookAccumulatesMetrics` | `post-hook.accumulate-metrics-success`, `post-hook.accumulate-metrics-missing-start`, `post-hook.accumulate-metrics-no-usage`, `post-hook.accumulate-metrics-other-tool` | `post-tool-use-hook.sh` |
 
 Run the tests with:
 
@@ -290,9 +340,10 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
 
 | Source | Location |
 |--------|----------|
-| pre-tool-use-hook.sh | stderr only (errors and phase-running events); stdout reserved for modified tool input JSON |
-| post-tool-use-hook.sh | stderr only (merge-patch events, phase-complete events, warnings) |
-| brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — readable at any point during a run; deleted at cleanup |
+| pre-tool-use-hook.sh | stderr only (errors, phase-running events, and metrics start captures e.g. `pre-tool-use-hook \| metrics-capture \| key=feature-agent start_ms=1234567890`); stdout reserved for modified tool input JSON |
+| post-tool-use-hook.sh | stderr only (merge-patch events, phase-complete events, warnings, and metrics accumulation e.g. `post-tool-use-hook \| metrics-accumulate \| key=feature-agent elapsed_ms=4523 tokens=12400 runs=1`) |
+| update-metrics.py flush | stderr — `update-metrics \| flush \| rows=3 csv=/path/metrics.csv`; non-fatal errors also to stderr |
+| brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — readable at any point during a run; deleted at cleanup after metrics flush |
 
 ## Deployment
 
