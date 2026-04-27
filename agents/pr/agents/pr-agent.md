@@ -108,3 +108,19 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 - Always write the PR body to `/tmp/pr-body.md` and open the PR with `gh pr create --body-file /tmp/pr-body.md`. Never use `--body` with inline content — large bodies cause a "Parser aborted" interactive prompt.
 - Do not merge — stop once CI is green and all review threads are resolved.
 - When addressing CI failures or review comments, push additional commits to the same branch — do not open a new PR.
+
+## Brain Patch
+
+After the PR is opened (after step 2, before the ciWatchLoop):
+
+Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
+```json
+{
+  "prUrl": "<GitHub PR URL>"
+}
+```
+
+Rules:
+- Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
+- Do NOT write `brain.json` directly — only write `brain-patch.json`.
+- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.

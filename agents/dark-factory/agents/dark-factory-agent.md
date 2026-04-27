@@ -5,7 +5,7 @@ description: Top-level dark-factory orchestrator. Preps an isolated work dir, ro
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: sonnet
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *)
+allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -59,6 +59,40 @@ dark-factory-agent(taskDescription, taskName):
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
+  # brain.create — write brain.json immediately after WORK_DIR is captured
+  Determine the classification string: one of "feature" | "fix-flow" | "debugger"
+  Write $WORK_DIR/brain.json with this exact structure:
+    {
+      "taskDescription": "<taskDescription>",
+      "taskName": "<taskName>",
+      "workDir": "<WORK_DIR>",
+      "classification": "<classification>",
+      "planFilePath": null,
+      "bugFiles": null,
+      "prUrl": null,
+      "docsWritten": null,
+      "skillsWritten": null,
+      "phases": {
+        "prep-running": false,
+        "prep-complete": true,
+        "worker-running": false,
+        "worker-complete": false,
+        "review-running": false,
+        "review-complete": false,
+        "docs-running": false,
+        "docs-complete": false,
+        "skills-running": false,
+        "skills-complete": false,
+        "pr-running": false,
+        "pr-complete": false,
+        "cleanup-running": false,
+        "cleanup-complete": false
+      }
+    }
+
+  Export the env var so hooks can find brain.json:
+    export DARK_FACTORY_WORK_DIR=<WORK_DIR>
+
   # Step 3 — route to worker agent
   cd into WORK_DIR
 
@@ -71,7 +105,9 @@ dark-factory-agent(taskDescription, taskName):
     run cleanup(WORK_DIR)
     report error and STOP
 
-  planFilePath = path the worker wrote its plan to (null if no plan produced)
+  # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)
+  Read $WORK_DIR/brain.json
+  planFilePath = brain.json.planFilePath  (null if worker produced no plan)
 
   # Step 4 — code review
   invoke code-review-orchestrator-agent with:
@@ -88,16 +124,16 @@ dark-factory-agent(taskDescription, taskName):
   invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
 
   # Step 5c — skill update (non-fatal)
-  skillsWritten = []
   try:
-    skillResult = invoke skill-update-agent with:
+    invoke skill-update-agent with:
       planFilePath = planFilePath
       workDir      = WORK_DIR
       taskSummary  = taskDescription
-    skillsWritten = skillResult.skillsWritten
-    log "Skills written: " + skillsWritten
   catch error:
     warn developer: "skill-update-agent failed: <error>. Continuing to PR."
+
+  # brain.read-results — read brain.json again to get prUrl after pr-agent completes
+  # (pr-agent writes brain-patch.json with prUrl; post-hook merges it into brain.json)
 
   # Step 6 — PR
   # Only reached after all Step 5 documentation agents have fully completed.
@@ -108,12 +144,16 @@ dark-factory-agent(taskDescription, taskName):
     run cleanup(WORK_DIR)
     report error and STOP
 
-  prUrl = result from pr-agent
+  # Read prUrl from brain.json (merged by post-hook after pr-agent wrote brain-patch.json)
+  Read $WORK_DIR/brain.json
+  prUrl = brain.json.prUrl
 
   # Step 7 — cleanup
+  # brain.delete — remove brain.json before cleaning the worktree
+  rm -f $WORK_DIR/brain.json
   cleanup(WORK_DIR, taskName)
 
-  Report: "Done. PR: <prUrl>. Worktree <WORK_DIR> removed. Skills written: <skillsWritten>."
+  Report: "Done. PR: <prUrl>. Worktree <WORK_DIR> removed."
   STOP
 ```
 
@@ -142,3 +182,5 @@ Match signals in the order listed below — first match wins.
 - cleanup is non-fatal: if git worktree remove fails, warn and continue.
 - planFilePath is null when the worker agent (e.g. debugger-agent) does not produce a plan file. Pass the taskDescription string as a fallback to downstream agents that require a plan.
 - When classifying, prefer asking one question over guessing wrong and invoking the wrong worker.
+- After each sub-agent returns, READ brain.json to get output values (planFilePath, prUrl, etc.) instead of parsing them from the agent's return value. The post-hook merged them automatically.
+- Do NOT manually pass brain fields to sub-agents — the pre-hook injects brain state context automatically into every Agent tool call.
