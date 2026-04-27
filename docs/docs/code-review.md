@@ -38,6 +38,7 @@ flowchart TD
 OrchestrateReviewInput {
   planFilePath: string (required — absolute path to the approved plan file)
   codePath: string (required — directory path or branch name containing the code to review)
+  brainPath: string (optional — absolute path to brain.json; passed by dark-factory-agent)
 }
 
 OrchestrateReviewOutput {
@@ -113,4 +114,4 @@ high-level-review-agent(planFilePath, codePath):
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent after the worker agent completes
-- Notes: Never start the resolver if either reviewer returned an error. The resolver loop has a hard cap of 10 iterations to prevent infinite loops on intractable issues.
+- Notes: Never start the resolver if either reviewer returned an error. The resolver loop has a hard cap of 10 iterations to prevent infinite loops on intractable issues. dark-factory-agent passes `brainPath`; on entry code-review-orchestrator-agent sets `brain.phase = "review-running"` and on exit sets `brain.phase = "review-complete"`. If `brainPath` is not provided or unreadable, brain.json reads/writes are skipped (non-fatal).

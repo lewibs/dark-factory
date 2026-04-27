@@ -40,10 +40,13 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 dark-factory-agent(taskDescription, taskName):
 
   # Step 1 — classify and route
+  # log | brain.init | step=classify | taskName=taskName, route=pending
   Classify taskDescription using the Classification rules table below.
 
   # Repair route: repair-agent manages its own worktree, PR, and cleanup internally.
   # Do NOT prep a worktree; just invoke repair-agent and stop.
+  # brain.json is NOT created here — repair-agent creates its own brain.json in its own WORK_DIR.
+  # No brainPath is passed because brain.json does not exist yet at this point.
   If classified as repair (small change, tweak, rename, minor update, quick fix, adjust, alter):
     result = invoke repair-agent with: taskDescription, taskName
     If result is error or hard-stop:
@@ -59,33 +62,61 @@ dark-factory-agent(taskDescription, taskName):
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
+  # Step 2b — create brain.json (brain.init flow)
+  # log | brain.init | step=create | brainPath=brainPath, phase=init
+  brainPath = WORK_DIR + "/brain.json"
+
+  brain = {
+    schemaVersion:   "1.0",
+    taskName:        taskName,
+    taskDescription: taskDescription,
+    workDir:         WORK_DIR,
+    phase:           "init",
+    planFilePath:    null,
+    bugFiles:        [],
+    prUrl:           null,
+    docsWritten:     [],
+    skillsWritten:   [],
+    route:           classifiedRoute   # "feature" | "debugger" | "fix-flow" (never "repair" — repair short-circuits before brain.json is created)
+  }
+
+  Write JSON.stringify(brain, null, 2) to brainPath
+  # log | brain.init | step=written | brainPath=brainPath
+  # brain.json is now at WORK_DIR/brain.json — pass brainPath to every sub-agent below
+
   # Step 3 — route to worker agent
   cd into WORK_DIR
 
   Route based on classification:
-    - New feature or capability → invoke feature-agent with taskDescription
-    - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription
-    - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription
+    - New feature or capability → invoke feature-agent with taskDescription, brainPath
+    - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription, brainPath
+    - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription, brainPath
 
   If worker returns error or hard-stop:
-    run cleanup(WORK_DIR)
+    run cleanup(WORK_DIR, taskName)
     report error and STOP
 
   planFilePath = path the worker wrote its plan to (null if no plan produced)
+  # Prefer brain.planFilePath if it was written by the worker
+  # log | brain.workerWrite | step=read-after-worker | phase=brain.phase
+  brain = read + parse brainPath
+  if brain.planFilePath is not null:
+    planFilePath = brain.planFilePath
 
   # Step 4 — code review
   invoke code-review-orchestrator-agent with:
     planFilePath = planFilePath ?? "Task: <taskDescription>"
     codePath     = WORK_DIR
+    brainPath    = brainPath
 
   If error:
-    run cleanup(WORK_DIR)
+    run cleanup(WORK_DIR, taskName)
     report error and STOP
 
   # Step 5 — update docs
   # IMPORTANT: Documentation agent MUST fully complete before proceeding to Step 6.
   # The pr-agent (Step 6) uses `git add --all`, which will pick up any docs written here.
-  invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
+  invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully), brainPath
 
   # Step 5c — skill update (non-fatal)
   skillsWritten = []
@@ -94,6 +125,7 @@ dark-factory-agent(taskDescription, taskName):
       planFilePath = planFilePath
       workDir      = WORK_DIR
       taskSummary  = taskDescription
+      brainPath    = brainPath
     skillsWritten = skillResult.skillsWritten
     log "Skills written: " + skillsWritten
   catch error:
@@ -102,15 +134,19 @@ dark-factory-agent(taskDescription, taskName):
   # Step 6 — PR
   # Only reached after all Step 5 documentation agents have fully completed.
   # pr-agent uses `git add --all`, so any docs written in Step 5 are included in the PR.
-  invoke pr-agent with: planFilePath ?? taskDescription
+  invoke pr-agent with: planFilePath ?? taskDescription, brainPath
 
   If pr-agent errors or cannot merge:
-    run cleanup(WORK_DIR)
+    run cleanup(WORK_DIR, taskName)
     report error and STOP
 
   prUrl = result from pr-agent
 
-  # Step 7 — cleanup
+  # Step 7 — cleanup (brain.cleanup flow)
+  # log | brain.cleanup | step=delete | brainPath=brainPath
+  # Delete brain.json BEFORE calling cleanup-worktree.sh
+  delete file at brainPath   # rm WORK_DIR/brain.json
+  # log | brain.cleanup | step=deleted
   cleanup(WORK_DIR, taskName)
 
   Report: "Done. PR: <prUrl>. Worktree <WORK_DIR> removed. Skills written: <skillsWritten>."
@@ -142,3 +178,4 @@ Match signals in the order listed below — first match wins.
 - cleanup is non-fatal: if git worktree remove fails, warn and continue.
 - planFilePath is null when the worker agent (e.g. debugger-agent) does not produce a plan file. Pass the taskDescription string as a fallback to downstream agents that require a plan.
 - When classifying, prefer asking one question over guessing wrong and invoking the wrong worker.
+- Always delete brain.json before calling cleanup-worktree.sh. brain.json is ephemeral — it must not persist between runs.

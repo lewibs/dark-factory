@@ -15,6 +15,7 @@ You are the repair-agent. Your job is to apply a targeted repair end-to-end: iso
 You will be invoked with:
 - `taskDescription` — verbatim user request (what to change or fix)
 - `taskName` — short slug for the work dir (e.g. `fix-null-check`); derive from `taskDescription` if omitted (lowercase, hyphens, ≤30 chars)
+- `brainPath` — optional path to an existing brain.json (passed by dark-factory-agent when available)
 
 ## Paths to key agents and scripts
 
@@ -28,7 +29,7 @@ You will be invoked with:
 ## Orchestration
 
 ```
-repair-agent(taskDescription, taskName):
+repair-agent(taskDescription, taskName, brainPath):
 
   # Step 1 — derive taskName if not provided
   if taskName not provided:
@@ -42,6 +43,25 @@ repair-agent(taskDescription, taskName):
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
 
+  # Step 2b — create brain.json in repair's own WORK_DIR (brain.workerWrite flow)
+  repairBrainPath = WORK_DIR + "/brain.json"
+
+  repairBrain = {
+    schemaVersion:   "1.0",
+    taskName:        taskName,
+    taskDescription: taskDescription,
+    workDir:         WORK_DIR,
+    phase:           "worker-running",
+    planFilePath:    null,
+    bugFiles:        [],
+    prUrl:           null,
+    docsWritten:     [],
+    skillsWritten:   [],
+    route:           "repair"
+  }
+
+  Write JSON.stringify(repairBrain, null, 2) to repairBrainPath
+
   # Step 3 — implement directly (no planning, no routing)
   cd into WORK_DIR
   result = invoke repair-implementation-agent with: taskDescription
@@ -52,10 +72,14 @@ repair-agent(taskDescription, taskName):
 
   # Step 4 — optionally update docs
   If result.significantChange == true:
-    invoke update-documentation-agent with: taskDescription
+    invoke update-documentation-agent with: taskDescription, repairBrainPath
     (non-fatal: if it errors, warn and continue)
 
   # Step 5 — PR
+  # NOTE: do NOT pass repairBrainPath to pr-agent here.
+  # repair-agent writes prUrl and phase=pr-complete to brain.json itself (Step 5b below).
+  # Passing repairBrainPath to pr-agent would cause pr-agent to also write phase=pr-complete
+  # and prUrl, resulting in a double-write. repair-agent owns this write for the repair route.
   invoke pr-agent with: taskDescription
 
   If pr-agent errors or cannot merge:
@@ -65,7 +89,14 @@ repair-agent(taskDescription, taskName):
   prUrl = result from pr-agent
   merged = true
 
-  # Step 6 — cleanup
+  # Step 5b — write prUrl to brain.json (brain.workerWrite repair path)
+  repairBrain = read + parse repairBrainPath
+  repairBrain.prUrl = prUrl
+  repairBrain.phase = "pr-complete"
+  Write repairBrain to repairBrainPath
+
+  # Step 6 — cleanup (brain.cleanup for repair: delete brain.json before worktree removal)
+  delete file at repairBrainPath   # rm WORK_DIR/brain.json
   cleanup(WORK_DIR, taskName)
 
   Report: "Done. PR: <prUrl>. Merged: <merged>. Worktree <WORK_DIR> removed."
@@ -90,3 +121,4 @@ If either command fails: warn developer but do not halt — this is non-fatal.
 - Skip code review entirely — this is intentional for repair tasks.
 - Skip skill-update-agent — repair tasks do not produce new skills.
 - Doc update is conditional: only invoke update-documentation-agent when repair-implementation-agent reports significantChange == true.
+- Always delete brain.json (at repairBrainPath) before calling cleanup-worktree.sh. brain.json is ephemeral — it must not persist between runs.

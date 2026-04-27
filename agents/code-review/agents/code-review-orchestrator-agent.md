@@ -17,6 +17,7 @@ You are the code-review-orchestrator-agent. Your job is to orchestrate the full 
 You will be invoked with:
 - `planFilePath` — absolute path to the approved plan file
 - `codePath` — directory path or branch name containing the code to review
+- `brainPath` — optional path to brain.json
 
 ## Types
 
@@ -24,6 +25,7 @@ You will be invoked with:
 OrchestrateReviewInput {
   planFilePath: string (required — absolute path to the approved plan file)
   codePath:     string (required — directory path or branch name containing the code to review)
+  brainPath:    string (optional — absolute path to brain.json)
 }
 
 OrchestrateReviewOutput {
@@ -37,23 +39,39 @@ StandardError {
 
 ## Your task
 
-1. Create `tmp/issues.md` with the following content:
+1. (brain.reviewWrite — on entry) If `brainPath` is provided and file exists:
+   ```
+   brain = read + parse brainPath
+   brain.phase = "review-running"
+   write brain to brainPath
+   ```
+
+2. Create `tmp/issues.md` with the following content:
    ```
    ## Issues
    ```
-2. Spawn in parallel:
+3. Spawn in parallel:
    - `agents/code-review/agents/high-level-review-agent.md` with inputs `planFilePath` and `codePath`
    - `agents/code-review/agents/low-level-review-agent.md` with input `codePath`
-3. Wait for both to complete.
+4. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
-4. Enter the resolver loop:
+5. Enter the resolver loop:
    - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath` set to the absolute path of `tmp/issues.md` (i.e. `<codePath>/tmp/issues.md`).
    - Wait for it to return.
    - If it returns an error: surface the error and halt.
    - If `anyRemaining` is false: exit the loop.
    - If `anyRemaining` is true: re-enter the loop (re-spawn the resolver).
-5. Delete `tmp/issues.md`.
-6. Return `{ status: "complete" }`.
+6. (brain.reviewWrite — on exit) If `brainPath` is provided and file exists:
+   ```
+   brain = read + parse brainPath
+   brain.phase = "review-complete"
+   write brain to brainPath
+   ```
+   Note: write brain.phase BEFORE deleting issues.md so that if the brain write fails, issues.md is still present for diagnosis.
+
+7. Delete `tmp/issues.md`.
+
+8. Return `{ status: "complete" }`.
 
 ## Paths
 
@@ -69,3 +87,4 @@ StandardError {
 - Never start the resolver if either reviewer returned an error.
 - If the resolver loop runs more than 10 iterations without clearing all items, halt with a `StandardError` describing the stuck items.
 - Always delete `tmp/issues.md` on successful completion.
+- `brainPath` is optional — if not provided or file not readable, skip brain.json reads/writes entirely (non-fatal).

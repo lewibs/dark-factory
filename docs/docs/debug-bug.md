@@ -44,6 +44,7 @@ DebugBugInput {
   bugDescription: string (required — description of the failure to debug)
   scriptPaths: ScriptPaths (optional — provided by fix-flow-orchestrator when debugging integration flows)
   previousBugFiles: string[] (optional — list of prior bug-explanation file paths to avoid repeating known-bad fixes)
+  brainPath: string (optional — absolute path to brain.json; passed by dark-factory-agent)
 }
 
 ScriptPaths {
@@ -121,4 +122,4 @@ debugger-agent(bugDescription, scriptPaths?, previousBugFiles?):
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent or ralph-fix-and-push
-- Notes: debugger-agent is not user-invocable directly. When called from fix-flow-orchestrator via ralph-fix-and-push, it receives script paths for triggering and fetching logs from the integration environment. When called from dark-factory-agent for a standalone bug report, no script paths are provided.
+- Notes: debugger-agent is not user-invocable directly. When called from fix-flow-orchestrator via ralph-fix-and-push, it receives script paths for triggering and fetching logs from the integration environment. When called from dark-factory-agent for a standalone bug report, no script paths are provided. dark-factory-agent passes `brainPath`; on entry debugger-agent sets `brain.phase = "worker-running"` and on exit sets `brain.bugFiles` and `brain.phase = "worker-complete"`. If `brainPath` is not provided or unreadable, brain.json reads/writes are skipped (non-fatal).

@@ -73,6 +73,10 @@ TaskInput {
   taskName: string (optional short slug; derived from taskDescription if omitted)
 }
 
+BrainPath {
+  brainPath: string (absolute path to WORK_DIR/brain.json; created by dark-factory-agent after prep-feature-dir.sh and passed to every sub-agent)
+}
+
 WorkerResult {
   planFilePath: string | null (path written by worker; null if debugger-agent)
 }

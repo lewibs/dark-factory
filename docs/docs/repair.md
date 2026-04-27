@@ -42,6 +42,7 @@ flowchart TD
 RepairInput {
   taskDescription: string (verbatim user request — what to fix or change)
   taskName: string (short slug for the work dir, e.g. "fix-login-bug"; derived if omitted)
+  brainPath: string (optional — ignored for repair route; repair-agent creates its own brain.json in its own WORK_DIR)
 }
 
 RepairOrchestrationOutput {
@@ -77,6 +78,12 @@ repair-agent(taskDescription, taskName):
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed)
 
+  # Step 2b — create brain.json in repair's own WORK_DIR
+  repairBrainPath = WORK_DIR + "/brain.json"
+  write brain.json: { schemaVersion: "1.0", taskName, taskDescription, workDir: WORK_DIR,
+                      phase: "worker-running", planFilePath: null, bugFiles: [],
+                      prUrl: null, docsWritten: [], skillsWritten: [], route: "repair" }
+
   # Step 3 — implement directly (no planning, no routing)
   cd into WORK_DIR
   result = invoke repair-implementation-agent with: taskDescription
@@ -98,7 +105,14 @@ repair-agent(taskDescription, taskName):
   prUrl = result.pr_url
   merge PR (squash-merge and delete branch)
 
-  # Step 6 — cleanup
+  # Step 5b — write prUrl to brain.json
+  brain = read + parse repairBrainPath
+  brain.prUrl = prUrl
+  brain.phase = "pr-complete"
+  write brain to repairBrainPath
+
+  # Step 6 — cleanup (delete brain.json BEFORE cleanup-worktree.sh)
+  delete repairBrainPath
   cleanup(WORK_DIR)
   Report: "Done. PR: <prUrl>. Work dir <WORK_DIR> removed."
   STOP

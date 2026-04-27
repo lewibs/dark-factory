@@ -46,6 +46,27 @@ Pass it:
 
 Wait for it to finish. It will return all the PRs that it made.
 
+## brain.json wiring (brain.workerWrite flow)
+
+If `brainPath` is provided as an argument and the file exists:
+
+On entry (before Phase 1):
+```
+brain = read + parse brainPath
+brain.phase = "worker-running"
+write brain to brainPath
+```
+
+On successful exit (after Phase 3, before returning to caller):
+```
+brain = read + parse brainPath
+brain.planFilePath = absolute path to docs/plans/system-diagram.md
+brain.phase = "worker-complete"
+write brain to brainPath
+```
+
+If `brainPath` is not provided or the file cannot be read, skip brain.json reads/writes entirely — this is non-fatal.
+
 ## Completion
 
 When ralph-fix-and-push returns all-green:

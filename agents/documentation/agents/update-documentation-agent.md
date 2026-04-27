@@ -17,7 +17,7 @@ Updates project documentation after a plan has been implemented. Runs three phas
 The plan path is required. If not provided, call PushNotification with title: "Input Required" and message: "The update-documentation agent needs a plan path to proceed." Then use AskUserQuestion with header "Plan Path", question "Which plan file should documentation be updated for?", and options: "Provide path (use Other to type it, e.g. docs/plans/2026-04-26-my-feature.md)" and "Skip — do not update documentation this run". Stop and wait before doing anything else.
 
 ```
-/update-documentation-agent <plan-path>
+/update-documentation-agent <plan-path> [brainPath]
 ```
 
 ## docs/ directory structure
@@ -27,6 +27,27 @@ The plan path is required. If not provided, call PushNotification with title: "I
 | `docs/plans/` | Working plans — source of truth for what was implemented |
 | `docs/bugs/` | Audit logs of previously fixed bugs |
 | `docs/docs/` | Authoritative system documentation — what you update |
+
+## brain.json wiring (brain.docsWrite flow)
+
+If `brainPath` is provided and the file exists:
+
+On entry (before Phase 1):
+```
+brain = read + parse brainPath
+brain.phase = "docs-running"
+write brain to brainPath
+```
+
+On completion (after Phase 3, before returning):
+```
+brain = read + parse brainPath
+brain.docsWritten = [paths to all files written or updated in Phase 3]
+brain.phase = "docs-complete"
+write brain to brainPath
+```
+
+If `brainPath` is not provided or the file cannot be read, skip brain.json reads/writes entirely — this is non-fatal.
 
 ## Phase 1 — Identify Flows
 
@@ -79,4 +100,4 @@ Mark each checklist item in `tmp/update-docs-flows.md` as done (`[x]`) after com
 
 ## Completion
 
-Return the paths to every file written or updated.
+Return the paths to every file written or updated as a list (may be empty if no docs were changed). Write these paths to `brain.docsWritten` if `brainPath` is available. If `brainPath` is not provided or the file cannot be read, return the paths list directly to the caller without any brain.json update — this is non-fatal.

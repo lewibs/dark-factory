@@ -29,7 +29,13 @@ You are the feature-agent. Your job is to orchestrate end-to-end feature work by
 ## Orchestration Logic
 
 ```
-feature-agent(description):
+feature-agent(description, brainPath):
+
+  # brain.workerWrite — on entry: set phase=worker-running
+  if brainPath is provided and file exists:
+    brain = read + parse brainPath
+    brain.phase = "worker-running"
+    write brain to brainPath
 
   feedback = null
 
@@ -80,9 +86,21 @@ feature-agent(description):
   invoke execution-agent with: planPath
 
   If execution-agent returns hardStop == true:
+    # brain.workerWrite — on hard-stop: update phase so caller does not see stale "worker-running"
+    if brainPath is provided and file exists:
+      brain = read + parse brainPath
+      brain.phase = "worker-complete"
+      write brain to brainPath
     report "Execution paused: hard-stop triggered. Reason: <reason>." to developer
     report "Edit the plan at <planPath> and re-invoke execution-agent when ready."
     STOP
+
+  # brain.workerWrite — on successful exit: write planFilePath + phase=worker-complete
+  if brainPath is provided and file exists:
+    brain = read + parse brainPath
+    brain.planFilePath = planPath
+    brain.phase = "worker-complete"
+    write brain to brainPath
 
   # Step 4: done — caller opens the PR
   # Do NOT invoke pr-agent here. The caller (dark-factory-agent) runs documentation
@@ -99,3 +117,4 @@ feature-agent(description):
 - After a hard-stop from `execution-agent`, stop completely. The developer will manually edit the plan and re-invoke `execution-agent`.
 - `planPath` comes from the output of `planning-agent` — it writes the plan file itself and returns (or reports) the path.
 - Do not invoke `pr-agent`. The caller (dark-factory-agent) handles the PR after its documentation steps complete.
+- `brainPath` is optional — if not provided or file not readable, fall back to current behavior (no brain.json reads/writes).

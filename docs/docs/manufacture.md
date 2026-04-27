@@ -7,6 +7,7 @@
 ## System Intent
 
 - What this is: The top-level user-facing orchestration flow. Given a task description, classifies the request and routes to the correct worker agent (repair, feature, debugger, or fix-flow). Repair tasks short-circuit before worktree prep and delegate entirely to `repair-agent`. All other routes create an isolated work directory, run code review, update documentation, update skills, open a PR, and clean up — all without manual intervention.
+- `brain.json` is created at the start of every non-repair run and deleted at cleanup. It carries context across all phases so agents do not need to reconstruct state from scratch.
 
 ## Mermaid Diagram
 
@@ -21,18 +22,67 @@ flowchart TD
   Classify -->|broken integration flow| Prep
   Classify -->|ambiguous| Push["PushNotification: Clarification Required"]
   Push --> User2["Ask developer one question"]
-  Prep --> Feature["feature-agent"]
-  Prep --> Debug["debugger-agent"]
-  Prep --> FixFlow["fix-flow-orchestrator"]
+  Prep --> BrainInit["create brain.json\n(WORK_DIR/brain.json)"]
+  BrainInit --> Feature["feature-agent"]
+  BrainInit --> Debug["debugger-agent"]
+  BrainInit --> FixFlow["fix-flow-orchestrator"]
   Feature --> CodeReview["code-review-orchestrator-agent"]
   Debug --> CodeReview
   FixFlow --> CodeReview
   CodeReview --> UpdateDocs["update-documentation-agent"]
   UpdateDocs --> SkillUpdate["skill-update-agent (non-fatal)"]
   SkillUpdate --> PR["pr-agent"]
-  PR --> Cleanup["rm -rf WORK_DIR"]
+  PR --> BrainDelete["delete brain.json"]
+  BrainDelete --> Cleanup["cleanup-worktree.sh"]
   Cleanup --> Done["Report: Done. PR: <url>"]
 ```
+
+## brain.json Lifecycle
+
+`brain.json` is an ephemeral shared state file created at `WORK_DIR/brain.json` for every non-repair manufacture run. It carries context across all phases.
+
+### Schema
+
+```json
+{
+  "schemaVersion": "1.0",
+  "taskName": "string",
+  "taskDescription": "string",
+  "workDir": "string (absolute path)",
+  "phase": "init | worker-running | worker-complete | review-running | review-complete | docs-running | docs-complete | skills-running | skills-complete | pr-running | pr-complete | cleanup",
+  "planFilePath": "string | null",
+  "bugFiles": "string[]",
+  "prUrl": "string | null",
+  "docsWritten": "string[]",
+  "skillsWritten": "SkillFile[]",
+  "route": "feature | debugger | fix-flow | repair | null"
+}
+```
+
+### Lifecycle
+
+| Step | Agent | brain.phase set |
+|---|---|---|
+| After prep-feature-dir.sh | dark-factory-agent creates brain.json | `init` |
+| Worker agent entry | feature-agent / debugger-agent | `worker-running` |
+| Worker agent exit | feature-agent / debugger-agent | `worker-complete` |
+| Code review entry | code-review-orchestrator-agent | `review-running` |
+| Code review exit | code-review-orchestrator-agent | `review-complete` |
+| Docs update entry | update-documentation-agent | `docs-running` |
+| Docs update exit | update-documentation-agent | `docs-complete` |
+| Skill update entry | skill-update-agent | `skills-running` |
+| Skill update exit | skill-update-agent | `skills-complete` |
+| PR agent entry | pr-agent | `pr-running` |
+| PR agent exit | pr-agent | `pr-complete` |
+| Before cleanup-worktree.sh | dark-factory-agent deletes brain.json | (deleted) |
+
+### Repair route
+
+For repair tasks, `repair-agent` creates its own `brain.json` in its own `WORK_DIR`. It writes `prUrl` and `phase=pr-complete` before deleting and cleaning up. The outer `dark-factory-agent` does not create a brain.json for repair tasks.
+
+### Fallback
+
+All agents treat `brainPath` as optional. If `brainPath` is not provided or the file cannot be read, the agent falls back to caller-provided arguments — no behavior change.
 
 ## Flows
 
@@ -100,28 +150,37 @@ dark-factory-agent(taskDescription, taskName):
   capture WORK_DIR from stdout
   if fail: report error, STOP
 
+  # Step 2b — create brain.json
+  brainPath = WORK_DIR + "/brain.json"
+  write brain.json: { schemaVersion, taskName, taskDescription, workDir, phase: "init",
+                      planFilePath: null, bugFiles: [], prUrl: null,
+                      docsWritten: [], skillsWritten: [], route: classifiedRoute }
+  # pass brainPath to all subsequent sub-agent invocations
+
   # Step 3 — delegate to worker
   cd WORK_DIR
-  invoke classified worker agent with taskDescription
+  invoke classified worker agent with taskDescription, brainPath
   if worker errors: cleanup(WORK_DIR), STOP
-  planFilePath = path worker wrote its plan to (null if debugger-agent)
+  # prefer brain.planFilePath over caller-returned value if non-null
+  planFilePath = brain.planFilePath ?? path worker returned ?? null
 
   # Step 4 — code review
-  code-review-orchestrator-agent(planFilePath ?? "Task: <taskDescription>", WORK_DIR)
+  code-review-orchestrator-agent(planFilePath ?? "Task: <taskDescription>", WORK_DIR, brainPath)
   if error: cleanup(WORK_DIR), STOP
 
   # Step 5 — update docs (must complete before PR)
-  update-documentation-agent(planFilePath)
+  update-documentation-agent(planFilePath, brainPath)
 
   # Step 5c — skill update (non-fatal)
-  try: skill-update-agent(planFilePath, WORK_DIR, taskDescription)
+  try: skill-update-agent(planFilePath, WORK_DIR, taskDescription, brainPath)
   catch: warn and continue
 
   # Step 6 — open PR
-  pr-agent(planFilePath ?? taskDescription)
+  pr-agent(planFilePath ?? taskDescription, brainPath)
   if error: cleanup(WORK_DIR), STOP
 
-  # Step 7 — cleanup
+  # Step 7 — cleanup (delete brain.json BEFORE cleanup-worktree.sh)
+  delete brainPath
   cleanup(WORK_DIR)
   report "Done. PR: <prUrl>. Skills written: <skillsWritten>."
 ```
@@ -132,6 +191,7 @@ dark-factory-agent(taskDescription, taskName):
 |--------|----------|
 | dark-factory-agent output | Claude Code session transcript |
 | prep-feature-dir.sh | stdout captured by dark-factory-agent |
+| brain.json lifecycle | WORK_DIR/brain.json (deleted on cleanup) |
 
 ## Deployment
 
@@ -141,4 +201,4 @@ dark-factory-agent(taskDescription, taskName):
   # Invoked via Claude Code slash command
   /dark-factory:manufacture <task description>
   ```
-- Notes: Requires Claude Code with the dark-factory plugin installed. All worker agents run in an isolated WORK_DIR cloned from the project root.
+- Notes: Requires Claude Code with the dark-factory plugin installed. All worker agents run in an isolated WORK_DIR cloned from the project root. brain.json is ephemeral — it is created at run start and deleted before cleanup-worktree.sh runs. It never persists between manufacture runs.

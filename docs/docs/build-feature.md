@@ -42,6 +42,7 @@ flowchart TD
 ```txt
 PlanFeatureInput {
   description: string (required — feature description or feedback-prefixed revision request)
+  brainPath: string (optional — absolute path to brain.json; passed by dark-factory-agent)
 }
 
 PlanFeatureOutput {
@@ -150,4 +151,4 @@ execution-agent(planPath):
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent
-- Notes: feature-agent is not user-invocable directly; it is spawned by dark-factory-agent when the task classification is "new feature". The PR is opened by the caller (dark-factory-agent) after update-documentation-agent completes.
+- Notes: feature-agent is not user-invocable directly; it is spawned by dark-factory-agent when the task classification is "new feature". The PR is opened by the caller (dark-factory-agent) after update-documentation-agent completes. dark-factory-agent passes `brainPath` to feature-agent; on entry feature-agent sets `brain.phase = "worker-running"` and on exit sets `brain.planFilePath` and `brain.phase = "worker-complete"`. If `brainPath` is not provided or unreadable, brain.json reads/writes are skipped (non-fatal).

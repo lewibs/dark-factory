@@ -14,6 +14,7 @@ You will be invoked with:
 - `planFilePath` — path to the approved plan file for the completed task, or `null`
 - `workDir` — absolute path to the isolated work dir
 - `taskSummary` — brief human-readable description of what was accomplished
+- `brainPath` — optional path to brain.json
 
 ## Output
 
@@ -35,7 +36,13 @@ SkillFile {
 ## Orchestration
 
 ```
-skill-update-agent(planFilePath, workDir, taskSummary):
+skill-update-agent(planFilePath, workDir, taskSummary, brainPath):
+
+  # brain.skillsWrite — on entry
+  if brainPath is provided and file exists:
+    brain = read + parse brainPath
+    brain.phase = "skills-running"
+    write brain to brainPath
 
   # Step 1 — gather context
   if planFilePath is not null:
@@ -56,6 +63,13 @@ skill-update-agent(planFilePath, workDir, taskSummary):
     If general and likely to recur (e.g. "how to do X in this codebase"): keep
 
   if filteredPatterns is empty:
+    # brain.skillsWrite — on exit (empty)
+    if brainPath is provided and file exists:
+      brain = read + parse brainPath
+      brain.skillsWritten = []
+      brain.phase = "skills-complete"
+      if write brain to brainPath fails:
+        warn caller: "skill-update-agent: failed to write brain.json phase=skills-complete: <error>. Continuing."
     return { skillsWritten: [] }
 
   # Step 4 — write/update skill files
@@ -70,7 +84,14 @@ skill-update-agent(planFilePath, workDir, taskSummary):
       write new SKILL.md using the skill template below
       record { path: skillPath, action: "created" }
 
-  # Step 5 — return
+  # Step 5 — brain.skillsWrite — on exit
+  if brainPath is provided and file exists:
+    brain = read + parse brainPath
+    brain.skillsWritten = [recorded SkillFile entries]
+    brain.phase = "skills-complete"
+    write brain to brainPath
+
+  # Step 6 — return
   return { skillsWritten: [recorded SkillFile entries] }
 ```
 
@@ -101,3 +122,4 @@ user-invocable: false
 - If you cannot read `planFilePath` or run `git` in `workDir`, report the error to the caller. This is non-fatal — the caller (dark-factory-agent) will log a warning and continue to the PR step.
 - A skill file path is always `skills/<slug>/SKILL.md` relative to `workDir`.
 - When updating an existing skill, preserve all existing content and merge new knowledge in — do not overwrite.
+- `brainPath` is optional — if not provided or file not readable, skip brain.json reads/writes entirely (non-fatal).

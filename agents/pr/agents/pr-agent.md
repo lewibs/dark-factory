@@ -17,16 +17,24 @@ All scripts you need are in the **Scripts** table in `create-pr`.
 You will be invoked with either:
 - A **file path** — read that file to get context for the PR description.
 - A **description string** — use it as context for the PR description.
+- `brainPath` — optional path to brain.json
 
-If neither is provided, look at the git diff and any relevant `docs/bugs/` or `docs/plans/` files.
+If neither file path nor description is provided, look at the git diff and any relevant `docs/bugs/` or `docs/plans/` files.
 
 ## Your task
 
-1. Build the PR body using `agents/pr/templates/pr-template.md`:
+1. (brain.prWrite — on entry) If `brainPath` is provided and file exists:
+   ```
+   brain = read + parse brainPath
+   brain.phase = "pr-running"
+   write brain to brainPath
+   ```
+
+2. Build the PR body using `agents/pr/templates/pr-template.md`:
    - **Description**: paste the full raw contents of the input file (or the matching `docs/bugs/` or `docs/plans/` file) verbatim into the Description section. Do not summarise, paraphrase, or abbreviate.
    - **Test Plan**: run the project's test suite. If tests exist and ran, paste the output. If no tests exist, omit the section entirely.
-2. Follow the instructions in `create-pr` to open the PR with the completed body.
-3. Run `ciWatchLoop(pr_url)`:
+3. Follow the instructions in `create-pr` to open the PR with the completed body.
+4. Run `ciWatchLoop(pr_url)`:
 
    ```
    MAX_CI_ITERATIONS = 5
@@ -40,7 +48,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
      // --watch blocks until all checks complete or one fails
 
      if all checks passed:
-       RETURN { status: "pass" }  // proceed to step 4
+       RETURN { status: "pass" }  // proceed to step 5
 
      // At least one check failed — collect failing runs
      failedRuns = gh pr checks <pr_url> --fail-fast  // get failing run IDs
@@ -50,7 +58,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 
        if fixResult.skipped == true:
          // quota exhaustion — treat as pass, skip remaining runs
-         RETURN { status: "pass" }  // proceed to step 4
+         RETURN { status: "pass" }  // proceed to step 5
 
        if fixResult.fixed == false:
          STOP with error "CI failure unfixable: " + fixResult.reason
@@ -63,7 +71,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
      CONTINUE LOOP
    ```
 
-4. Run `commentResolutionLoop(pr_url, pr_node_id)`:
+5. Run `commentResolutionLoop(pr_url, pr_node_id)`:
 
    ```
    MAX_COMMENT_ITERATIONS = 5
@@ -79,7 +87,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
        // filter to isResolved == false
 
      if unresolvedThreads is empty:
-       RETURN { status: "all-resolved" }  // proceed to step 5
+       RETURN { status: "all-resolved" }  // proceed to step 6
 
      for each thread in unresolvedThreads:
        fixResult = spawn resolve-pr-issue(pr_url, { type: "review", threadId: thread.threadId, comments: thread.comments })
@@ -90,7 +98,7 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
        // fixResult.fixed == true — fix was pushed and thread resolved via GraphQL
 
      // After resolving all threads in this round, re-check CI before checking for more threads
-     ciResult = ciWatchLoop(pr_url)  // re-run step 3
+     ciResult = ciWatchLoop(pr_url)  // re-run step 4
      if ciResult is error:
        STOP with error ciResult.message
 
@@ -98,7 +106,15 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
      CONTINUE LOOP  // check for any newly added threads
    ```
 
-5. Return `{ pr_url, status: "ready" }` to the caller. Do not merge.
+6. (brain.prWrite — on exit) If `brainPath` is provided and file exists:
+   ```
+   brain = read + parse brainPath
+   brain.prUrl = pr_url
+   brain.phase = "pr-complete"
+   write brain to brainPath
+   ```
+
+7. Return `{ pr_url, status: "ready" }` to the caller. Do not merge.
 
 ## Rules
 
@@ -108,3 +124,4 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 - Always write the PR body to `/tmp/pr-body.md` and open the PR with `gh pr create --body-file /tmp/pr-body.md`. Never use `--body` with inline content — large bodies cause a "Parser aborted" interactive prompt.
 - Do not merge — stop once CI is green and all review threads are resolved.
 - When addressing CI failures or review comments, push additional commits to the same branch — do not open a new PR.
+- `brainPath` is optional — if not provided or file not readable, skip brain.json reads/writes entirely (non-fatal).

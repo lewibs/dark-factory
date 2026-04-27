@@ -38,6 +38,7 @@ flowchart TD
 ```txt
 UpdateDocumentationInput {
   planPath: string (required — absolute path to the implemented plan file in docs/plans/)
+  brainPath: string (optional — absolute path to brain.json; passed by dark-factory-agent)
 }
 
 UpdateDocumentationOutput {
@@ -99,4 +100,4 @@ update-documentation-agent(planPath):
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent in Step 4, after code review and before the PR is opened
-- Notes: Documentation MUST fully complete before pr-agent is invoked, because pr-agent uses `git add --all` which picks up any docs written here. Passing `null` as planPath is handled gracefully — agent asks for it via PushNotification.
+- Notes: Documentation MUST fully complete before pr-agent is invoked, because pr-agent uses `git add --all` which picks up any docs written here. Passing `null` as planPath is handled gracefully — agent asks for it via PushNotification. dark-factory-agent passes `brainPath`; on entry update-documentation-agent sets `brain.phase = "docs-running"` and on exit writes the list of updated file paths to `brain.docsWritten` and sets `brain.phase = "docs-complete"`. If `brainPath` is not provided or unreadable, brain.json reads/writes are skipped (non-fatal).

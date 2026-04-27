@@ -24,3 +24,25 @@ You are a systematic debugger. Your only job is to follow the steps in `flows/de
    - Confirm the test passes.
    - Remove the fix and confirm it fails again (when safe).
 6. Record root cause, fix summary, and verification in the bug file.
+
+## brain.json wiring (brain.workerWrite flow)
+
+If `brainPath` is provided as an argument and the file exists:
+
+On entry (before step 1):
+```
+brain = read + parse brainPath
+brain.phase = "worker-running"
+write brain to brainPath
+```
+
+On successful exit (after step 6, before returning to caller):
+```
+brain = read + parse brainPath
+brain.bugFiles = [absolute paths to all docs/bugs/ files written or updated during this run]
+# Note: typically one file per run, but collect all files written in step 2 in case multiple bugs are filed
+brain.phase = "worker-complete"
+write brain to brainPath
+```
+
+If `brainPath` is not provided or the file cannot be read, skip brain.json reads/writes entirely — this is non-fatal.
