@@ -81,7 +81,8 @@ fix-flow-orchestrator(flowName):
       if resolved: break
 
       pr-agent(bugFile)
-      → { pr_url, merged: true }
+      → { pr_url, status: "ready" }
+      merge PR (caller responsibility)
       prUrls.append(pr_url)
 
       if deploy.sh exists: run deploy.sh
