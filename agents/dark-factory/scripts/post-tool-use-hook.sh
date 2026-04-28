@@ -19,6 +19,7 @@ fi
 
 BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
 PATCH_PATH="${DARK_FACTORY_WORK_DIR:-}/brain-patch.json"
+BRAIN_LOCK="${BRAIN_PATH}.lock"
 
 # post-hook.no-brain: not a dark-factory session — exit silently
 if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] || [ ! -f "$BRAIN_PATH" ]; then
@@ -33,30 +34,15 @@ HOOK_INPUT=$(cat)
 if [ -f "$PATCH_PATH" ]; then
   PATCH_CONTENTS=$(jq -c '.' "$PATCH_PATH")
   echo "post-tool-use-hook | merge-patch | patch=${PATCH_CONTENTS}" >&2
-  POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
-  jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
-    && mv "$POST_TMP" "$BRAIN_PATH"
-  rm -f "$PATCH_PATH"
+  (
+    flock -x 200
+    POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
+    jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
+      && mv "$POST_TMP" "$BRAIN_PATH"
+    rm -f "$PATCH_PATH"
+  ) 200>"$BRAIN_LOCK"
 else
   echo "post-tool-use-hook | no-patch | brain-patch.json not found, skipping merge" >&2
-fi
-
-# post-hook.set-phase-complete: find the currently-running phase and mark it complete
-RUNNING_PHASE=$(jq -r '
-  .phases | to_entries |
-  map(select((.key | endswith("-running")) and (.value == true))) |
-  first | .key // empty
-' "$BRAIN_PATH" 2>/dev/null || true)
-
-if [ -n "$RUNNING_PHASE" ]; then
-  COMPLETE_PHASE="${RUNNING_PHASE%-running}-complete"
-  echo "post-tool-use-hook | set-phase-complete | running=${RUNNING_PHASE} complete=${COMPLETE_PHASE}" >&2
-  POST_TMP2=$(mktemp /tmp/brain-post-XXXXXX.json)
-  jq ".phases[\"${RUNNING_PHASE}\"] = false | .phases[\"${COMPLETE_PHASE}\"] = true" \
-    "$BRAIN_PATH" > "$POST_TMP2" \
-    && mv "$POST_TMP2" "$BRAIN_PATH"
-else
-  echo "post-tool-use-hook | set-phase-complete | no running phase found" >&2
 fi
 
 # ---------------------------------------------------------------------------
@@ -64,6 +50,8 @@ fi
 # for Agent or Skill tool calls only.
 # ---------------------------------------------------------------------------
 TOOL_NAME=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_name // ""')
+
+PHASE_AGENTS="feature-agent|debugger-agent|fix-flow-orchestrator|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
 
 if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
   if [ "$TOOL_NAME" = "Agent" ]; then
@@ -92,12 +80,44 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
 
   echo "post-tool-use-hook | metrics-accumulate | key=${METRICS_KEY} elapsed_ms=${ELAPSED} tokens=${TOKENS} runs=+1" >&2
 
-  METRICS_TMP=$(mktemp /tmp/brain-metrics-post-XXXXXX.json)
-  jq --arg key "$METRICS_KEY" --argjson elapsed "$ELAPSED" --argjson tokens "$TOKENS" '
-    .metrics[$key].elapsed_ms = ((.metrics[$key].elapsed_ms // 0) + $elapsed) |
-    .metrics[$key].tokens     = ((.metrics[$key].tokens     // 0) + $tokens)  |
-    .metrics[$key].runs       = ((.metrics[$key].runs       // 0) + 1)        |
-    del(.metrics[$key].start_ms)
-  ' "$BRAIN_PATH" > "$METRICS_TMP" \
-    && mv "$METRICS_TMP" "$BRAIN_PATH"
+  (
+    flock -x 200
+    METRICS_TMP=$(mktemp /tmp/brain-metrics-post-XXXXXX.json)
+    jq --arg key "$METRICS_KEY" --argjson elapsed "$ELAPSED" --argjson tokens "$TOKENS" '
+      .metrics[$key].elapsed_ms = ((.metrics[$key].elapsed_ms // 0) + $elapsed) |
+      .metrics[$key].tokens     = ((.metrics[$key].tokens     // 0) + $tokens)  |
+      .metrics[$key].runs       = ((.metrics[$key].runs       // 0) + 1)        |
+      del(.metrics[$key].start_ms)
+    ' "$BRAIN_PATH" > "$METRICS_TMP" \
+      && mv "$METRICS_TMP" "$BRAIN_PATH"
+  ) 200>"$BRAIN_LOCK"
+
+  # post-hook.set-phase-complete: mark the currently-running phase complete,
+  # but only when the completing agent is a top-level orchestration phase agent.
+  if [[ "$METRICS_KEY" =~ ^($PHASE_AGENTS)$ ]]; then
+    (
+      flock -x 200
+      RUNNING_PHASE=$(jq -r '
+        .phases | to_entries |
+        map(select((.key | endswith("-running")) and (.value == true))) |
+        first | .key // empty
+      ' "$BRAIN_PATH" 2>/dev/null || true)
+
+      if [ -n "$RUNNING_PHASE" ]; then
+        COMPLETE_PHASE="${RUNNING_PHASE%-running}-complete"
+        echo "post-tool-use-hook | set-phase-complete | running=${RUNNING_PHASE} complete=${COMPLETE_PHASE}" >&2
+        POST_TMP2=$(mktemp /tmp/brain-post-XXXXXX.json)
+        jq ".phases[\"${RUNNING_PHASE}\"] = false | .phases[\"${COMPLETE_PHASE}\"] = true" \
+          "$BRAIN_PATH" > "$POST_TMP2" \
+          && mv "$POST_TMP2" "$BRAIN_PATH"
+      else
+        echo "post-tool-use-hook | set-phase-complete | no running phase found" >&2
+      fi
+    ) 200>"$BRAIN_LOCK"
+  else
+    echo "post-tool-use-hook | set-phase-complete | skipped (agent=${METRICS_KEY} not a phase agent)" >&2
+  fi
+else
+  # Non-Agent/Skill tool: still check for phase completion (shouldn't normally happen, but keep safe)
+  echo "post-tool-use-hook | set-phase-complete | skipped (tool=${TOOL_NAME} not Agent or Skill)" >&2
 fi

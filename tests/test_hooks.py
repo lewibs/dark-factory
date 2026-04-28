@@ -142,9 +142,10 @@ class TestPreHookSetsRunningPhase:
             with open(brain_path, "w") as f:
                 json.dump(brain, f)
 
+            # Must use an Agent tool call with a phase-agent subagent_type to trigger phase advancement
             result = run_hook(
                 PRE_HOOK,
-                {"prompt": "x"},
+                {"tool_name": "Agent", "tool_input": {"subagent_type": "feature-agent", "prompt": "x"}},
                 env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
             )
 
@@ -166,9 +167,10 @@ class TestPreHookSetsRunningPhase:
 
             phases_before = dict(brain["phases"])
 
+            # Must use an Agent tool call with a phase-agent subagent_type to trigger phase advancement
             result = run_hook(
                 PRE_HOOK,
-                {"prompt": "x"},
+                {"tool_name": "Agent", "tool_input": {"subagent_type": "feature-agent", "prompt": "x"}},
                 env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
             )
 
@@ -372,9 +374,10 @@ class TestPostHookSetsCompleteAndClearsRunning:
             with open(brain_path, "w") as f:
                 json.dump(brain, f)
 
+            # Must use a phase-agent Agent tool call to trigger phase completion
             result = run_hook(
                 POST_HOOK,
-                {},
+                {"tool_name": "Agent", "tool_input": {"subagent_type": "feature-agent", "prompt": "x"}, "tool_response": {}},
                 env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
             )
 
@@ -394,9 +397,10 @@ class TestPostHookSetsCompleteAndClearsRunning:
 
             phases_before = dict(brain["phases"])
 
+            # Must use a phase-agent Agent tool call to trigger the phase-complete path
             result = run_hook(
                 POST_HOOK,
-                {},
+                {"tool_name": "Agent", "tool_input": {"subagent_type": "feature-agent", "prompt": "x"}, "tool_response": {}},
                 env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
             )
 
