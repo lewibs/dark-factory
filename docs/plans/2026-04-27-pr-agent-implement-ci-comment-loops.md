@@ -1,12 +1,5 @@
 # PR Agent: Implement ciWatchLoop and commentResolutionLoop
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: `docs/plans/2026-04-26-pr-agent-ci-comment-loops.md`
-- Status: `implemented`
-
 ## System Intent
 
 - What is being built: Full implementation of the `ciWatchLoop` and `commentResolutionLoop` pseudocode (designed in the parent plan) into `agents/pr/agents/pr-agent.md`. PR #82 added the pseudocode to the plan file but did not update the agent's "Your task" section. This plan replaces the terse numbered steps 3-5 with the rigorous named loops, max-iteration guards, BREAK-after-first-fix pattern, and CI re-entrance after comment resolution.

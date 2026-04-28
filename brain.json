@@ -1,7 +1,7 @@
 {
-  "taskDescription": "The planning agent doesn't always return a URL for the mermaid diagram whenever it's in the mermaid phase. can you please make sure that's still always occurs. favor that over opening VS code because it's nice to look at the image",
-  "taskName": "mermaid-url-always",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-mermaid-url-always",
+  "taskDescription": "Remove the Plan Metadata section (Plan type, Parent plan, Depends on, Status) from the plan templates",
+  "taskName": "remove-plan-metadata",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-remove-plan-metadata",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "repair",
   "planFilePath": null,
@@ -27,13 +27,13 @@
   },
   "metrics": {
     "dark-factory:repair:agents:repair-agent": {
-      "start_ms": 1777357917852
+      "start_ms": 1777357506035
     },
     "testing-agent": {
-      "start_ms": 1777357950756
+      "start_ms": 1777357523285
     },
     "planning-agent": {
-      "start_ms": 1777357951015
+      "start_ms": 1777357523562
     }
   }
 }

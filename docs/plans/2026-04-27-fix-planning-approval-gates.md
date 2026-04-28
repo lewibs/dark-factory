@@ -1,12 +1,5 @@
 # Fix Planning Approval Gates
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: `N/A`
-- Depends on: `N/A`
-- Status: `approved`
-
 ## System Intent
 
 - What is being built: A return-question protocol so feature-agent (depth-3) can surface questions to the user via dark-factory-agent (depth-2). When feature-agent needs user input it returns `{ status: "question", ... }` instead of calling AskUserQuestion directly. Dark-factory-agent asks the question at depth-2 (where it works), then re-invokes feature-agent with the answer. Feature-agent resumes by reading the plan file — which already exists and tracks exactly which sections have been written — to know where it left off.

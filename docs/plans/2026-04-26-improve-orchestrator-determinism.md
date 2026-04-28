@@ -1,12 +1,5 @@
 # Improve Orchestrator Determinism
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: A set of improvements to the dark-factory agent orchestration system to make flows deterministic and impossible to skip — through helper scripts, `.claude/settings.json` hooks, and stronger agent instructions.

@@ -1,12 +1,5 @@
 # PR Agent CI Watch Loop and Comment Resolution Loop
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: Explicit, well-structured CI watch loop and comment resolution loop inside `pr-agent.md`. The current agent has these steps described in terse numbered form; this plan replaces them with a rigorous pseudocode loop with named states, termination conditions, interleaving logic (re-check CI after resolving comments), hard-stop handling when `resolve-pr-issue` returns `fixed: false`, and a max-iteration guard to prevent infinite loops.

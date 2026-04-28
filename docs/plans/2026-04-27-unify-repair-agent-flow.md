@@ -1,12 +1,5 @@
 # Unify Repair Agent into the Full Orchestrator Flow
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: Removing the early-exit repair shortcut in `dark-factory-agent.md` so that `repair-agent` goes through the same full orchestration flow (worktree, brain.json, code review, docs, skills update, PR) as `feature-agent`, `fix-flow-orchestrator`, and `debugger-agent`. Also changing the orchestrator model from `sonnet` to `haiku` since it only does routing/delegation.

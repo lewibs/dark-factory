@@ -1,12 +1,5 @@
 # Add Repair Agent
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `approved`
-
 ## System Intent
 
 - What is being built: A new top-level `repair` agent — a lightweight alternative to `dark-factory-agent` that skips the planning phase, skips high-level code review, and skips the full documentation update cycle. It is designed for quick targeted fixes: make the change, run tests, optionally update related docs, open and merge a PR.

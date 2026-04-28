@@ -1,12 +1,5 @@
 # Investigation Agent Integration
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: `N/A`
-- Depends on: `N/A`
-- Status: `draft`
-
 ## System Intent
 
 - **What is being built**: Establish a convention where all worker agents delegate system understanding questions to investigation-agent rather than doing their own code research. This follows the single-responsibility principle and centralizes documentation generation. The guidance is provided via CLAUDE.md (injected into every agent's context) rather than individual agent edits.
