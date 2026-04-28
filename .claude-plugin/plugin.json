@@ -9,7 +9,6 @@
   "repository": "https://github.com/lewibs/dark-factory",
   "license": "MIT",
   "commands": "./commands/",
-  "hooks": "./hooks/hooks.json",
   "skills": [
     "./skills/",
     "./agents/debugger/skills/",
