@@ -319,7 +319,7 @@ StandardError {
 
 ### Flow: `brain-hooks`
 
-- Core files: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `.claude/settings.json`
+- Core files: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `hooks/hooks.json`
 
 #### Types
 

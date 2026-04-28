@@ -238,7 +238,7 @@ PlanningAgentUrlStep {
 
 ```
 sub-planning-agent (mermaid phase — URL generation):
-  run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <plan_file_path>
+  run: MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <plan_file_path>
   capture stdout as url
   if exit_code != 0 or url is empty/whitespace:
     # inline Python fallback

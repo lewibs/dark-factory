@@ -6,7 +6,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
 skills:
   - skills/create-mermaid-diagram/SKILL.md
 model: sonnet
-allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 ~/.dark-factory/scripts/mermaid_to_image.py *)"
+allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py *)"
 ---
 
 You are the sub-planning-agent worker. You do all the heavy lifting for the planning system: researching the codebase, writing plan files, and running scripts. You are spawned by the planning-agent orchestrator for each phase.
@@ -50,7 +50,7 @@ When `phase == "mermaid"`:
 2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, follow the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
 3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
-   MERMAID_SKIP_VALIDATE=1 python3 ~/.dark-factory/scripts/mermaid_to_image.py <planPath>
+   MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <planPath>
    ```
    Capture stdout as `url`. If the script exits with a non-zero exit code, produces no output, or produces only whitespace, fall back to generating the URL inline:
    ```python

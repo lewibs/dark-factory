@@ -25,7 +25,7 @@ flowchart TD
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
   CMD_S -->|launches| TERM[New gnome-terminal running claude /remote-control]
   CMD_I -->|runs directly| GIT[git pull + claude plugin marketplace add/update/uninstall/install]
-  CMD_D -->|bash scripts/destroy-factories.sh| DS[scripts/destroy-factories.sh kills Claude terminals, spawns fresh one]
+  CMD_D -->|"bash ${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"| DS[scripts/destroy-factories.sh kills Claude terminals, spawns fresh one]
 ```
 
 ## Flows
@@ -120,7 +120,7 @@ InstallOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `install.success` | `InstallInput` | `InstallOutput` | `happy path` | Runs `git pull`, `claude plugin marketplace add "$(pwd)"`, `claude plugin marketplace update dark-factory`, `claude plugin uninstall "dark-factory@dark-factory"`, `claude plugin install "dark-factory@dark-factory"`, `bash scripts/reopen-remote-control.sh "dark factory"` |
+| `install.success` | `InstallInput` | `InstallOutput` | `happy path` | Runs `git pull`, `claude plugin marketplace add "$(pwd)"`, `claude plugin marketplace update dark-factory`, `claude plugin uninstall "dark-factory@dark-factory"`, `claude plugin install "dark-factory@dark-factory"`, `bash "${CLAUDE_PLUGIN_ROOT}/scripts/reopen-remote-control.sh" "dark factory"` |
 
 ---
 

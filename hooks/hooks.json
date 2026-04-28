@@ -1,0 +1,38 @@
+{
+  "description": "dark-factory plugin hooks — brain state management for agent orchestration",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$DARK_FACTORY_WORK_DIR\" ] && [ -n \"$DARK_FACTORY_TASK_NAME\" ]; then bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$DARK_FACTORY_WORK_DIR\" \"$DARK_FACTORY_TASK_NAME\"; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/post-tool-use-hook.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
