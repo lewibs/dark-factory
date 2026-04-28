@@ -51,4 +51,5 @@ claude plugin list
 | Command | Input | Description |
 |---|---|---|
 | `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or fix-flow) end-to-end, runs code review, opens a PR, and cleans up |
+| `/dark-factory:spawn-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |
