@@ -156,7 +156,6 @@ feature-agent(taskDescription, answer, planPath):
 
   # ── Phase 4: Execution ──────────────────────────────────────────────────────
   if phase == "execution":
-    invoke open-in-vscode skill with: planPath
     Read the plan file at planPath using the Read tool.
     Display: "Plan written to <planPath>. All sections approved. Please do a final review."
     Display the full contents of the plan file to the developer.
