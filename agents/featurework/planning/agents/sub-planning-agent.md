@@ -30,7 +30,7 @@ When `phase == "draft_plan"`:
 2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. If deep investigation is needed, spawn the `investigation-agent` with the system/topic name. If `investigation-agent` returns an error, log the error as a comment in the plan's `## System Intent` section and continue without it — do not halt.
 3. Read the plan template at `agents/featurework/planning/templates/plan-template.md`.
 4. Create a new plan file at `docs/plans/<YYYY-MM-DD>-<slug>.md` (use today's date, derive slug from the feature description).
-5. Fill in at minimum: `## Plan Metadata`, `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
+5. Fill in at minimum: `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
 6. Return:
    ```json
    {

@@ -1,12 +1,5 @@
 # Brain Hook-Driven Orchestration
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: A hook-driven brain.json state system for dark-factory. Instead of sub-agents manually reading/writing brain.json, Claude Code PreToolUse and PostToolUse hooks on the Agent tool automatically inject brain state into every agent prompt and merge each agent's output patch back into brain.json. Phase transition flags (*-running, *-complete) are managed exclusively by the hooks, not by agent instruction text.

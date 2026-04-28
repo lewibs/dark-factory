@@ -1,12 +1,5 @@
 # Orchestrators to Haiku
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - **What is being built:** A cost-reduction change that switches all pure orchestrator agents from `model: sonnet` to `model: haiku`. Orchestrators that only classify input, call sub-agents, read results, and route — without doing deep reasoning, writing code, plans, or docs — are converted to haiku. Worker agents that write plans, implement code, debug, review, or write docs remain on sonnet.

@@ -1,12 +1,5 @@
 # Hook Unit Tests Plan
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `approved`
-
 ## System Intent
 
 - What is being built: Real behavioral unit tests for `pre-tool-use-hook.sh` and `post-tool-use-hook.sh` that actually execute the shell scripts via subprocess and assert file state + stdout/stderr.
