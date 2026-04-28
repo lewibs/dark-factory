@@ -1,8 +1,9 @@
 #!/bin/bash
 # Usage: destroy-factories.sh [name]
-# Kills all terminal emulator processes that have a claude descendant (except our own
-# ancestor terminal), then spawns one fresh factory terminal.
-# Platform: Linux. Requires one of: gnome-terminal, x-terminal-emulator, xterm, konsole.
+# Kills all terminal emulator windows that have a claude descendant (except our own
+# window), then spawns one fresh factory terminal.
+# Platform: Linux/GNOME. Uses vte-spawn cgroup scopes to identify individual
+# gnome-terminal windows — not the shared gnome-terminal-server daemon PID.
 
 NAME="${1:-dark factory}"
 
@@ -51,15 +52,6 @@ open_terminal() {
     return 1
 }
 
-# ── all_terminal_emulator_pids ──────────────────────────────────────────────────
-# Print one PID per line for every running terminal emulator process.
-all_terminal_emulator_pids() {
-    local known_terms="gnome-terminal gnome-terminal-server xterm konsole x-terminal-emulator"
-    for term in $known_terms; do
-        pgrep -x "$term" 2>/dev/null
-    done | sort -u
-}
-
 # ── has_claude_descendant ───────────────────────────────────────────────────────
 # Return 0 if any descendant of $1 is named "claude", non-zero otherwise.
 has_claude_descendant() {
@@ -81,56 +73,79 @@ has_claude_descendant() {
     return 1
 }
 
-# ── find_terminal_ancestor ─────────────────────────────────────────────────────
-# Walk up the process tree from $1 and return the PID of the nearest terminal
-# emulator ancestor, or "" if none found.
-find_terminal_ancestor() {
-    local known_terms="gnome-terminal gnome-terminal-server xterm konsole x-terminal-emulator"
-    local pid="$1"
+# ── all_vte_scopes ──────────────────────────────────────────────────────────────
+# Print one vte-spawn-*.scope name per line for every active gnome-terminal window.
+# Each gnome-terminal window/tab has a unique vte-spawn-<uuid>.scope in the user's
+# systemd session. This avoids relying on the shared gnome-terminal-server daemon PID.
+all_vte_scopes() {
+    systemctl --user list-units --type=scope --no-legend --no-pager 'vte-spawn-*' 2>/dev/null \
+        | awk '{print $1}'
+}
 
-    while true; do
-        local ppid
-        ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+# ── scope_main_pid ──────────────────────────────────────────────────────────────
+# Print the main PID for a given systemd scope unit, or "" if not found.
+scope_main_pid() {
+    local scope="$1"
+    systemctl --user show "$scope" --property=MainPID --value 2>/dev/null | grep -v '^0$'
+}
 
-        if [ -z "$ppid" ] || [ "$ppid" -le 1 ] 2>/dev/null; then
-            echo ""
-            return
+# ── find_claude_scope_terminals ────────────────────────────────────────────────
+# Print one scope name per line for each vte-spawn scope that has a claude
+# descendant, excluding our own scope.
+#
+# Design: enumerate by vte-spawn SCOPE (not by gnome-terminal-server daemon PID).
+# All gnome-terminal windows share one gnome-terminal-server PID; targeting by
+# daemon PID would cause the own-ancestor exclusion to skip every window.
+# Scope-based targeting identifies each window individually.
+find_claude_scope_terminals() {
+    # Identify this terminal's own scope from its cgroup entry
+    local SELF_SCOPE
+    SELF_SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/"$$"/cgroup 2>/dev/null | head -1)
+
+    _log "find_claude_scope_terminals" "entry" "self_scope=${SELF_SCOPE:-none}"
+
+    for scope in $(all_vte_scopes); do
+        # Never target our own scope
+        if [ -n "$SELF_SCOPE" ] && [ "$scope" = "$SELF_SCOPE" ]; then
+            _log "find_claude_scope_terminals" "skip_own_scope" "scope=$scope"
+            continue
         fi
 
-        local pname
-        pname=$(ps -o comm= -p "$ppid" 2>/dev/null | tr -d ' ')
+        # Get the main PID for this scope and check for a claude descendant
+        local main_pid
+        main_pid=$(scope_main_pid "$scope")
+        if [ -z "$main_pid" ]; then
+            _log "find_claude_scope_terminals" "no_main_pid" "scope=$scope"
+            continue
+        fi
 
-        for term in $known_terms; do
-            if [ "$pname" = "$term" ]; then
-                echo "$ppid"
-                return
-            fi
-        done
-
-        pid="$ppid"
+        if has_claude_descendant "$main_pid"; then
+            _log "find_claude_scope_terminals" "found" "scope=$scope main_pid=$main_pid"
+            echo "$scope"
+        fi
     done
 }
 
-# ── find_claude_terminals ──────────────────────────────────────────────────────
+# ── find_claude_terminals (fallback for non-GNOME / non-scope systems) ─────────
 # Print one terminal PID per line for each terminal emulator that has a claude
-# descendant, excluding our own ancestor terminal.
+# descendant. Used on systems where vte-spawn scopes are unavailable.
 find_claude_terminals() {
-    local own_ancestor_pid
-    own_ancestor_pid=$(find_terminal_ancestor $$)
+    local known_terms="xterm konsole x-terminal-emulator"
+    local own_pid=$$
 
-    _log "find_claude_terminals" "entry" "own_ancestor_pid=${own_ancestor_pid:-none}"
+    _log "find_claude_terminals" "entry" "own_pid=$own_pid"
 
-    for terminal_pid in $(all_terminal_emulator_pids); do
-        # Never kill our own ancestor terminal
-        if [ -n "$own_ancestor_pid" ] && [ "$terminal_pid" = "$own_ancestor_pid" ]; then
-            _log "find_claude_terminals" "skip_own_ancestor" "pid=$terminal_pid"
-            continue  # skip — this is our own terminal
-        fi
-
-        if has_claude_descendant "$terminal_pid"; then
-            _log "find_claude_terminals" "found" "pid=$terminal_pid"
-            echo "$terminal_pid"
-        fi
+    for term in $known_terms; do
+        for terminal_pid in $(pgrep -x "$term" 2>/dev/null); do
+            # Basic self-exclusion: skip if this PID is in our own ancestry
+            if [ "$terminal_pid" = "$own_pid" ]; then
+                continue
+            fi
+            if has_claude_descendant "$terminal_pid"; then
+                _log "find_claude_terminals" "found" "pid=$terminal_pid"
+                echo "$terminal_pid"
+            fi
+        done
     done
 }
 
@@ -138,22 +153,24 @@ find_claude_terminals() {
 _log "destroy-factories" "entry" "name=$NAME"
 
 KILLED=0
+
+# Primary path: scope-based targeting for GNOME (vte-spawn scopes)
+for scope in $(find_claude_scope_terminals); do
+    _log "destroy-factories" "stop_scope" "scope=$scope"
+    systemctl --user stop "$scope" 2>/dev/null || {
+        echo "Warning: could not stop scope $scope" >&2
+        _log "destroy-factories" "kill_failed" "scope=$scope"
+    }
+    KILLED=$((KILLED + 1))
+done
+
+# Fallback path: PID-based kill for non-GNOME terminals (xterm, konsole, etc.)
 for pid in $(find_claude_terminals); do
     _log "destroy-factories" "kill" "pid=$pid"
-    SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/"$pid"/cgroup 2>/dev/null | head -1)
-    if [ -n "$SCOPE" ]; then
-        _log "destroy-factories" "stop_scope" "pid=$pid scope=$SCOPE"
-        systemctl --user stop "$SCOPE" 2>/dev/null || {
-            echo "Warning: could not stop scope $SCOPE for terminal PID $pid" >&2
-            _log "destroy-factories" "kill_failed" "pid=$pid scope=$SCOPE"
-        }
-    else
-        _log "destroy-factories" "no_scope_fallback" "pid=$pid"
-        kill "$pid" 2>/dev/null || {
-            echo "Warning: could not kill terminal PID $pid" >&2
-            _log "destroy-factories" "kill_failed" "pid=$pid"
-        }
-    fi
+    kill "$pid" 2>/dev/null || {
+        echo "Warning: could not kill terminal PID $pid" >&2
+        _log "destroy-factories" "kill_failed" "pid=$pid"
+    }
     KILLED=$((KILLED + 1))
 done
 
