@@ -18,7 +18,7 @@
 ```mermaid
 flowchart TD
   Dev([Developer]) -->|/dark-factory:manufacture task| CMD_M[commands/manufacture.md]
-  Dev -->|/dark-factory:spawn-factory| CMD_S[commands/spawn-factory.md]
+  Dev -->|/dark-factory:build-factory| CMD_S[commands/build-factory.md]
   Dev -->|/dark-factory:install| CMD_I[commands/install.md]
   Dev -->|/dark-factory:destroy-factories| CMD_D[commands/destroy-factories.md]
 
@@ -59,18 +59,18 @@ StandardError {
 
 ---
 
-### Flow: `spawn-factory`
+### Flow: `build-factory`
 
-- Core files: `commands/spawn-factory.md`
+- Core files: `commands/build-factory.md`
 
 #### Types
 
 ```txt
-SpawnFactoryInput {
+BuildFactoryInput {
   terminalName: string (optional, defaults to "dark factory")
 }
 
-SpawnFactoryOutput {
+BuildFactoryOutput {
   status: "success" | "error"
   message: string (status message or error description)
 }
@@ -84,13 +84,13 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `spawn-factory.success` | `SpawnFactoryInput` | `SpawnFactoryOutput{status: success}` | `happy path` | New gnome-terminal launched with `claude /remote-control <name>` in current working directory |
-| `spawn-factory.terminal-fail` | `SpawnFactoryInput` | `SpawnFactoryOutput{status: error}` | `error` | gnome-terminal not available or failed to launch |
+| `build-factory.success` | `BuildFactoryInput` | `BuildFactoryOutput{status: success}` | `happy path` | New gnome-terminal launched with `claude /remote-control <name>` in current working directory |
+| `build-factory.terminal-fail` | `BuildFactoryInput` | `BuildFactoryOutput{status: error}` | `error` | gnome-terminal not available or failed to launch |
 
 #### Pseudocode
 
 ```
-function spawn-factory(terminalName):
+function build-factory(terminalName):
   name = terminalName ?? "dark factory"
   workdir = current working directory
   execute_async:
