@@ -27,6 +27,10 @@ Use this whenever you create or modify an agent file (any `agents/**/*.md`) that
 - The same gate applies to skills: if a skill slug is invoked in the body but omitted from `skills:`, the agent cannot load it at runtime.
 - `PushNotification` is particularly easy to miss because it was added to agent bodies as a "notify before blocking on input" pattern after the initial `tools:` lists were written. Any future agent that adds this pattern must remember to add `PushNotification` to `tools:` as well.
 - `Skill` must be listed in `tools:` whenever an agent invokes any skill via the `Skill` tool. If an existing agent file gains its first skill invocation, `Skill` must be added to `tools:` at the same time — it is not implicitly available. This was a concrete omission discovered when adding the `open-in-vscode` skill call to `feature-agent`.
-- The `allowed-tools:` field (which restricts which sub-commands of `Bash` are permitted) is separate from `tools:` — both may need to be updated when adding new tool usage.
+- The `allowed-tools:` field (which restricts which sub-commands of `Bash` are permitted) is separate from `tools:` — both may need to be updated when adding new tool usage. For example, when an agent is updated to perform local git operations, add the required git subcommands explicitly:
+  ```yaml
+  allowed-tools: Bash(bash *), Bash(find *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *)
+  ```
+  Without these entries, the agent will be blocked from running those git commands at runtime.
 - A regression test (`tests/test_push_notification_declared.py`) exists in this repo that parses the YAML front-matter of all agent files and asserts `PushNotification` is present in `tools:` for every agent that references it in its body. Run this test after modifying agent files to catch omissions early.
 - When adding a new skill invocation to an existing agent (e.g., adding `skills/logging/SKILL.md` to `implementation-agent.md`), always update the `skills:` field in the same edit — do not treat it as optional cleanup.

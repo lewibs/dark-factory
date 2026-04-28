@@ -19,8 +19,10 @@ flowchart TD
   SystemDiagram --> Phase2["Phase 2: setup-wizard(system-diagram.md)"]
   Phase2 --> Scripts["/tmp/fix-flow-orchestrator/scripts/\ntrigger.sh\nwait-for-completion.sh\nfetch-logs.sh\n[deploy.sh]"]
   Scripts --> Phase3["Phase 3: ralph-fix-and-push(scriptPaths)"]
-  Phase3 --> DebugLoop["Loop:\n1. debugger-agent(scripts + prev bugs)\n2. pr-agent(bug file)\n3. deploy.sh (if exists)\n4. repeat until green"]
-  DebugLoop -->|all green| Done["Report: all-green. PR URLs: [...]"]
+  Phase3 --> DebugLoop["Loop:\n1. debugger-agent(scripts + prev bugs)\n2. git commit fix locally\n3. deploy.sh (if exists)\n4. repeat until green"]
+  DebugLoop -->|all green| Accumulate["Collect all docs/bugs/*.md files\nformat as PR body links"]
+  Accumulate --> CreatePR["pr-agent: create 1 PR\nwith all accumulated commits"]
+  CreatePR --> Done["Report: all-green. Single PR URL"]
   DebugLoop -->|stuck| Push2["PushNotification: Debugging Stuck\nAsk developer how to proceed"]
 ```
 
@@ -39,7 +41,8 @@ FixBrokenFlowInput {
 
 FixBrokenFlowOutput {
   all_green: true
-  pr_urls: string[] (all PRs merged during the fix loop)
+  pr_url: string (single PR containing all accumulated fixes)
+  bugFiles: string[] (all docs/bugs/*.md files created during the fix loop)
 }
 
 StandardError {
@@ -70,26 +73,37 @@ fix-flow-orchestrator(flowName):
   → writes /tmp/fix-flow-orchestrator/scripts/{trigger,wait-for-completion,fetch-logs,[deploy]}.sh
   assert all required scripts exist and are executable before proceeding
 
-  # Phase 3 — fix loop
+  # Phase 3 — fix loop (accumulate fixes on single branch)
   ralph-fix-and-push(scriptPaths):
-    previousBugFiles = []
+    bugDocPaths = []
     loop:
       debugger-agent(scriptPaths, previousBugFiles)
       → writes docs/bugs/bug-explanation-<N>.md
-      previousBugFiles.append(bugFile)
+      bugDocPath = result.bugDocPath
+      bugDocPaths.append(bugDocPath)
 
-      if resolved: break
-
-      pr-agent(bugFile)
-      → { pr_url, status: "ready" }
-      merge PR (caller responsibility)
-      prUrls.append(pr_url)
+      if resolved (fixed == true):
+        git add -A
+        git commit -m "fix: resolve bug from docs/bugs/$(basename $bugDocPath)"
+        break loop
+      else:
+        git add -A
+        git commit -m "fix: attempt fix from docs/bugs/$(basename $bugDocPath)"
+        previousBugFiles.append(bugDocPath)
 
       if deploy.sh exists: run deploy.sh
 
-    return { all_green: true, pr_urls }
+    # All bugs fixed — create single PR with all accumulated commits
+    bugFileLinks = format_pr_body(bugDocPaths)
+    pr-agent(
+      taskDescription = "Fix integration flow: accumulated fixes from: " + bugFileLinks,
+      prBody = "## Fixes\n\nThis PR accumulates all bug fixes for the integration flow:\n" + bugFileLinks
+    )
+    → { pr_url, merged }
 
-  report success with all PR URLs
+    return { all_green: true, pr_url, bugFiles: bugDocPaths }
+
+  report success with single PR URL
 ```
 
 ### Flow: `setupScripts`

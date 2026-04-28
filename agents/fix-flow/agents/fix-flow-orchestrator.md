@@ -43,11 +43,12 @@ Spawn a sub-agent using the instructions in ralph-fix-and-push.
 
 Pass it:
 - Paths to all generated scripts from Phase 2
+- branchName (e.g., "feature/fix-flow-single-branch")
 
-Wait for it to finish. It will return all the PRs that it made.
+Wait for it to finish. It will return a single PR with all accumulated fixes.
 
 ## Completion
 
 When ralph-fix-and-push returns all-green:
-1. Report success to the developer with the list of PR URLs
+1. Report success to the developer with the PR URL
 2. Note that `docs/plans/system-diagram.md` and any `docs/bugs/` files are kept as persistent project documentation.
