@@ -39,73 +39,78 @@ def test_reopen_remote_control_error_handling():
         "Script should check terminal command exit status"
 
 
-def test_reopen_remote_control_sends_sighup_to_ppid():
-    """Verify the script sends SIGHUP to $PPID to close the current terminal tab"""
+def test_reopen_remote_control_uses_cgroup_scope_to_close_tab():
+    """Verify the script reads the vte-spawn scope from /proc/$$/cgroup to close the current tab"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should use kill -HUP targeting $PPID
-    assert "kill -HUP" in content and "$PPID" in content, \
-        "Script should send SIGHUP to $PPID to close the current terminal tab"
+    # Should read cgroup to find the vte-spawn scope
+    assert "/proc/$$/cgroup" in content, \
+        "Script should read /proc/$$/cgroup to find the current tab's scope"
+    assert "vte-spawn-" in content, \
+        "Script should look for a vte-spawn-*.scope cgroup entry"
+    assert "systemctl --user stop" in content, \
+        "Script should stop the scope with systemctl --user stop"
 
 
-def test_reopen_remote_control_guards_ppid_gt_1():
-    """Verify the script only sends SIGHUP when PPID > 1"""
+def test_reopen_remote_control_skips_silently_without_scope():
+    """Verify the script skips closing the tab silently when no vte-spawn scope is found"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should guard against sending SIGHUP to PID 1 or below
-    assert '"-gt 1"' in content or "\"$PPID\" -gt 1" in content or "$PPID\" -gt 1" in content, \
-        "Script should guard against sending SIGHUP when PPID <= 1"
+    # Should guard against empty SCOPE before stopping
+    assert '[ -n "$SCOPE" ]' in content, \
+        "Script should only stop the scope when SCOPE is non-empty (i.e. running in gnome-terminal)"
 
 
-def test_reopen_remote_control_sighup_only_on_success():
-    """Verify the script only sends SIGHUP after the new terminal opens successfully"""
+def test_reopen_remote_control_scope_stop_only_on_success():
+    """Verify the script only stops the scope after the new terminal opens successfully"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # TERMINAL_EXIT check must appear before the kill -HUP
+    # TERMINAL_EXIT check must appear before the systemctl stop
     terminal_exit_idx = content.find("TERMINAL_EXIT")
-    kill_hup_idx = content.find("kill -HUP")
+    scope_stop_idx = content.find("systemctl --user stop")
     assert terminal_exit_idx != -1, "Script should check TERMINAL_EXIT"
-    assert kill_hup_idx != -1, "Script should contain kill -HUP"
-    assert terminal_exit_idx < kill_hup_idx, \
-        "Script should check TERMINAL_EXIT before sending SIGHUP"
+    assert scope_stop_idx != -1, "Script should contain systemctl --user stop"
+    assert terminal_exit_idx < scope_stop_idx, \
+        "Script should check TERMINAL_EXIT before stopping the scope"
 
 
-def test_reopen_remote_control_sighup_silently_fails_in_non_terminal():
-    """Verify the script silently ignores errors when SIGHUP is not accepted (non-terminal context)"""
+def test_reopen_remote_control_scope_stop_silently_fails_in_non_terminal():
+    """Verify the script silently ignores errors when not running in a gnome-terminal"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # kill -HUP should have error suppression so it fails silently in non-terminal contexts
+    # systemctl stop should have error suppression so it fails silently in non-gnome-terminal contexts
     assert "2>/dev/null" in content, \
-        "Script should suppress kill errors so it fails silently in non-terminal contexts"
+        "Script should suppress systemctl errors so it fails silently when not in gnome-terminal"
     assert "|| true" in content, \
-        "Script should use '|| true' so a failing kill does not abort the script"
+        "Script should use '|| true' so a failing systemctl stop does not abort the script"
 
 
-def test_reopen_remote_control_kill_error_handling():
-    """Verify kill command has error handling"""
+def test_reopen_remote_control_scope_stop_error_handling():
+    """Verify the scope stop command has error handling"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should have error handling around kill
-    assert "kill" in content, "Script should contain kill command"
+    # Should stop at most one scope (head -1 limits output to one line)
+    assert "head -1" in content, \
+        "Script should use head -1 to ensure only one scope is stopped"
 
-    # Should handle kill errors gracefully (2>/dev/null or error handling)
+    # Should handle stop errors gracefully
     assert "2>/dev/null" in content or "||" in content, \
-        "Script should handle potential kill errors gracefully"
+        "Script should handle potential systemctl stop errors gracefully"
 
 
 def test_reopen_remote_control_terminal_emulator_fallback():
