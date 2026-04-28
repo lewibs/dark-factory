@@ -90,7 +90,7 @@ sub-planning-agent (phase=draft_plan):
 ### Flow: `mermaidPhase`
 
 - Test files: `N/A`
-- Core files: `agents/featurework/planning/agents/sub-planning-agent.md`, `scripts/mermaid_to_image.py`
+- Core files: `agents/featurework/planning/agents/sub-planning-agent.md`, `scripts/mermaid_to_image.py`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -113,7 +113,7 @@ SubPlanningAgentOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none"; runs script with `MERMAID_SKIP_VALIDATE=1`; captures stdout as url; falls back to inline base64 Python if script fails |
+| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none" following create-mermaid-diagram skill standards (node colors, edge labels, black-box rules, mmdc validation); runs script with `MERMAID_SKIP_VALIDATE=1`; captures stdout as url; falls back to inline base64 Python if script fails |
 | `mermaidPhase.noUrl` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=null)` | graceful degradation | both script and inline fallback fail (e.g., no mermaid block in plan); url = null |
 | `mermaidPhase.noFeedback` | `SubPlanningAgentInput (feedback="none")` | `SubPlanningAgentOutput` | happy path | skips diagram edit, only runs script and returns url |
 
@@ -124,6 +124,12 @@ sub-planning-agent (phase=mermaid):
   read planPath
   if feedback != "none":
     apply feedback changes to ## Mermaid Diagram section
+    follow create-mermaid-diagram skill (skills/create-mermaid-diagram/SKILL.md):
+      - color nodes by file status: gray=unchanged, yellow=updated, red=deleted, green=new
+      - label every edge with a description of what flows between nodes
+      - treat external APIs and black-box services as single nodes
+      - do not encode internal branching logic in diagram nodes
+      - validate syntax with mmdc; fix any parse errors before finishing
     write updated plan file
   run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
   capture stdout as url

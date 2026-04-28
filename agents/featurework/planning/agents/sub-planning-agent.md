@@ -2,7 +2,9 @@
 name: sub-planning-agent
 user-invocable: false
 description: "Worker agent for the two-agent planning system. Handles all research, writing, and heavy reasoning. Spawned by planning-agent orchestrator for each phase."
-tools: Read, Write, Edit, Bash, Grep, Glob, Agent
+tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
+skills:
+  - skills/create-mermaid-diagram/SKILL.md
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 scripts/mermaid_to_image.py *)"
 ---
@@ -45,7 +47,7 @@ When `phase == "draft_plan"`:
 When `phase == "mermaid"`:
 
 1. Read the plan file at `planPath`.
-2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file.
+2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, follow the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
 3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
    MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
