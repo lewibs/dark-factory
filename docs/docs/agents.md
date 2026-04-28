@@ -33,13 +33,13 @@ flowchart TD
   SPA -->|researches codebase| IVA2[investigation-agent]
   SPA -->|writes plan file| PF[docs/plans/YYYY-MM-DD-slug.md]
   SPA -->|url + summary| PA
-  PA -->|PushNotification: diagram URL| Dev2([Developer])
-  PA -->|AskUserQuestion: approve each phase| Dev2
-  Dev2 -->|feedback| PA
-  PA -->|planPath| FA
-  FA -->|inline display + PushNotification| Dev([Developer])
-  Dev -->|approve| EA[execution-agent]
-  Dev -->|feedback| FA
+  PA -->|planPath + summary| FA
+  FA -->|"{ status: question, question, options, planPath }"| DFA
+  DFA -->|AskUserQuestion: approve each phase| Dev2([Developer])
+  Dev2 -->|answer| DFA
+  DFA -->|"re-invoke feature-agent\n(answer, planPath)"| FA
+  FA -->|"{ status: done, planPath }"| DFA
+  DFA -->|planPath| EA[execution-agent]
   EA --> SkelA[skeleton-agent]
   EA --> TA[testing-agent]
   EA --> IA[implementation-agent]
@@ -140,23 +140,20 @@ StandardError {
 #### Types
 
 ```txt
-FeatureInput {
-  taskDescription: string
+FeatureAgentInput {
+  taskDescription: string       (first invocation)
+  answer: string | null         (re-invocation: user's answer to the returned question)
+  planPath: string | null       (re-invocation: path to existing plan file)
 }
+
+FeatureAgentResult =
+  | { status: "question", question: string, options: string[], planPath: string, phase: string }
+  | { status: "done", planPath: string }
+  | { status: "hard-stop", reason: string }
 
 PlanFile {
   path: string (docs/plans/<date>-<slug>.md)
   approved: boolean
-}
-
-FeatureOutput {
-  planFilePath: string
-  testsGreen: boolean
-}
-
-ReviewDecision {
-  decision: "approve" | "abort" | "feedback"
-  feedbackText: string | null (present when decision == "feedback")
 }
 ```
 
@@ -164,10 +161,9 @@ ReviewDecision {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `featurework.approved` | `FeatureInput` | `FeatureOutput` | `happy path` | planning-agent (Haiku orchestrator) delegates to sub-planning-agent (Sonnet worker) for each phase (draft, mermaid, flows); orchestrator manages developer interaction via AskUserQuestion and PushNotification per phase; returns planPath to feature-agent after all phases approved; execution-agent implements |
-| `featurework.feedbackLoop` | `FeatureInput` | revised plan + PushNotification | `loop` | Developer provides feedback during any phase; planning-agent re-spawns sub-planning-agent for that phase, re-displays updated section, re-prompts; loop repeats per-phase until explicit approval |
-| `featurework.abort` | `FeatureInput` | `StandardError` | `error` | Developer replies "abort" during plan review; feature-agent stops all work |
-| `featurework.hardStop` | `FeatureInput` | `StandardError` | `error` | implementation-agent triggers deviation-protocol; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting |
+| `featurework.approved` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"done", planPath}` | `happy path` | feature-agent returns structured question objects (`{ status: "question" }`) to dark-factory-agent for each planning phase (draft, mermaid, flows); dark-factory-agent calls AskUserQuestion at depth-2 and re-invokes feature-agent with the answer; after all phases approved, execution-agent implements |
+| `featurework.feedbackLoop` | `FeatureAgentInput{answer, planPath}` | `FeatureAgentResult{status:"question"}` | `loop` | Developer provides feedback during any phase; dark-factory-agent passes answer to feature-agent on re-invocation; feature-agent re-spawns planning-agent for that phase and returns a new question; loop repeats per-phase until explicit approval |
+| `featurework.hardStop` | `FeatureAgentInput` | `FeatureAgentResult{status:"hard-stop"}` | `error` | implementation-agent triggers deviation-protocol; feature-agent returns hard-stop to dark-factory-agent; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting; dark-factory-agent runs cleanup |
 
 ---
 
