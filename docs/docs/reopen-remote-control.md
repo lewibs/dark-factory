@@ -9,14 +9,14 @@
 ## System Intent
 
 - What this is: A shell script invoked at the end of the `/dark-factory:install` command. It opens a new terminal window running Claude in remote-control mode (`claude "/remote-control <name>"`), then closes the installer terminal by killing its parent process (`kill $PPID`). This ensures the developer ends up in a clean Claude remote-control session without the stale installer terminal lingering.
-- Primary consumer(s): The `commands/install.md` slash command; called as `bash scripts/reopen-remote-control.sh "dark factory"`.
+- Primary consumer(s): The `commands/install.md` slash command; called as `bash "${CLAUDE_PLUGIN_ROOT}/scripts/reopen-remote-control.sh" "dark factory"`.
 - Boundary: Responsible only for terminal lifecycle management — launching the new Claude terminal and cleaning up the installer terminal. All plugin installation logic runs before this script is called.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  Install["commands/install.md (slash command)"] -->|"bash scripts/reopen-remote-control.sh 'dark factory'"| Script["reopen-remote-control.sh"]
+  Install["commands/install.md (slash command)"] -->|"bash ${CLAUDE_PLUGIN_ROOT}/scripts/reopen-remote-control.sh 'dark factory'"| Script["reopen-remote-control.sh"]
   Script --> OpenTerminal["open_terminal(): try gnome-terminal, x-terminal-emulator, xterm, konsole"]
   OpenTerminal -->|success, exit 0| KillPPID["kill $PPID (close installer terminal)"]
   OpenTerminal -->|failure, exit != 0| Error["echo error to stderr, exit non-zero"]
@@ -88,7 +88,7 @@ else if TERMINAL_EXIT != 0:
 - Deploy command:
   ```bash
   # Called automatically by the /dark-factory:install slash command.
-  # Can also be invoked directly:
-  bash scripts/reopen-remote-control.sh "dark factory"
+  # Can also be invoked directly (from a Claude Code session where CLAUDE_PLUGIN_ROOT is set):
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/reopen-remote-control.sh" "dark factory"
   ```
 - Notes: Must be run from the repo root or any directory where `pwd` resolves to the desired working directory for the new Claude session. The script requires at least one of: gnome-terminal, x-terminal-emulator, xterm, or konsole.

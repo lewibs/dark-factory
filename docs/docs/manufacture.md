@@ -38,7 +38,7 @@ flowchart TD
   CodeReview --> UpdateDocs["update-documentation-agent"]
   UpdateDocs --> SkillUpdate["skill-update-agent (non-fatal)"]
   SkillUpdate --> PR["pr-agent"]
-  PR --> MetricsFlush["scripts/update-metrics.py\n(flush metrics.csv — non-fatal)"]
+  PR --> MetricsFlush["${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py\n(flush metrics.csv — non-fatal)"]
   MetricsFlush --> BrainDelete["rm brain.json"]
   BrainDelete --> Cleanup["cleanup-worktree.sh"]
   Cleanup --> Done["Report: Done. PR: <url>"]
@@ -103,7 +103,7 @@ dark-factory-agent(taskDescription, taskName):
     - ambiguous → PushNotification("Clarification Required"), ask developer one question, then route
 
   # Step 2 — prep work dir (all routes)
-  bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
+  bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh" <taskName>
   capture WORK_DIR from stdout
   if fail: report error, STOP
 
@@ -151,7 +151,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 7 — cleanup
   # metrics.flush — flush accumulated brain.json metrics to permanent CSV before deleting brain.json
   PROJECT_DIR = jq '.workDir' $WORK_DIR/brain.json
-  python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
+  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py" --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
   # Non-fatal: metrics failure never blocks the PR or cleanup.
 
   # brain.delete — remove brain.json before cleaning the worktree

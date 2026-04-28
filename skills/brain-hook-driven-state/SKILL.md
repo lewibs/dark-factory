@@ -56,16 +56,20 @@ When adding a new sub-agent to the dark-factory pipeline, or when modifying how 
 - If `DARK_FACTORY_WORK_DIR` is not set or the sub-agent has no output to record, skip writing the patch entirely.
 - The patch file is deleted by the post-hook after it is merged; sub-agents must not re-read it.
 
-### Registering hooks in settings.json
+### Registering hooks via hooks/hooks.json
+
+Hooks are registered via the plugin's `hooks/hooks.json` file (referenced from `plugin.json` as `"hooks": "./hooks/hooks.json"`). The hook commands use `${CLAUDE_PLUGIN_ROOT}` so they resolve correctly regardless of where Claude Code is run:
 
 ```json
-"hooks": {
-  "PreToolUse": [
-    { "matcher": "Agent", "hooks": [{ "type": "command", "command": "bash agents/dark-factory/scripts/pre-tool-use-hook.sh" }] }
-  ],
-  "PostToolUse": [
-    { "matcher": "Agent", "hooks": [{ "type": "command", "command": "bash agents/dark-factory/scripts/post-tool-use-hook.sh" }] }
-  ]
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\"" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/post-tool-use-hook.sh\"" }] }
+    ]
+  }
 }
 ```
 

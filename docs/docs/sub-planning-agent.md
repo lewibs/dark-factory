@@ -26,7 +26,7 @@ flowchart TD
   D3 -->|planPath + summary| PA
 
   SPA -->|phase=mermaid| M1["Apply feedback to Mermaid section"]
-  M1 --> M2["Run python3 scripts/mermaid_to_image.py planPath"]
+  M1 --> M2["Run python3 ${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py planPath"]
   M2 -->|url or null| PA
 
   SPA -->|phase=flows| F1["Locate ### Flow: flowName section"]
@@ -131,7 +131,7 @@ sub-planning-agent (phase=mermaid):
       - do not encode internal branching logic in diagram nodes
       - validate syntax with mmdc; fix any parse errors before finishing
     write updated plan file
-  run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
+  run: MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <planPath>
   capture stdout as url
   if exit_code != 0 or url is empty/whitespace:
     # inline Python fallback

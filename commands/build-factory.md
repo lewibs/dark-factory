@@ -7,5 +7,5 @@ Opens a new terminal in the current working directory and launches Claude in rem
 ## Execution
 
 ```bash
-bash scripts/build-factory.sh "${1:-dark factory}"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/build-factory.sh" "${1:-dark factory}"
 ```

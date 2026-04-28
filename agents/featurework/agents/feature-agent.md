@@ -4,7 +4,7 @@ user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent for each phase (draft, mermaid, flows), gates on human approval between phases via return-question protocol, then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
 tools: Read, Write, Bash, Agent, PushNotification, Skill, AskUserQuestion
 model: haiku
-allowed-tools: Bash(find *), Bash(grep -r *)
+allowed-tools: Bash(find *), Bash(grep -r *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/render_section.py)
 ---
 
 You are the feature-agent. Your job is to orchestrate end-to-end feature work by driving the planning phase section-by-section with human approval at each step, then invoking execution-agent once the full plan is approved. You do not write code, modify plans, or open PRs yourself — you delegate.
@@ -66,7 +66,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ## System Intent section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_section.py"', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:
@@ -100,7 +100,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ## Mermaid Diagram section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_section.py"', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:
@@ -161,7 +161,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ### Flow: <nextFlow> section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/render_section.py"', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:

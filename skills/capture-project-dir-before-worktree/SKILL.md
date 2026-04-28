@@ -26,9 +26,9 @@ Whenever a manufacture step needs to write a permanent file (metrics CSV, report
 3. In the cleanup step, read PROJECT_DIR from brain.json **before** deleting brain.json:
    ```bash
    PROJECT_DIR=$(jq -r '.projectDir' "$WORK_DIR/brain.json")
-   python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py" --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
    rm -f "$WORK_DIR/brain.json"
-   bash agents/dark-factory/scripts/cleanup-worktree.sh ...
+   bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh" ...
    ```
 
 4. Never use `brain.json.workDir` as the base path for permanent files. The worktree at `workDir` is deleted by `cleanup-worktree.sh`, so any write to `$workDir/foo` after cleanup is silently lost.

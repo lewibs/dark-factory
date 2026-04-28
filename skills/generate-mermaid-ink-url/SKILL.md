@@ -26,7 +26,7 @@ When you need to share or display a Mermaid diagram as an image URL — for exam
 ## Notes
 
 - Use `urlsafe_b64encode` (replaces `+` → `-` and `/` → `_`). Standard `b64encode` will produce a broken URL because `+` and `/` are not URL-safe without percent-encoding.
-- The script at `scripts/mermaid_to_image.py` implements this pattern; import or call it rather than re-implementing inline.
+- The script at `${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py` implements this pattern; import or call it rather than re-implementing inline.
 - `mermaid.ink` is treated as an external black box — do not depend on its availability for correctness tests; unit tests should only assert the URL structure (`startswith("https://mermaid.ink/img/")`).
 - Padding characters (`=`) from base64 output are harmless in the URL for `mermaid.ink`, but if a future service requires padding-free encoding, strip them with `.rstrip("=")`.
 
@@ -35,7 +35,7 @@ When you need to share or display a Mermaid diagram as an image URL — for exam
 When invoking `scripts/mermaid_to_image.py` from an agent (e.g. sub-planning-agent), always set `MERMAID_SKIP_VALIDATE=1`:
 
 ```bash
-MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
+MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <planPath>
 ```
 
 **Why:** By default the script calls `mmdc` (via `npx @mermaid-js/mermaid-cli`) to validate syntax before generating the URL. In agent/CI environments `npx` may be unavailable or slow, causing the script to exit non-zero even though the diagram content is valid and the URL could be generated. `MERMAID_SKIP_VALIDATE=1` bypasses this validation step and proceeds directly to URL generation.

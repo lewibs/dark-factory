@@ -8,7 +8,7 @@
 
 - What this is: Hook-driven brain.json state management, metrics capture, and agent checklist injection for dark-factory. Claude Code PreToolUse and PostToolUse hooks on the Agent and Skill tools automatically inject brain state and a TodoWrite checklist into every sub-agent prompt, merge each sub-agent's output patch back into brain.json, and accumulate per-agent/skill runtime and token metrics into brain.json for later flush to metrics.csv. Phase transition flags (`*-running`, `*-complete`) are managed exclusively by the hooks — not by agent instruction text.
 - Primary consumer(s): dark-factory-agent (creates, exports, and deletes brain.json; flushes metrics.csv at cleanup); all sub-agents (write brain-patch.json with their specific outputs); pre-tool-use-hook.sh and post-tool-use-hook.sh (inject brain state, merge patches, and capture metrics); `scripts/generate_checklist.sh` (generates TodoWrite JSON for per-agent task checklists).
-- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `scripts/generate_checklist.sh`, `.claude/settings.json` hooks configuration, `scripts/update-metrics.py`, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
+- Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh`, `agents/dark-factory/scripts/post-tool-use-hook.sh`, `scripts/generate_checklist.sh`, `hooks/hooks.json` (plugin-bundled hook registration), `scripts/update-metrics.py`, and sub-agent .md files that produce output fields. Claude Code's internal hook execution engine is out of scope.
 
 ## Mermaid Diagram
 
@@ -242,25 +242,25 @@ post-tool-use-hook.sh:
 
 ---
 
-### Flow: `settings-json-hooks`
+### Flow: `plugin-hooks`
 
-- Core files: `.claude/settings.json`
+- Core files: `hooks/hooks.json`, `plugin.json`
 - Test files: N/A
 
 #### Types
 
 ```txt
 HookConfig {
+  // hooks/hooks.json — registered in plugin.json as "hooks": "./hooks/hooks.json"
+  // All script paths use ${CLAUDE_PLUGIN_ROOT} so hooks work from any install location.
   hooks: {
     PreToolUse: [
-      { matcher: "Agent", hooks: [{ type: "command", command: string }] },
-      { matcher: "Skill", hooks: [{ type: "command", command: string }] }
+      { matcher: "Agent", hooks: [{ type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\"" }] }
     ]
     PostToolUse: [
-      { matcher: "Agent", hooks: [{ type: "command", command: string }] },
-      { matcher: "Skill", hooks: [{ type: "command", command: string }] }
+      { matcher: "Agent", hooks: [{ type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/post-tool-use-hook.sh\"" }] }
     ]
-    Stop: [{ matcher: "", hooks: [{ type: "command", command: string }] }]  // pre-existing
+    Stop: [{ matcher: "", hooks: [{ type: "command", command: string }] }]
   }
 }
 ```
@@ -269,10 +269,9 @@ HookConfig {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `hooks.pre-agent` | Agent tool call | modified prompt with brain context + start_ms written to brain.json | happy path | PreToolUse hook matched to "Agent" tool |
-| `hooks.pre-skill` | Skill tool call | start_ms written to brain.json for skill key | happy path | PreToolUse hook matched to "Skill" tool |
-| `hooks.post-agent` | Agent tool result | brain.json updated (patch merge + phase flags + metrics accumulation) | happy path | PostToolUse hook matched to "Agent" tool |
-| `hooks.post-skill` | Skill tool result | brain.json metrics accumulated for skill key | happy path | PostToolUse hook matched to "Skill" tool |
+| `hooks.pre-agent` | Agent tool call | modified prompt with brain context + start_ms written to brain.json | happy path | PreToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
+| `hooks.post-agent` | Agent tool result | brain.json updated (patch merge + phase flags + metrics accumulation) | happy path | PostToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
+| `hooks.stop-cleanup` | Claude stop event | cleanup-worktree.sh called if DARK_FACTORY_WORK_DIR and DARK_FACTORY_TASK_NAME set | happy path | Stop hook fires on session end; script path uses `${CLAUDE_PLUGIN_ROOT}` |
 
 ---
 
@@ -426,13 +425,17 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
 - Mechanism: `local only`
 - Deploy command:
   ```bash
-  # No deploy needed — changes are to agent .md files, shell scripts, and settings.json.
+  # Hooks are bundled with the plugin and registered in plugin.json.
+  # No manual settings.json editing required — install or update the plugin:
+  claude plugin install dark-factory
+  # Or after pulling new changes:
+  claude plugin marketplace add "$(pwd)"
+  claude plugin update dark-factory
   # Hook scripts must be executable:
   chmod +x agents/dark-factory/scripts/pre-tool-use-hook.sh
   chmod +x agents/dark-factory/scripts/post-tool-use-hook.sh
   chmod +x scripts/generate_checklist.sh
   # Run tests to validate checklist script and hook injection:
   pytest tests/test_generate_checklist.py -v
-  # All changes take effect immediately after files are written.
   ```
-- Notes: Hook scripts must be executable (`chmod +x`). The `.claude/settings.json` hooks section must be valid JSON. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible from the repo root — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.
+- Notes: Hook scripts must be executable (`chmod +x`). Hooks are registered via `hooks/hooks.json` (referenced in `plugin.json`) and are activated automatically when the plugin is installed — no manual `.claude/settings.json` edits needed. All script paths in `hooks/hooks.json` use `${CLAUDE_PLUGIN_ROOT}` so hooks resolve correctly from any install location. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.

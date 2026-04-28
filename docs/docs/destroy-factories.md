@@ -17,7 +17,7 @@
 
 ```mermaid
 graph TD
-  User["User: /dark-factory:destroy-factories"]:::unchanged -->|"bash scripts/destroy-factories.sh"| Script["destroy-factories.sh"]:::modified
+  User["User: /dark-factory:destroy-factories"]:::unchanged -->|"bash ${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"| Script["destroy-factories.sh"]:::modified
   Script --> FindScopes["find_claude_scope_terminals(): enumerate vte-spawn-*.scope units via systemd"]:::modified
   Script --> FindPID["find_claude_terminals(): PID scan for xterm/konsole (fallback)"]:::unchanged
   FindScopes -->|"scopes found"| StopScopes["systemctl --user stop <scope> for each"]:::modified
@@ -134,7 +134,7 @@ walk up process tree from $$:
 - Deploy command:
   ```bash
   # Called automatically by the /dark-factory:destroy-factories slash command.
-  # Can also be invoked directly:
-  bash scripts/destroy-factories.sh "dark factory"
+  # Can also be invoked directly (from a Claude Code session where CLAUDE_PLUGIN_ROOT is set):
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh" "dark factory"
   ```
 - Notes: Linux only (same platform support as `reopen-remote-control.sh`). Requires at least one of: `gnome-terminal`, `x-terminal-emulator`, `xterm`, or `konsole`. On GNOME systems the script uses `systemd` vte-spawn cgroup scopes to identify individual gnome-terminal windows; on non-GNOME systems it falls back to PID-based detection. The script is safe by design — it only stops/kills terminals whose process tree contains a `claude` descendant. After spawning a fresh terminal, the script self-closes: it stops its own vte-spawn scope and kills its own `claude` ancestor process.
