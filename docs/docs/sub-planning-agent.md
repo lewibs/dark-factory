@@ -66,7 +66,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `draftPlan.success` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | happy path | researches codebase via Grep/Glob/Read; optionally spawns investigation-agent for deep investigation; reads plan template; creates `docs/plans/<YYYY-MM-DD>-<slug>.md`; fills in Plan Metadata, System Intent, Stage Gate Tracker, placeholder Mermaid Diagram |
+| `draftPlan.success` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | happy path | researches codebase via Grep/Glob/Read; optionally spawns investigation-agent for deep investigation; reads plan template; creates `docs/plans/<YYYY-MM-DD>-<slug>.md`; fills in System Intent, Stage Gate Tracker, placeholder Mermaid Diagram |
 | `draftPlan.investigationError` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | graceful degradation | investigation-agent returns error; error is logged as comment in System Intent section; plan creation continues |
 | `draftPlan.error` | `SubPlanningAgentInput (phase=draft_plan)` | `StandardError` | error | sub-planning-agent cannot create the plan file |
 
@@ -81,7 +81,7 @@ sub-planning-agent (phase=draft_plan):
     on error: log as comment in System Intent, continue
   read agents/featurework/planning/templates/plan-template.md
   create docs/plans/<YYYY-MM-DD>-<slug>.md (date = today, slug from description)
-  fill in: Plan Metadata, System Intent, Stage Gate Tracker, placeholder Mermaid Diagram
+  fill in: System Intent, Stage Gate Tracker, placeholder Mermaid Diagram
   return { planPath, url: null, summary }
 ```
 
@@ -90,7 +90,7 @@ sub-planning-agent (phase=draft_plan):
 ### Flow: `mermaidPhase`
 
 - Test files: `N/A`
-- Core files: `agents/featurework/planning/agents/sub-planning-agent.md`, `scripts/mermaid_to_image.py`
+- Core files: `agents/featurework/planning/agents/sub-planning-agent.md`, `scripts/mermaid_to_image.py`, `skills/create-mermaid-diagram/SKILL.md`
 
 #### Types
 
@@ -113,8 +113,8 @@ SubPlanningAgentOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none"; runs `python3 scripts/mermaid_to_image.py <planPath>`; captures stdout as url |
-| `mermaidPhase.noUrl` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=null)` | graceful degradation | script exits non-zero, produces no output, or produces only whitespace; url = null; sub-agent still returns success |
+| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none" following create-mermaid-diagram skill standards (node colors, edge labels, black-box rules, mmdc validation); runs script with `MERMAID_SKIP_VALIDATE=1`; captures stdout as url; falls back to inline base64 Python if script fails |
+| `mermaidPhase.noUrl` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=null)` | graceful degradation | both script and inline fallback fail (e.g., no mermaid block in plan); url = null |
 | `mermaidPhase.noFeedback` | `SubPlanningAgentInput (feedback="none")` | `SubPlanningAgentOutput` | happy path | skips diagram edit, only runs script and returns url |
 
 #### Pseudocode
@@ -124,10 +124,23 @@ sub-planning-agent (phase=mermaid):
   read planPath
   if feedback != "none":
     apply feedback changes to ## Mermaid Diagram section
+    follow create-mermaid-diagram skill (skills/create-mermaid-diagram/SKILL.md):
+      - color nodes by file status: gray=unchanged, yellow=updated, red=deleted, green=new
+      - label every edge with a description of what flows between nodes
+      - treat external APIs and black-box services as single nodes
+      - do not encode internal branching logic in diagram nodes
+      - validate syntax with mmdc; fix any parse errors before finishing
     write updated plan file
-  run: python3 scripts/mermaid_to_image.py <planPath>
+  run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
   capture stdout as url
-  if exit_code != 0 or url is empty/whitespace: url = null
+  if exit_code != 0 or url is empty/whitespace:
+    # inline Python fallback
+    extract mermaid_string from plan file (content between ```mermaid and ```)
+    if mermaid_string found:
+      encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+      url = f"https://mermaid.ink/img/{encoded}"
+    else:
+      url = null
   return { planPath, url, summary }
 ```
 

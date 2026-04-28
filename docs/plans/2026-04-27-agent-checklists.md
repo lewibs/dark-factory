@@ -1,12 +1,5 @@
 # Agent Checklists via generate_checklist.sh
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: A `generate_checklist.sh` shell script and wiring into the PreToolUse hook so every agent spawn automatically gets a TodoWrite checklist injected into its prompt.

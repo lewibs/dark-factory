@@ -1,12 +1,5 @@
 # Restructure Planning Agent into Two-Agent System
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: `N/A`
-- Depends on: `N/A`
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: A two-agent planning system where a lightweight Haiku orchestrator (planning-agent) handles state, display, and user interaction, while a worker (sub-planning-agent) handles all research, writing, and heavy reasoning.

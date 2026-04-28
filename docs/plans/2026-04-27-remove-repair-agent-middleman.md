@@ -1,12 +1,5 @@
 # Remove repair-agent Middle Manager
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
 ## System Intent
 
 - What is being built: Elimination of the `repair-agent` pass-through. `dark-factory-agent` will route repair tasks directly to `repair-implementation-agent`, removing one unnecessary hop.

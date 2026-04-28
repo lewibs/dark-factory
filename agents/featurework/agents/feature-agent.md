@@ -177,8 +177,8 @@ feature-agent(taskDescription, answer, planPath):
 
   # ── Phase 4: Final Plan Approval ────────────────────────────────────────────
   if phase == "execution":
-    # Read the plan file for final review
-    planContent = read planPath
+    Read the plan file at planPath using the Read tool.
+    planContent = the full contents of the plan file
 
     # Call AskUserQuestion for final approval gate (with Abort option)
     answer = AskUserQuestion(

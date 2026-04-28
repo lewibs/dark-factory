@@ -1,17 +1,5 @@
 # Metrics CSV Tracking
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: N/A
-- Depends on: N/A
-- Status: `draft`
-
-Status semantics:
-- `draft`: Plan is being created or updated and is not final.
-- `approved`: Plan is approved but not yet applied in code.
-- `documentation`: Code currently exists and matches the plan contract.
-
 ## System Intent
 
 - What is being built: A persistent, append-and-aggregate CSV file that records AI agent/skill performance metrics (runtime, token usage, run count). Hooks accumulate metrics into brain.json during a manufacture run; at the end of manufacture the dark-factory-agent calls a Python script once to flush brain.json metrics into the permanent CSV.

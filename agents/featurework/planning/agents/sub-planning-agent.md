@@ -2,7 +2,9 @@
 name: sub-planning-agent
 user-invocable: false
 description: "Worker agent for the two-agent planning system. Handles all research, writing, and heavy reasoning. Spawned by planning-agent orchestrator for each phase."
-tools: Read, Write, Edit, Bash, Grep, Glob, Agent
+tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
+skills:
+  - skills/create-mermaid-diagram/SKILL.md
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 scripts/mermaid_to_image.py *)"
 ---
@@ -30,7 +32,7 @@ When `phase == "draft_plan"`:
 2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. If deep investigation is needed, spawn the `investigation-agent` with the system/topic name. If `investigation-agent` returns an error, log the error as a comment in the plan's `## System Intent` section and continue without it — do not halt.
 3. Read the plan template at `agents/featurework/planning/templates/plan-template.md`.
 4. Create a new plan file at `docs/plans/<YYYY-MM-DD>-<slug>.md` (use today's date, derive slug from the feature description).
-5. Fill in at minimum: `## Plan Metadata`, `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
+5. Fill in at minimum: `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
 6. Return:
    ```json
    {
@@ -45,12 +47,19 @@ When `phase == "draft_plan"`:
 When `phase == "mermaid"`:
 
 1. Read the plan file at `planPath`.
-2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file.
-3. Run the mermaid image script:
+2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, follow the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
+3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
-   python3 scripts/mermaid_to_image.py <planPath>
+   MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
    ```
-   Capture stdout as `url`. If the script exits with a non-zero exit code, produces no output, or produces only whitespace, set `url = null`. Do not treat stderr output as a failure on its own — check the exit code.
+   Capture stdout as `url`. If the script exits with a non-zero exit code, produces no output, or produces only whitespace, fall back to generating the URL inline:
+   ```python
+   import base64
+   # extract the raw mermaid diagram text from the plan file (content between ```mermaid and ```)
+   encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+   url = f"https://mermaid.ink/img/{encoded}"
+   ```
+   Only set `url = null` if both the script and the inline fallback fail (e.g., no mermaid block found in the plan). Do not treat stderr output as a failure on its own — check the exit code.
 5. Return:
    ```json
    {
