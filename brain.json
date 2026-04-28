@@ -1,9 +1,9 @@
 {
-  "taskDescription": "Figure out why metrics.csv isn't saving data and fix it.",
-  "taskName": "fix-metrics-csv-saving",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-metrics-csv-saving",
+  "taskDescription": "the documentation step of the flow is done within the setup. it's not really a core step can you make it a post run hook before the code review step? a hook is able to call Claude to update docs so figure out how to do that and have the hook trigger the doc update in parallel with the other hook stuff",
+  "taskName": "docs-to-hook",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-docs-to-hook",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "debugger",
+  "classification": "repair",
   "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,
@@ -13,16 +13,42 @@
     "prep-running": false,
     "prep-complete": true,
     "worker-running": false,
-    "worker-complete": false,
+    "worker-complete": true,
     "review-running": false,
-    "review-complete": false,
+    "review-complete": true,
     "docs-running": false,
-    "docs-complete": false,
+    "docs-complete": true,
     "skills-running": false,
-    "skills-complete": false,
+    "skills-complete": true,
     "pr-running": false,
-    "pr-complete": false,
+    "pr-complete": true,
     "cleanup-running": false,
     "cleanup-complete": false
+  },
+  "metrics": {
+    "dark-factory:repair:agents:repair-agent": {
+      "elapsed_ms": 69380,
+      "tokens": 504,
+      "runs": 1
+    },
+    "testing-agent": {
+      "start_ms": 1777349402665
+    },
+    "dark-factory:code-review:agents:code-review-orchestrator-agent": {
+      "elapsed_ms": 787529,
+      "tokens": 720,
+      "runs": 1
+    },
+    "planning-agent": {
+      "start_ms": 1777350359478
+    },
+    "dark-factory:skill-update:agents:skill-update-agent": {
+      "elapsed_ms": 101095,
+      "tokens": 453,
+      "runs": 1
+    },
+    "dark-factory:pr:agents:pr-agent": {
+      "start_ms": 1777350341575
+    }
   }
 }

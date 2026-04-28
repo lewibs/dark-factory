@@ -6,6 +6,13 @@
 
 set -euo pipefail
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Temp file cleanup: collect paths and remove on exit.
+_TMP_FILES=()
+_cleanup_tmp() { rm -f "${_TMP_FILES[@]}" 2>/dev/null || true; }
+trap _cleanup_tmp EXIT
+
 # Resolve DARK_FACTORY_WORK_DIR: prefer env var, fall back to pointer file.
 # The env var is set by Claude Code when launched with it in the environment.
 # The pointer file at /tmp/dark-factory-work-dir is written by dark-factory-agent
@@ -34,6 +41,7 @@ if [ -f "$PATCH_PATH" ]; then
   PATCH_CONTENTS=$(jq -c '.' "$PATCH_PATH")
   echo "post-tool-use-hook | merge-patch | patch=${PATCH_CONTENTS}" >&2
   POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
+  _TMP_FILES+=("$POST_TMP")
   jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
     && mv "$POST_TMP" "$BRAIN_PATH"
   rm -f "$PATCH_PATH"
@@ -52,11 +60,63 @@ if [ -n "$RUNNING_PHASE" ]; then
   COMPLETE_PHASE="${RUNNING_PHASE%-running}-complete"
   echo "post-tool-use-hook | set-phase-complete | running=${RUNNING_PHASE} complete=${COMPLETE_PHASE}" >&2
   POST_TMP2=$(mktemp /tmp/brain-post-XXXXXX.json)
+  _TMP_FILES+=("$POST_TMP2")
   jq ".phases[\"${RUNNING_PHASE}\"] = false | .phases[\"${COMPLETE_PHASE}\"] = true" \
     "$BRAIN_PATH" > "$POST_TMP2" \
     && mv "$POST_TMP2" "$BRAIN_PATH"
 else
   echo "post-tool-use-hook | set-phase-complete | no running phase found" >&2
+fi
+
+# post-hook.trigger-docs-update: if the worker phase just completed, run the
+# documentation update agent synchronously so docs are written before code review
+# and the PR are opened.
+if [ "${RUNNING_PHASE:-}" = "worker-running" ]; then
+  PLAN_FILE_PATH=$(jq -r '.planFilePath // empty' "$BRAIN_PATH" 2>/dev/null || true)
+  WORK_DIR="${DARK_FACTORY_WORK_DIR}"
+  DOC_AGENT_PATH="${WORK_DIR}/agents/documentation/agents/update-documentation-agent.md"
+  if [ -f "$DOC_AGENT_PATH" ]; then
+    DOC_AGENT_INSTRUCTIONS=$(cat "$DOC_AGENT_PATH")
+
+    # Use planFilePath when available; fall back to taskDescription so the docs
+    # agent always has meaningful context.
+    if [ -n "$PLAN_FILE_PATH" ]; then
+      DOC_CONTEXT="Plan file path: ${PLAN_FILE_PATH}"
+    else
+      TASK_DESCRIPTION=$(jq -r '.taskDescription // ""' "$BRAIN_PATH" 2>/dev/null || true)
+      DOC_CONTEXT="Task description (no plan file): ${TASK_DESCRIPTION}"
+    fi
+
+    DOC_PROMPT="${DOC_AGENT_INSTRUCTIONS}
+
+${DOC_CONTEXT}"
+    LOG_FILE="/tmp/docs-update-$$.log"
+
+    # Mark docs phase running before launching
+    DOCS_TMP=$(mktemp /tmp/brain-docs-XXXXXX.json)
+    _TMP_FILES+=("$DOCS_TMP")
+    jq '.phases["docs-running"] = true' "$BRAIN_PATH" > "$DOCS_TMP" \
+      && mv "$DOCS_TMP" "$BRAIN_PATH"
+
+    # Run synchronously. Unset DARK_FACTORY_WORK_DIR to prevent hook re-entrancy
+    # inside the docs subprocess; use --model to match the agent's declared model.
+    (
+      cd "$WORK_DIR"
+      unset DARK_FACTORY_WORK_DIR
+      claude --model claude-sonnet-4-6 --allowedTools "Read,Grep,Glob,Write,Edit,Bash" -p "$DOC_PROMPT" >"$LOG_FILE" 2>&1
+    )
+    DOC_EXIT=$?
+
+    # Mark docs phase complete regardless of exit code (non-fatal)
+    DOCS_TMP2=$(mktemp /tmp/brain-docs-XXXXXX.json)
+    _TMP_FILES+=("$DOCS_TMP2")
+    jq '.phases["docs-running"] = false | .phases["docs-complete"] = true' "$BRAIN_PATH" > "$DOCS_TMP2" \
+      && mv "$DOCS_TMP2" "$BRAIN_PATH"
+
+    echo "post-tool-use-hook | trigger-docs-update | exit=${DOC_EXIT} log=${LOG_FILE}" >&2
+  else
+    echo "post-tool-use-hook | trigger-docs-update | doc-agent not found at ${DOC_AGENT_PATH}, skipping" >&2
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -66,16 +126,7 @@ fi
 TOOL_NAME=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_name // ""')
 
 if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
-  if [ "$TOOL_NAME" = "Agent" ]; then
-    METRICS_KEY=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.subagent_type // "unknown"')
-    if [ "$METRICS_KEY" = "null" ] || [ "$METRICS_KEY" = "unknown" ]; then
-      METRICS_KEY=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.prompt // ""' \
-        | grep -oP '(?<=agents/)[^/]+(?=\.md)' | head -1 || true)
-      METRICS_KEY="${METRICS_KEY:-unknown}"
-    fi
-  else
-    METRICS_KEY=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.skill // "unknown"')
-  fi
+  METRICS_KEY=$(bash "$HOOK_DIR/extract-metrics-key.sh" "$TOOL_NAME" "$HOOK_INPUT")
 
   NOW_MS=$(date +%s%3N)
   START_MS=$(jq --arg k "$METRICS_KEY" '.metrics[$k].start_ms // 0' "$BRAIN_PATH")
@@ -93,6 +144,7 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
   echo "post-tool-use-hook | metrics-accumulate | key=${METRICS_KEY} elapsed_ms=${ELAPSED} tokens=${TOKENS} runs=+1" >&2
 
   METRICS_TMP=$(mktemp /tmp/brain-metrics-post-XXXXXX.json)
+  _TMP_FILES+=("$METRICS_TMP")
   jq --arg key "$METRICS_KEY" --argjson elapsed "$ELAPSED" --argjson tokens "$TOKENS" '
     .metrics[$key].elapsed_ms = ((.metrics[$key].elapsed_ms // 0) + $elapsed) |
     .metrics[$key].tokens     = ((.metrics[$key].tokens     // 0) + $tokens)  |

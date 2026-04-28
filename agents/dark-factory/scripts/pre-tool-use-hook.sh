@@ -8,6 +8,13 @@
 
 set -euo pipefail
 
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Temp file cleanup: collect paths and remove on exit.
+_TMP_FILES=()
+_cleanup_tmp() { rm -f "${_TMP_FILES[@]}" 2>/dev/null || true; }
+trap _cleanup_tmp EXIT
+
 # Resolve DARK_FACTORY_WORK_DIR: prefer env var, fall back to pointer file.
 # The env var is set by Claude Code when launched with it in the environment.
 # The pointer file at /tmp/dark-factory-work-dir is written by dark-factory-agent
@@ -37,22 +44,13 @@ TOOL_NAME=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_name // ""')
 # pre-hook.metrics-capture: record start_ms for Agent or Skill tool calls
 # ---------------------------------------------------------------------------
 if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
-  if [ "$TOOL_NAME" = "Agent" ]; then
-    METRICS_KEY=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.subagent_type // "unknown"')
-    if [ "$METRICS_KEY" = "null" ] || [ "$METRICS_KEY" = "unknown" ]; then
-      # Fallback: try to extract agent name from prompt path reference (agents/<name>.md)
-      METRICS_KEY=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // ""' \
-        | grep -oP '(?<=agents/)[^/]+(?=\.md)' | head -1 || true)
-      METRICS_KEY="${METRICS_KEY:-unknown}"
-    fi
-  else
-    METRICS_KEY=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.skill // "unknown"')
-  fi
+  METRICS_KEY=$(bash "$HOOK_DIR/extract-metrics-key.sh" "$TOOL_NAME" "$TOOL_INPUT")
 
   NOW_MS=$(date +%s%3N)
   echo "pre-tool-use-hook | metrics-capture | key=${METRICS_KEY} start_ms=${NOW_MS}" >&2
 
   METRICS_TMP=$(mktemp /tmp/brain-metrics-pre-XXXXXX.json)
+  _TMP_FILES+=("$METRICS_TMP")
   jq --arg key "$METRICS_KEY" --argjson now "$NOW_MS" \
     '.metrics[$key].start_ms = $now' "$BRAIN_PATH" > "$METRICS_TMP" \
     && mv "$METRICS_TMP" "$BRAIN_PATH"
@@ -69,6 +67,7 @@ PHASE=$(jq -r '
 if [ -n "$PHASE" ]; then
   echo "pre-tool-use-hook | set-phase-running | phase=${PHASE}" >&2
   PRE_TMP=$(mktemp /tmp/brain-pre-XXXXXX.json)
+  _TMP_FILES+=("$PRE_TMP")
   jq ".phases[\"${PHASE}-running\"] = true" "$BRAIN_PATH" > "$PRE_TMP" \
     && mv "$PRE_TMP" "$BRAIN_PATH"
 else
@@ -84,7 +83,7 @@ if [ "$TOOL_NAME" = "Agent" ]; then
 fi
 
 declare -A AGENT_CHECKLISTS
-AGENT_CHECKLISTS["dark-factory-agent"]="Classify task|Prep work dir|Run worker agent|Code review|Update docs|Update skills|Open PR|Cleanup"
+AGENT_CHECKLISTS["dark-factory-agent"]="Classify task|Prep work dir|Run worker agent|Code review|Update skills|Open PR|Cleanup"
 AGENT_CHECKLISTS["feature-agent"]="Plan feature|Get plan approval|Execute plan"
 AGENT_CHECKLISTS["execution-agent"]="Build skeleton|Write tests|Implement flows"
 AGENT_CHECKLISTS["skeleton-agent"]="Read plan|Build files checklist|Create skeleton files"
@@ -103,7 +102,6 @@ AGENT_CHECKLISTS["skill-update-agent"]="Review completed work|Identify patterns|
 AGENT_CHECKLISTS["repair-implementation-agent"]="Apply fix|Run tests|Return success"
 AGENT_CHECKLISTS["fix-flow-orchestrator"]="Understand system|Generate scripts|Run flow|Debug failures|Ship PR"
 
-HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HOOK_DIR/../../.." && pwd)"
 CHECKLIST_SCRIPT="$REPO_ROOT/scripts/generate_checklist.sh"
 
@@ -123,18 +121,25 @@ elif [ "$TOOL_NAME" = "Agent" ]; then
   echo "pre-tool-use-hook | checklist-skip | agent=${AGENT_NAME}" >&2
 fi
 
-# pre-hook.inject: inject brain context into the agent prompt
-# NOTE: TOOL_INPUT may already have the checklist prepended by the block above.
-# We read the current prompt from the (possibly already modified) TOOL_INPUT so
-# that we prepend brain context to the full prompt, not just the original prompt.
-BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
-CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
-NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
+# pre-hook.inject: inject brain context into the agent prompt (Agent tool only).
+# Skill tool calls have no prompt field in tool_input; injecting into a stray
+# top-level .prompt key is silently ignored by the Skill framework, so skip it.
+if [ "$TOOL_NAME" = "Agent" ]; then
+  # NOTE: TOOL_INPUT may already have the checklist prepended by the block above.
+  # We read the current prompt from the (possibly already modified) TOOL_INPUT so
+  # that we prepend brain context to the full prompt, not just the original prompt.
+  BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
+  CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // ""')
+  NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
 ${BRAIN_CONTEXT}
 
 ${CURRENT_PROMPT}"
 
-echo "pre-tool-use-hook | inject | brain_context_bytes=$(printf '%s' "$BRAIN_CONTEXT" | wc -c)" >&2
+  echo "pre-tool-use-hook | inject | brain_context_bytes=$(printf '%s' "$BRAIN_CONTEXT" | wc -c)" >&2
 
-# Output the modified tool call — Claude Code reads hook stdout to override the tool input
-printf '%s' "$TOOL_INPUT" | jq --arg p "$NEW_PROMPT" 'if .tool_input.prompt != null then .tool_input.prompt = $p else .prompt = $p end'
+  # Output the modified tool call — Claude Code reads hook stdout to override the tool input
+  printf '%s' "$TOOL_INPUT" | jq --arg p "$NEW_PROMPT" '.tool_input.prompt = $p'
+else
+  echo "pre-tool-use-hook | inject-skip | tool=${TOOL_NAME} has no prompt field, passing through" >&2
+  printf '%s' "$TOOL_INPUT"
+fi

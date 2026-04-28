@@ -30,7 +30,7 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 | `fix-flow-orchestrator` | `agents/fix-flow/agents/fix-flow-orchestrator.md` |
 | `repair-implementation-agent` | `agents/repair/agents/repair-implementation-agent.md` |
 | `code-review-orchestrator-agent` | `agents/code-review/agents/code-review-orchestrator-agent.md` |
-| `update-documentation-agent` | `agents/documentation/agents/update-documentation-agent.md` |
+| `repair-implementation-agent` | `agents/repair/agents/repair-implementation-agent.md` |
 | `skill-update-agent` | `agents/skill-update/agents/skill-update-agent.md` |
 | `pr-agent` | `agents/pr/agents/pr-agent.md` |
 
@@ -71,10 +71,10 @@ dark-factory-agent(taskDescription, taskName):
         "prep-complete": true,
         "worker-running": false,
         "worker-complete": false,
-        "review-running": false,
-        "review-complete": false,
         "docs-running": false,
         "docs-complete": false,
+        "review-running": false,
+        "review-complete": false,
         "skills-running": false,
         "skills-complete": false,
         "pr-running": false,
@@ -124,6 +124,9 @@ dark-factory-agent(taskDescription, taskName):
       if result.status == "question":
         AskUserQuestion(result.question, result.options)
         answer = developer response
+        # Reset worker phase so the pre-hook keeps tracking this as worker work,
+        # not incorrectly advancing to review when feature-agent is re-invoked.
+        Write $WORK_DIR/brain.json: set phases.worker-complete = false
         result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
         CONTINUE LOOP
 
@@ -147,12 +150,7 @@ dark-factory-agent(taskDescription, taskName):
     run cleanup(WORK_DIR)
     report error and STOP
 
-  # Step 5 — update docs
-  # IMPORTANT: Documentation agent MUST fully complete before proceeding to Step 6.
-  # The pr-agent (Step 6) uses `git add --all`, which will pick up any docs written here.
-  invoke update-documentation-agent with planFilePath (pass null if none — agent handles gracefully)
-
-  # Step 5c — skill update (non-fatal)
+  # Step 5 — skill update (non-fatal)
   try:
     invoke skill-update-agent with:
       planFilePath = planFilePath
@@ -165,8 +163,6 @@ dark-factory-agent(taskDescription, taskName):
   # (pr-agent writes brain-patch.json with prUrl; post-hook merges it into brain.json)
 
   # Step 6 — PR
-  # Only reached after all Step 5 documentation agents have fully completed.
-  # pr-agent uses `git add --all`, so any docs written in Step 5 are included in the PR.
   invoke pr-agent with: planFilePath ?? taskDescription
 
   If pr-agent errors or cannot merge:

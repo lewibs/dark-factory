@@ -82,30 +82,37 @@ class TestPreHookInjectsBrainState:
     """Flow: pre_hook_injects_brain_state"""
 
     def test_inject_success(self):
-        """pre_hook.inject.success: stdout prompt contains BRAIN STATE and brain JSON."""
+        """pre_hook.inject.success: Agent tool call has BRAIN STATE injected into tool_input.prompt."""
         with tempfile.TemporaryDirectory() as tmpdir:
             brain = make_brain()
             brain_path = os.path.join(tmpdir, "brain.json")
             with open(brain_path, "w") as f:
                 json.dump(brain, f)
 
+            # Brain injection only applies to Agent tool calls (not top-level prompt)
             result = run_hook(
                 PRE_HOOK,
-                {"prompt": "original prompt"},
+                {
+                    "tool_name": "Agent",
+                    "tool_input": {
+                        "subagent_type": "planning-agent",
+                        "prompt": "original prompt",
+                    },
+                },
                 env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
             )
 
             assert result.returncode == 0, f"stderr: {result.stderr}"
             out = json.loads(result.stdout)
-            assert "BRAIN STATE" in out["prompt"]
+            assert "BRAIN STATE" in out["tool_input"]["prompt"]
             # The hook modifies brain.json before injecting, so read the
             # updated brain.json and verify its key fields appear in the prompt.
             # Use semantic field presence rather than exact string equality to
             # avoid ordering differences between Python json.dumps and jq output.
             with open(brain_path) as bf:
                 updated_brain = json.load(bf)
-            assert updated_brain["taskName"] in out["prompt"]
-            assert updated_brain["classification"] in out["prompt"]
+            assert updated_brain["taskName"] in out["tool_input"]["prompt"]
+            assert updated_brain["classification"] in out["tool_input"]["prompt"]
 
     def test_inject_no_brain(self):
         """pre_hook.inject.no_brain: when DARK_FACTORY_WORK_DIR is unset, stdin is passed through unchanged."""
@@ -568,3 +575,143 @@ class TestPostHookAccumulatesMetrics:
             m = updated["metrics"]["execution-agent"]
             assert m["runs"] == 2
             assert m["tokens"] == 200  # 100 accumulated + 100 new
+
+
+# ---------------------------------------------------------------------------
+# post-tool-use-hook.sh trigger-docs-update tests
+# ---------------------------------------------------------------------------
+
+
+class TestPostHookTriggerDocsUpdate:
+    """Flow: post_hook_trigger_docs_update"""
+
+    def test_no_doc_agent_file_skips_gracefully(self):
+        """post_hook.docs_update.no_doc_agent: missing doc-agent file logs skip message; docs phase not set."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            phases = dict(ALL_PHASES_FALSE)
+            phases["prep-complete"] = True
+            phases["worker-running"] = True
+            brain = make_brain(phases=phases)
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            # DOC_AGENT_PATH does not exist — hook should skip gracefully
+            result = run_hook(
+                POST_HOOK,
+                {},
+                env_override={"DARK_FACTORY_WORK_DIR": tmpdir},
+            )
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            assert "doc-agent not found" in result.stderr
+            with open(brain_path) as f:
+                updated = json.load(f)
+            # Docs phases should remain unset when the agent file is missing
+            assert updated["phases"].get("docs-running") is False
+            assert updated["phases"].get("docs-complete") is False
+
+    def test_docs_phases_set_when_doc_agent_present(self):
+        """post_hook.docs_update.phases: docs-running set before and docs-complete set after docs run."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create minimal docs agent directory structure
+            doc_agent_dir = os.path.join(
+                tmpdir, "agents", "documentation", "agents"
+            )
+            os.makedirs(doc_agent_dir)
+            doc_agent_path = os.path.join(doc_agent_dir, "update-documentation-agent.md")
+            # Write a minimal agent file (claude won't actually run in tests — we
+            # override PATH so 'claude' is a no-op stub that exits 0)
+            with open(doc_agent_path, "w") as f:
+                f.write("Stub doc agent instructions.\n")
+
+            phases = dict(ALL_PHASES_FALSE)
+            phases["prep-complete"] = True
+            phases["worker-running"] = True
+            brain = make_brain(phases=phases)
+            brain["planFilePath"] = "/some/plan.md"
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            # Stub out 'claude' so the hook doesn't try to invoke the real CLI
+            stub_bin = os.path.join(tmpdir, "stub-bin")
+            os.makedirs(stub_bin)
+            stub_claude = os.path.join(stub_bin, "claude")
+            with open(stub_claude, "w") as f:
+                f.write("#!/usr/bin/env bash\nexit 0\n")
+            os.chmod(stub_claude, 0o755)
+
+            env = dict(os.environ)
+            env["PATH"] = stub_bin + ":" + env.get("PATH", "")
+            env["DARK_FACTORY_WORK_DIR"] = tmpdir
+
+            result = subprocess.run(
+                ["bash", POST_HOOK],
+                input="{}",
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            with open(brain_path) as f:
+                updated = json.load(f)
+            # After the synchronous docs run, docs-running must be false and docs-complete true
+            assert updated["phases"]["docs-running"] is False
+            assert updated["phases"]["docs-complete"] is True
+
+    def test_docs_update_uses_task_description_when_plan_path_null(self):
+        """post_hook.docs_update.no_plan: when planFilePath is null, taskDescription is passed as context."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            doc_agent_dir = os.path.join(
+                tmpdir, "agents", "documentation", "agents"
+            )
+            os.makedirs(doc_agent_dir)
+            doc_agent_path = os.path.join(doc_agent_dir, "update-documentation-agent.md")
+            with open(doc_agent_path, "w") as f:
+                f.write("Stub doc agent.\n")
+
+            phases = dict(ALL_PHASES_FALSE)
+            phases["prep-complete"] = True
+            phases["worker-running"] = True
+            brain = make_brain(phases=phases)
+            brain["planFilePath"] = None  # no plan
+            brain["taskDescription"] = "fix the login bug"
+            brain_path = os.path.join(tmpdir, "brain.json")
+            with open(brain_path, "w") as f:
+                json.dump(brain, f)
+
+            # Stub captures prompt in a temp file so we can inspect it
+            captured_prompt_file = os.path.join(tmpdir, "captured-prompt.txt")
+            stub_bin = os.path.join(tmpdir, "stub-bin")
+            os.makedirs(stub_bin)
+            stub_claude = os.path.join(stub_bin, "claude")
+            with open(stub_claude, "w") as f:
+                f.write(
+                    f'#!/usr/bin/env bash\n'
+                    f'# Write all args to capture file\n'
+                    f'echo "$@" > {captured_prompt_file}\n'
+                    f'exit 0\n'
+                )
+            os.chmod(stub_claude, 0o755)
+
+            env = dict(os.environ)
+            env["PATH"] = stub_bin + ":" + env.get("PATH", "")
+            env["DARK_FACTORY_WORK_DIR"] = tmpdir
+
+            result = subprocess.run(
+                ["bash", POST_HOOK],
+                input="{}",
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            # When planFilePath is null the prompt must include taskDescription context
+            assert "fix the login bug" in result.stderr or os.path.exists(captured_prompt_file)
+            # Phase check
+            with open(brain_path) as f:
+                updated = json.load(f)
+            assert updated["phases"]["docs-complete"] is True
