@@ -178,4 +178,4 @@ dark-factory-agent(taskDescription, taskName):
   # Invoked via Claude Code slash command
   /dark-factory:manufacture <task description>
   ```
-- Notes: Requires Claude Code with the dark-factory plugin installed. All worker agents run in an isolated WORK_DIR cloned from the project root.
+- Notes: Requires Claude Code with the dark-factory plugin installed. All worker agents run in an isolated WORK_DIR cloned from the project root. Transient files created during a manufacture run (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.

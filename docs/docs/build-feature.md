@@ -27,6 +27,10 @@ flowchart TD
   PA -->|planPath + summary| FA
   SPA -->|content written to plan file| PF
   PF -.->|"feature-agent reads\nto know where it is\n(Stage Gate Tracker)"| FA
+  RS["scripts/render_section.py"]
+
+  FA -->|section content stdin| RS
+  RS -->|formatted ASCII output| FA
 
   FA -->|"{ status: 'question',\nquestion, options, planPath }"| DFA
   DFA -->|AskUserQuestion| DEV
@@ -106,7 +110,10 @@ if phase == "draft_plan":
   invoke planning-agent(phase="draft_plan", feedback=taskDescription)
   receive { planPath, summary }
   PushNotification("Draft Plan Ready", ...)
-  RETURN { status: "question", question: "<System Intent section>",
+  section_content = extract "## System Intent" from planPath
+  rendered = bash("python3 scripts/render_section.py", stdin=section_content)
+  formatted_content = rendered.stdout if rendered.exit_code == 0 else section_content
+  RETURN { status: "question", question: "<formatted_content>",
            options: ["Looks good — continue to Mermaid diagram", "Request Changes"],
            planPath, phase: "draft_plan" }
 
@@ -115,7 +122,10 @@ if phase == "mermaid":
   invoke planning-agent(phase="mermaid", planPath, feedback=answer ?? "none")
   receive { planPath, url, summary }
   if url: PushNotification("Mermaid Diagram Ready", url)
-  RETURN { status: "question", question: "<Mermaid section>",
+  section_content = extract "## Mermaid Diagram" from planPath
+  rendered = bash("python3 scripts/render_section.py", stdin=section_content)
+  formatted_content = rendered.stdout if rendered.exit_code == 0 else section_content
+  RETURN { status: "question", question: "<formatted_content>",
            options: ["Approve — continue to flows", "Request Changes"],
            planPath, phase: "mermaid" }
 
@@ -127,7 +137,10 @@ if phase == "flows":
   nextFlow = first flow in allFlows not yet approved
   if nextFlow is null: GOTO phase == "execution"
   state.current = nextFlow; write stateFile
-  RETURN { status: "question", question: "<nextFlow section>",
+  section_content = extract "### Flow: <nextFlow>" from planPath
+  rendered = bash("python3 scripts/render_section.py", stdin=section_content)
+  formatted_content = rendered.stdout if rendered.exit_code == 0 else section_content
+  RETURN { status: "question", question: "<formatted_content>",
            options: ["Approve — continue to next flow", "Request Changes"],
            planPath, phase: "flows" }
 
@@ -216,9 +229,9 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planFeature.draftQuestion` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"question", phase:"draft_plan"}` | happy path | feature-agent invokes planning-agent with phase=draft_plan; reads System Intent section from plan; returns question to dark-factory-agent |
-| `planFeature.mermaidQuestion` | answer="Looks good", planPath | `FeatureAgentResult{status:"question", phase:"mermaid"}` | happy path | feature-agent invokes planning-agent with phase=mermaid; pushes diagram URL via PushNotification if url is non-null; returns question to dark-factory-agent |
-| `planFeature.flowQuestion` | answer, planPath, flows-state.json | `FeatureAgentResult{status:"question", phase:"flows"}` | happy path | feature-agent iterates each Flow section one at a time, returning a question per flow; tracks approved flows in flows-state.json |
+| `planFeature.draftQuestion` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"question", phase:"draft_plan"}` | happy path | feature-agent invokes planning-agent with phase=draft_plan; reads System Intent section from plan; pipes through scripts/render_section.py; returns formatted question to dark-factory-agent |
+| `planFeature.mermaidQuestion` | answer="Looks good", planPath | `FeatureAgentResult{status:"question", phase:"mermaid"}` | happy path | feature-agent invokes planning-agent with phase=mermaid; pushes diagram URL via PushNotification if url is non-null; pipes Mermaid section through scripts/render_section.py; returns formatted question to dark-factory-agent |
+| `planFeature.flowQuestion` | answer, planPath, flows-state.json | `FeatureAgentResult{status:"question", phase:"flows"}` | happy path | feature-agent iterates each Flow section one at a time; pipes each flow section through scripts/render_section.py so tables render as ASCII; tracks approved flows in flows-state.json |
 | `planFeature.phaseRetry` | answer=feedback text, planPath | revised question for same phase | loop | developer provides feedback during any phase; feature-agent re-invokes planning-agent for that phase with the feedback, then returns another question |
 | `planFeature.error` | `FeatureAgentInput` | `StandardError` | error | sub-planning-agent fails to complete a phase |
 
@@ -285,6 +298,7 @@ execution-agent(planPath):
 | flows approval state | $DARK_FACTORY_WORK_DIR/flows-state.json (deleted after all flows approved) |
 | test results | Claude Code session transcript |
 | checklists | tmp/files-checklist.md, tmp/flows-checklist.md (deleted on success) |
+| render_section.py | stderr (table parsing errors, column width issues) |
 
 ## Deployment
 
