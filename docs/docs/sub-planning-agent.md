@@ -113,8 +113,8 @@ SubPlanningAgentOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none"; runs `python3 scripts/mermaid_to_image.py <planPath>`; captures stdout as url |
-| `mermaidPhase.noUrl` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=null)` | graceful degradation | script exits non-zero, produces no output, or produces only whitespace; url = null; sub-agent still returns success |
+| `mermaidPhase.success` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=non-null)` | happy path | applies feedback to Mermaid Diagram section if feedback != "none"; runs script with `MERMAID_SKIP_VALIDATE=1`; captures stdout as url; falls back to inline base64 Python if script fails |
+| `mermaidPhase.noUrl` | `SubPlanningAgentInput (phase=mermaid)` | `SubPlanningAgentOutput (url=null)` | graceful degradation | both script and inline fallback fail (e.g., no mermaid block in plan); url = null |
 | `mermaidPhase.noFeedback` | `SubPlanningAgentInput (feedback="none")` | `SubPlanningAgentOutput` | happy path | skips diagram edit, only runs script and returns url |
 
 #### Pseudocode
@@ -125,9 +125,16 @@ sub-planning-agent (phase=mermaid):
   if feedback != "none":
     apply feedback changes to ## Mermaid Diagram section
     write updated plan file
-  run: python3 scripts/mermaid_to_image.py <planPath>
+  run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
   capture stdout as url
-  if exit_code != 0 or url is empty/whitespace: url = null
+  if exit_code != 0 or url is empty/whitespace:
+    # inline Python fallback
+    extract mermaid_string from plan file (content between ```mermaid and ```)
+    if mermaid_string found:
+      encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+      url = f"https://mermaid.ink/img/{encoded}"
+    else:
+      url = null
   return { planPath, url, summary }
 ```
 

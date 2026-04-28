@@ -114,6 +114,51 @@ generate_mermaid_ink_url(mermaid_string: str) -> str:
 
 ---
 
+### Flow: `validateMermaidSyntax`
+
+- Test files: `N/A`
+- Core files: `scripts/mermaid_to_image.py`
+
+#### Types
+
+```txt
+ValidateInput {
+  mermaid_string: string   (raw Mermaid diagram text)
+}
+
+ValidateOutput {
+  is_valid: bool
+  error: string            (empty string on success; error message from mmdc on failure)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `validateMermaidSyntax.valid` | `ValidateInput` (syntactically correct mermaid) | `ValidateOutput{is_valid=true, error=""}` | `happy path` | mmdc exits 0; diagram is valid |
+| `validateMermaidSyntax.invalid` | `ValidateInput` (bad mermaid syntax) | `ValidateOutput{is_valid=false, error=<mmdc stderr>}` | `error` | mmdc exits non-zero; error contains mmdc stderr/stdout |
+| `validateMermaidSyntax.timeout` | `ValidateInput` (mmdc hangs >60s) | `ValidateOutput{is_valid=false, error="mmdc timed out"}` | `error` | subprocess timeout |
+| `validateMermaidSyntax.npx-missing` | mmdc/npx not installed | `ValidateOutput{is_valid=false, error="npx not found — cannot validate mermaid syntax"}` | `error` | FileNotFoundError from subprocess |
+
+#### Pseudocode
+
+```
+validate_mermaid_syntax(mermaid_string: str) -> (bool, str):
+  write mermaid_string to tmp .mmd file
+  write puppeteer config json to tmp .json file
+  run: npx --yes @mermaid-js/mermaid-cli -i <tmp_in> -o <tmp_out> -p <tmp_cfg> --quiet (timeout=60s)
+  if returncode != 0: return False, stderr or stdout
+  return True, ""
+  # always clean up tmp files in finally block
+```
+
+#### Notes
+
+This flow is only invoked by `cliEntryPoint` when the `MERMAID_SKIP_VALIDATE` environment variable is not set. When `MERMAID_SKIP_VALIDATE=1` is set, this flow is bypassed entirely and the URL is always generated from the extracted mermaid block.
+
+---
+
 ### Flow: `cliEntryPoint`
 
 - Test files: `tests/test_mermaid_to_image.py`
@@ -136,11 +181,13 @@ CliOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `cliEntryPoint.success-default` | valid plan file path, no `--block` arg | URL printed to stdout, exit 0 | `happy path` | defaults to block 1; extract + URL generation succeed |
+| `cliEntryPoint.success-default` | valid plan file path, no `--block` arg | URL printed to stdout, exit 0 | `happy path` | defaults to block 1; extract + URL generation succeed; validation skipped if `MERMAID_SKIP_VALIDATE=1` |
 | `cliEntryPoint.success-block-n` | valid plan file path, `--block N` | URL printed to stdout, exit 0 | `happy path` | extracts Nth block; URL printed |
+| `cliEntryPoint.skip-validate` | valid plan file path, `MERMAID_SKIP_VALIDATE=1` set | URL printed to stdout, exit 0 | `happy path` | mmdc validation step is bypassed entirely; URL always generated if mermaid block exists |
 | `cliEntryPoint.no-block` | plan file with no mermaid block | error message to stderr, exit 1 | `error` | ValueError from extractMermaidFromPlan |
 | `cliEntryPoint.index-out-of-range` | plan file, block_index > number of blocks | error message to stderr, exit 1 | `error` | ValueError from extractMermaidFromPlan |
 | `cliEntryPoint.file-missing` | non-existent file path | error message to stderr, exit 1 | `error` | FileNotFoundError from extractMermaidFromPlan |
+| `cliEntryPoint.validation-failure` | valid plan file, mermaid syntax invalid, `MERMAID_SKIP_VALIDATE` not set | error message to stderr, exit 1 | `error` | mmdc validation reports failure; URL not generated |
 
 #### Pseudocode
 
@@ -150,6 +197,11 @@ cli (argparse):
   arg: --block (type=int; default=1)
   try:
     mermaid_string = extract_mermaid_from_plan(plan_file_path, block_index)
+    if not MERMAID_SKIP_VALIDATE env var:
+      valid, err = validate_mermaid_syntax(mermaid_string)
+      if not valid:
+        print(f"Error: mermaid diagram failed validation: {err}", file=sys.stderr)
+        sys.exit(1)
     url = generate_mermaid_ink_url(mermaid_string)
     print(url)
     sys.exit(0)
@@ -178,20 +230,26 @@ PlanningAgentUrlStep {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planningAgentPushesUrl.success` | plan written with mermaid block | PushNotification with tappable URL sent | `happy path` | After writing plan, agent calls script; URL pushed to phone |
-| `planningAgentPushesUrl.no-mermaid` | plan has no mermaid block | skip URL step, continue | `branch` | If no mermaid block exists, skip silently |
-| `planningAgentPushesUrl.script-failure` | script exits non-zero | log warning, continue without URL | `branch` | Does not block plan approval gate |
+| `planningAgentPushesUrl.success` | plan written with mermaid block | PushNotification with tappable URL sent | `happy path` | sub-planning-agent calls script with `MERMAID_SKIP_VALIDATE=1`; URL always generated if mermaid block exists; pushed to phone |
+| `planningAgentPushesUrl.inline-fallback` | script exits non-zero but mermaid block exists | PushNotification with inline-generated URL sent | `happy path` | sub-planning-agent generates URL via inline Python base64 fallback; URL pushed to phone |
+| `planningAgentPushesUrl.no-mermaid` | plan has no mermaid block and fallback also fails | skip URL step, continue | `branch` | url = null; does not block plan approval gate |
 
 #### Pseudocode
 
 ```
-planning-agent (after writing plan file and invoking open-in-vscode):
-  run: python3 scripts/mermaid_to_image.py <plan_file_path>
+sub-planning-agent (mermaid phase — URL generation):
+  run: MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <plan_file_path>
   capture stdout as url
-  if exit code == 0 and url is non-empty:
-    call PushNotification with message: "Plan diagram: <url>"
-  else:
-    log warning — skip URL push, continue to approval gate
+  if exit_code != 0 or url is empty/whitespace:
+    # inline Python fallback
+    extract mermaid_string from plan file
+    if mermaid_string found:
+      encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+      url = f"https://mermaid.ink/img/{encoded}"
+    else:
+      url = null
+  return url in SubPlanningAgentOutput
+  # orchestrator (planning-agent) pushes url via PushNotification if url is non-null
 ```
 
 ---
