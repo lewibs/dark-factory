@@ -39,20 +39,53 @@ open_terminal() {
     return 1
 }
 
+# Walk up the process tree from the current script PID to find the nearest
+# ancestor whose name matches a known terminal emulator.  Kill only that one
+# process and stop immediately.  If no terminal emulator is found in the tree
+# (e.g. invoked from Claude Code's bash tool), skip silently.
+kill_terminal_ancestor() {
+    local known_terms="gnome-terminal gnome-terminal-server xterm konsole x-terminal-emulator"
+    local pid=$$
+
+    while true; do
+        # Obtain the parent PID of $pid; strip leading/trailing whitespace.
+        local ppid
+        ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+
+        # Stop if we hit an invalid/missing PPID or reach PID 1 or below.
+        if [ -z "$ppid" ] || [ "$ppid" -le 1 ] 2>/dev/null; then
+            break
+        fi
+
+        # Get the process name for this ancestor.
+        local pname
+        pname=$(ps -o comm= -p "$ppid" 2>/dev/null | tr -d ' ')
+
+        # Check whether pname matches any known terminal emulator.
+        for term in $known_terms; do
+            if [ "$pname" = "$term" ]; then
+                kill "$ppid" 2>/dev/null || {
+                    echo "Warning: Could not close the installer terminal (PID: $ppid)" >&2
+                }
+                return
+            fi
+        done
+
+        # Move one level up.
+        pid=$ppid
+    done
+
+    # No terminal emulator ancestor found — skip silently.
+}
+
 # Launch the new terminal with Claude in remote-control mode
 open_terminal
 TERMINAL_EXIT=$?
 
 # Verify the terminal was opened successfully before closing the installer terminal
-if [ $TERMINAL_EXIT -eq 0 ] && [ -n "$PPID" ] && [ "$PPID" -gt 0 ] 2>/dev/null; then
-    # Close the terminal that ran the install command.
-    # Kill the parent process (the terminal emulator) of this shell session.
-    kill "$PPID" 2>/dev/null || {
-        echo "Warning: Could not close the installer terminal (PID: $PPID)" >&2
-    }
+if [ $TERMINAL_EXIT -eq 0 ]; then
+    kill_terminal_ancestor
 else
-    if [ $TERMINAL_EXIT -ne 0 ]; then
-        echo "Error: Failed to open terminal (exit code: $TERMINAL_EXIT)" >&2
-        exit $TERMINAL_EXIT
-    fi
+    echo "Error: Failed to open terminal (exit code: $TERMINAL_EXIT)" >&2
+    exit $TERMINAL_EXIT
 fi
