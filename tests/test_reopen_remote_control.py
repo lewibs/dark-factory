@@ -175,6 +175,76 @@ def test_reopen_remote_control_uses_pwd():
         "Script should use the current working directory"
 
 
+def test_reopen_remote_control_kills_claude_process_after_scope_stop():
+    """Verify the script walks the process tree and kills the first ancestor named 'claude'"""
+    script_path = "scripts/reopen-remote-control.sh"
+
+    with open(script_path, "r") as f:
+        content = f.read()
+
+    # Should walk up the process tree from $$
+    assert 'pid=$$' in content, \
+        "Script should start the process-tree walk from $$"
+
+    # Should use ps to get parent PID and process name
+    assert 'ppid=$(ps -o ppid=' in content, \
+        "Script should retrieve the parent PID with ps -o ppid="
+    assert 'name=$(ps -o comm=' in content, \
+        "Script should retrieve the process name with ps -o comm="
+
+    # Should compare against the literal name 'claude'
+    assert '"claude"' in content, \
+        "Script should check whether the process name equals 'claude'"
+
+    # Should kill the found process with silent failure
+    assert 'kill "$pid"' in content, \
+        "Script should kill the process when its name matches 'claude'"
+
+
+def test_reopen_remote_control_kills_claude_only_after_scope_stop():
+    """Verify the claude-kill logic comes after the systemctl scope stop"""
+    script_path = "scripts/reopen-remote-control.sh"
+
+    with open(script_path, "r") as f:
+        content = f.read()
+
+    scope_stop_idx = content.find("systemctl --user stop")
+    kill_claude_idx = content.find('kill "$pid"')
+
+    assert scope_stop_idx != -1, "Script should contain systemctl --user stop"
+    assert kill_claude_idx != -1, "Script should contain the claude kill logic"
+    assert scope_stop_idx < kill_claude_idx, \
+        "Claude kill logic must appear after the systemctl scope stop"
+
+
+def test_reopen_remote_control_never_kills_pid_1_or_below():
+    """Verify the loop guard prevents killing PID 1 or below"""
+    script_path = "scripts/reopen-remote-control.sh"
+
+    with open(script_path, "r") as f:
+        content = f.read()
+
+    # The while condition must guard against PID <= 1
+    assert '[ "$pid" -gt 1 ]' in content, \
+        "Script should guard the loop with [ \"$pid\" -gt 1 ] to never kill PID 1 or below"
+
+    # The inner break should also guard against ppid <= 1
+    assert '"$ppid" -le 1' in content, \
+        "Script should break when ppid drops to 1 or below"
+
+
+def test_reopen_remote_control_claude_kill_silent_failure():
+    """Verify the kill command uses silent failure so the script never aborts"""
+    script_path = "scripts/reopen-remote-control.sh"
+
+    with open(script_path, "r") as f:
+        content = f.read()
+
+    # kill line must have both 2>/dev/null and || true
+    assert 'kill "$pid" 2>/dev/null || true' in content, \
+        "kill command must suppress errors with 2>/dev/null and use || true for silent failure"
+
+
 if __name__ == "__main__":
     # Run tests
     import pytest
