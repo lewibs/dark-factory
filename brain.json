@@ -1,9 +1,9 @@
 {
-  "taskDescription": "there seems to be an issue with planning. whenever I call manufacture the top agent is accepting the plans and I the user never see the mermaid diagram or the flows. this is incorrect and needs to be fixed. I the user need to be part of the planning cycle 100% of the time",
-  "taskName": "fix-planning-approval-gate",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-planning-approval-gate",
+  "taskDescription": "update all the orchestrator agents to use haiku instead of a more expensive model. an orchestrator ideally don't make significant decisions.",
+  "taskName": "orchestrators-to-haiku",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-orchestrators-to-haiku",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "debugger",
+  "classification": "feature",
   "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,

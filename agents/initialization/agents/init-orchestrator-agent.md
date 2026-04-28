@@ -3,7 +3,7 @@ name: init-orchestrator-agent
 user-invocable: true
 description: 'Sets up a project to use dark factory. Generates docs/docs/ files and a minimal CLAUDE.md via init-docs-agent, then opens a PR titled "init: dark factory".'
 tools: Bash, Agent
-model: sonnet
+model: haiku
 allowed-tools: "Bash(git clone *), Bash(jq *), Bash(find *)"
 ---
 

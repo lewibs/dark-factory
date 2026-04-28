@@ -3,7 +3,7 @@ name: code-review-orchestrator-agent
 user-invocable: false
 description: Orchestrates automated code review by spawning high-level and low-level reviewers in parallel, then running the resolver in a loop until all issues are resolved.
 tools: Read, Write, Edit, Bash, Agent
-model: sonnet
+model: haiku
 allowed-tools:
   - Bash(cat > tmp/issues.md)
   - Bash(rm tmp/issues.md)
