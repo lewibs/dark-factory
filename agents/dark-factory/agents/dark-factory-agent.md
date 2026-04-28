@@ -102,15 +102,36 @@ dark-factory-agent(taskDescription, taskName):
   cd into WORK_DIR
 
   Route based on classification:
-    - New feature or capability → invoke feature-agent with taskDescription
+    - New feature or capability → invoke feature-agent (with re-invoke loop for feature route)
     - Broken integration flow / end-to-end failure → invoke fix-flow-orchestrator with taskDescription
     - Bug, crash, or unexpected behavior → invoke debugger-agent with taskDescription
     - Small change / tweak / rename / quick fix → invoke repair-implementation-agent with taskDescription
 
-  If worker returns error or hard-stop:
-    rm -f /tmp/dark-factory-work-dir
-    run cleanup(WORK_DIR)
-    report error and STOP
+  For feature route (invoke feature-agent):
+    result = invoke feature-agent({ taskDescription, answer: null, planPath: null })
+    
+    LOOP:
+      if result.status == "done":
+        planFilePath = result.planPath
+        BREAK  # proceed to Step 4 (code review)
+      
+      if result.status == "hard-stop":
+        rm -f /tmp/dark-factory-work-dir
+        run cleanup(WORK_DIR)
+        report "Hard stop: " + result.reason
+        STOP
+      
+      if result.status == "question":
+        AskUserQuestion(result.question, result.options)
+        answer = developer response
+        result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
+        CONTINUE LOOP
+
+  For other routes, invoke as before:
+    If worker returns error or hard-stop:
+      rm -f /tmp/dark-factory-work-dir
+      run cleanup(WORK_DIR)
+      report error and STOP
 
   # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)
   Read $WORK_DIR/brain.json
