@@ -6,6 +6,17 @@
 
 set -euo pipefail
 
+# Resolve DARK_FACTORY_WORK_DIR: prefer env var, fall back to pointer file.
+# The env var is set by Claude Code when launched with it in the environment.
+# The pointer file at /tmp/dark-factory-work-dir is written by dark-factory-agent
+# immediately after creating brain.json; it provides a fallback for hook processes
+# that inherit Claude Code's environment (where the LLM's `export` is invisible).
+DARK_FACTORY_POINTER_FILE="/tmp/dark-factory-work-dir"
+if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] && [ -f "$DARK_FACTORY_POINTER_FILE" ]; then
+  DARK_FACTORY_WORK_DIR=$(cat "$DARK_FACTORY_POINTER_FILE")
+  echo "post-tool-use-hook | pointer-file | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR}" >&2
+fi
+
 BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
 PATCH_PATH="${DARK_FACTORY_WORK_DIR:-}/brain-patch.json"
 

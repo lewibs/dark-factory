@@ -9,6 +9,7 @@
 - What this is: A persistent, append-and-aggregate CSV file that records AI agent/skill performance metrics (runtime, token usage, run count) across manufacture runs. Hooks accumulate metrics into brain.json during a manufacture run; at the end of manufacture the dark-factory-agent calls `scripts/update-metrics.py` once to flush brain.json metrics into the permanent CSV.
 - Primary consumer(s): Developers reviewing system performance over time.
 - Boundary: `agents/dark-factory/scripts/pre-tool-use-hook.sh` and `agents/dark-factory/scripts/post-tool-use-hook.sh` capture start/elapsed/token metrics into brain.json (pure bash, no Claude API calls). `scripts/update-metrics.py` reads brain.json and upserts rows in `$PROJECT_DIR/metrics.csv`. The CSV write happens exactly once per manufacture run in the dark-factory-agent cleanup step.
+- Hook env var resolution: hooks resolve `DARK_FACTORY_WORK_DIR` by checking the env var first, then falling back to a pointer file at `/tmp/dark-factory-work-dir`. This fallback is required because `export` statements inside a Claude Code agent Bash tool call are isolated to that subprocess and are not visible to hook subprocesses spawned by the Claude Code parent process. `dark-factory-agent` writes the pointer file immediately after writing brain.json and deletes it in every cleanup path.
 
 ## Mermaid Diagram
 
@@ -57,11 +58,17 @@ StartCapture {
 | `preHookCapturesStart.agent-tool` | tool_name = "Agent" | brain.json metrics[key].start_ms written | happy path | key = agent name extracted from subagent_type or prompt |
 | `preHookCapturesStart.skill-tool` | tool_name = "Skill" | brain.json metrics[key].start_ms written | happy path | key = skill field from tool input |
 | `preHookCapturesStart.other-tool` | tool_name = anything else | no-op | happy path | hook exits 0 immediately after standard brain inject |
-| `preHookCapturesStart.no-brain` | DARK_FACTORY_WORK_DIR unset or brain.json missing | no-op, log to stderr | happy path | metrics disabled gracefully |
+| `preHookCapturesStart.no-brain` | DARK_FACTORY_WORK_DIR unset (env var) and `/tmp/dark-factory-work-dir` absent or brain.json missing | no-op, log to stderr | happy path | metrics disabled gracefully; pointer file is checked before giving up |
 
 #### Pseudocode
 
 ```
+# pre-tool-use-hook.sh — env var resolution (at top of script, before any brain access):
+POINTER_FILE = "/tmp/dark-factory-work-dir"
+if DARK_FACTORY_WORK_DIR unset AND POINTER_FILE exists:
+  DARK_FACTORY_WORK_DIR = cat POINTER_FILE
+  log "pre-tool-use-hook | pointer-file | DARK_FACTORY_WORK_DIR=<value>"
+
 # pre-tool-use-hook.sh metrics addition (after standard brain inject):
 HOOK_INPUT = read stdin
 TOOL_NAME  = jq '.tool_name' <<< HOOK_INPUT
@@ -114,6 +121,12 @@ InternalAccumulatorRow {
 #### Pseudocode
 
 ```
+# post-tool-use-hook.sh — env var resolution (at top of script, before any brain access):
+POINTER_FILE = "/tmp/dark-factory-work-dir"
+if DARK_FACTORY_WORK_DIR unset AND POINTER_FILE exists:
+  DARK_FACTORY_WORK_DIR = cat POINTER_FILE
+  log "post-tool-use-hook | pointer-file | DARK_FACTORY_WORK_DIR=<value>"
+
 # post-tool-use-hook.sh metrics addition (after existing brain merge):
 TOOL_INPUT = stdin (already consumed — same copy used for merge)
 TOOL_NAME  = jq '.tool_name' <<< TOOL_INPUT
@@ -181,10 +194,20 @@ MetricsRow {
 #### Pseudocode
 
 ```
-# dark-factory-agent — before rm -f brain.json:
-PROJECT_DIR = jq '.workDir' brain.json
+# dark-factory-agent — immediately after writing brain.json (brain.create step):
+echo "<WORK_DIR>" > /tmp/dark-factory-work-dir
+# This pointer file allows hooks to resolve DARK_FACTORY_WORK_DIR even though
+# the agent's `export` is invisible to Claude Code hook subprocesses.
+
+# dark-factory-agent — on any error exit before cleanup:
+rm -f /tmp/dark-factory-work-dir
+
+# dark-factory-agent — before rm -f brain.json (Step 7 cleanup):
+PROJECT_DIR = jq '.projectDir' brain.json
 METRICS_CSV = "$PROJECT_DIR/metrics.csv"
 python3 scripts/update-metrics.py --csv "$METRICS_CSV" --brain "$WORK_DIR/brain.json" || true
+rm -f $WORK_DIR/brain.json
+rm -f /tmp/dark-factory-work-dir
 
 # scripts/update-metrics.py:
 def main(csv_path, brain_path):
@@ -256,7 +279,9 @@ pytest tests/test_hooks.py tests/test_update_metrics.py -v
 
 | Source | Location |
 |--------|----------|
+| pre-tool-use-hook.sh pointer file resolution | stderr — `pre-tool-use-hook \| pointer-file \| DARK_FACTORY_WORK_DIR=/tmp/dark-factory-<slug>` |
 | pre-tool-use-hook.sh metrics writes | stderr — `pre-tool-use-hook \| metrics-capture \| key=feature-agent start_ms=1234567890` |
+| post-tool-use-hook.sh pointer file resolution | stderr — `post-tool-use-hook \| pointer-file \| DARK_FACTORY_WORK_DIR=/tmp/dark-factory-<slug>` |
 | post-tool-use-hook.sh metrics writes | stderr — `post-tool-use-hook \| metrics-accumulate \| key=feature-agent elapsed_ms=4523 tokens=12400 runs=1` |
 | update-metrics.py flush | stderr — `update-metrics \| flush \| rows=3 csv=/path/metrics.csv` |
 | update-metrics.py errors | stderr — non-fatal, manufacture continues |
@@ -266,3 +291,4 @@ pytest tests/test_hooks.py tests/test_update_metrics.py -v
 - Mechanism: `local only` — scripts are bash/python, no build step required.
 - Deploy command: N/A (hooks are always-on via `.claude/settings.json`)
 - Notes: `metrics.csv` persists at `$PROJECT_DIR/metrics.csv` across sessions. Do not `.gitignore` it — it is the permanent running total. `sum_runtime` and `sum_tokens` columns are stored in the CSV so averages remain accurate when new runs are appended.
+- Pointer file `/tmp/dark-factory-work-dir` is a process-level singleton. Concurrent `dark-factory-agent` runs would cause the pointer to point at the most recently started run, contaminating metrics for earlier runs. In practice runs are serial (one task at a time), so this is not a concern. If concurrent invocation is ever needed the pointer file approach would need to be redesigned.

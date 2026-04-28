@@ -1,9 +1,9 @@
 {
-  "taskDescription": "update all the orchestrator agents to use haiku instead of a more expensive model. an orchestrator ideally don't make significant decisions.",
-  "taskName": "orchestrators-to-haiku",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-orchestrators-to-haiku",
+  "taskDescription": "Figure out why metrics.csv isn't saving data and fix it.",
+  "taskName": "fix-metrics-csv-saving",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-metrics-csv-saving",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "feature",
+  "classification": "debugger",
   "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,

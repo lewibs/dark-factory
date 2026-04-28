@@ -5,7 +5,7 @@ description: Top-level dark-factory orchestrator. Preps an isolated work dir, ro
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 scripts/update-metrics.py *)
+allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 scripts/update-metrics.py *), Bash(echo * > /tmp/dark-factory-work-dir)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -87,6 +87,17 @@ dark-factory-agent(taskDescription, taskName):
   Export the env var so hooks can find brain.json:
     export DARK_FACTORY_WORK_DIR=<WORK_DIR>
 
+  Write the pointer file so hooks can find brain.json even when the env var is
+  not visible in their environment (LLM Bash tool call exports are isolated to
+  that subprocess and cannot propagate to the Claude Code parent process):
+    echo "<WORK_DIR>" > /tmp/dark-factory-work-dir
+  
+  NOTE: The pointer file is a singleton (shared across all runs). Concurrent
+  dark-factory-agent tasks would cause metrics cross-contamination. In practice,
+  dark-factory-agent runs are serial (users invoke one task at a time and wait
+  for results), so this is not a practical concern. If concurrent invocation is
+  needed in the future, the pointer file approach would need to be redesigned.
+
   # Step 3 — route to worker agent
   cd into WORK_DIR
 
@@ -97,6 +108,7 @@ dark-factory-agent(taskDescription, taskName):
     - Small change / tweak / rename / quick fix → invoke repair-implementation-agent with taskDescription
 
   If worker returns error or hard-stop:
+    rm -f /tmp/dark-factory-work-dir
     run cleanup(WORK_DIR)
     report error and STOP
 
@@ -110,6 +122,7 @@ dark-factory-agent(taskDescription, taskName):
     codePath     = WORK_DIR
 
   If error:
+    rm -f /tmp/dark-factory-work-dir
     run cleanup(WORK_DIR)
     report error and STOP
 
@@ -136,6 +149,7 @@ dark-factory-agent(taskDescription, taskName):
   invoke pr-agent with: planFilePath ?? taskDescription
 
   If pr-agent errors or cannot merge:
+    rm -f /tmp/dark-factory-work-dir
     run cleanup(WORK_DIR)
     report error and STOP
 
@@ -148,8 +162,9 @@ dark-factory-agent(taskDescription, taskName):
   PROJECT_DIR = brain.json.projectDir  (the original git project root — not the worktree; stored at brain.create time)
   python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
 
-  # brain.delete — remove brain.json before cleaning the worktree
+  # brain.delete — remove brain.json and pointer file before cleaning the worktree
   rm -f $WORK_DIR/brain.json
+  rm -f /tmp/dark-factory-work-dir
   cleanup(WORK_DIR, taskName)
 
   Report: "Done. PR: <prUrl>. Worktree <WORK_DIR> removed."
