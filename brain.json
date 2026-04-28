@@ -1,10 +1,10 @@
 {
-  "taskDescription": "the skill/plugin/agent tool tracking should occur for all agents and all skills not just the top level. make sure to fix this and keep it in the hook since that doesn't cost much",
-  "taskName": "all-depth-metrics",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-all-depth-metrics",
+  "taskDescription": "let's delete the init command and the workflow for it.  I would rather have the docs get written as the agent learns then the other way around.",
+  "taskName": "delete-init-command",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-delete-init-command",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "repair",
-  "planFilePath": "/home/lewibs/github/dark_factory/dark_factory-mermaid-to-image/docs/plans/2026-04-27-mermaid-to-image.md",
+  "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,
   "docsWritten": null,
@@ -12,7 +12,7 @@
   "phases": {
     "prep-running": false,
     "prep-complete": true,
-    "worker-running": true,
+    "worker-running": false,
     "worker-complete": false,
     "review-running": false,
     "review-complete": false,
@@ -27,13 +27,13 @@
   },
   "metrics": {
     "dark-factory:repair:agents:repair-agent": {
-      "start_ms": 1777351150514
+      "start_ms": 1777352141800
     },
     "testing-agent": {
-      "start_ms": 1777351219303
+      "start_ms": 1777352166097
     },
     "planning-agent": {
-      "start_ms": 1777351219905
+      "start_ms": 1777352166816
     }
   }
 }

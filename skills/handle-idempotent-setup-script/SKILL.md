@@ -23,5 +23,5 @@ When invoking a setup or initialization bash script (e.g., `init.sh`) and it fai
 ## Notes
 
 - The "already exists" recovery is only safe when the script is purely a setup/directory-creation step and its sole output is a predictable path derivable from the inputs. Do not apply this pattern to scripts that write configuration or perform network operations — check idempotency assumptions first.
-- The dark factory `init.sh` script creates a two-level directory structure (`<repo>/<repo>/`). The derivation rule above is specific to that script. Adapt the derivation logic if applying this pattern to a different script with different path conventions.
+- When applying this pattern to a specific script, document that script's path conventions (e.g., whether it creates a two-level directory structure like `<repo>/<repo>/` or a flat directory). The derivation rule in Step 3b must match that script's actual output layout.
 - Always log the skip explicitly so future debugging has a clear audit trail of why the script was bypassed.

@@ -5,7 +5,7 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `agents/`
-- Agent count: 26 agent markdown files across 10 subsystems
+- Agent count: 24 agent markdown files across 9 subsystems
 
 ## System Intent
 
@@ -59,9 +59,6 @@ flowchart TD
   DFA -->|after docs| SUA[skill-update-agent]
   DFA -->|after skills| PRA[pr-agent]
   PRA --> RPI[resolve-pr-issue]
-
-  DFA -->|init path| IOA[init-orchestrator-agent]
-  IOA --> IDA[init-docs-agent]
 ```
 
 ## Flows
@@ -259,65 +256,6 @@ DocUpdateOutput {
 
 ---
 
-### Flow: `init`
-
-- Core files: `agents/initialization/agents/init-orchestrator-agent.md`, `agents/initialization/agents/init-docs-agent.md`
-
-#### Types
-
-```txt
-InitInput {
-  project_path: string (absolute path to the project directory to document)
-}
-
-SystemInfo {
-  name: string          // e.g. "backend", "frontend"
-  rootDir: string       // absolute path to that system's root directory
-}
-
-FlowInfo {
-  name: string          // kebab-case slug, e.g. "upload-image", "create-account"
-  displayName: string   // human-readable label, e.g. "Upload Image"
-  owningSystem: string  // SystemInfo.name
-  outputPath: string    // absolute path: <project_path>/docs/docs/<name>.md
-}
-
-InitDocsOutput {
-  docsWritten: string[] (paths to all docs/docs/*.md files written)
-  readmePath: string    (path to docs/docs/README.md)
-  claudeMdPath: string  (path to CLAUDE.md)
-}
-
-StandardError {
-  message: string (human-readable description of what went wrong)
-}
-```
-
-#### Paths
-
-| path | input | output | path-type | notes |
-| --- | --- | --- | --- | --- |
-| `init.success` | `InitInput` | `InitDocsOutput` | `happy path` | Guard → discoverSystems → discoverFlowsPerSystem → invoke investigation-agent per flow → write README index → write CLAUDE.md |
-| `init.noFlows` | `SystemInfo` with no entry-point files | `FlowInfo[name=<system>]` | `fallback` | System has no routes/CLI/handlers; one FlowInfo using system name is emitted |
-| `init.flatProject` | `InitInput` with no sub-systems | `FlowInfo[name=basename(project_path)]` | `fallback` | No distinct sub-directories; entire project treated as one system and one flow |
-| `init.agentFailure` | `FlowInfo` | warning logged, flow skipped | `error` | investigation-agent fails for one flow; log warning and continue remaining flows |
-| `init.allFailed` | all FlowInfo fail | README: "No documentation generated yet"; generic CLAUDE.md | `error` | All investigation-agent calls fail; placeholder docs written |
-| `init.invalidPath` | `InitInput{project_path=invalid}` | `StandardError` | `error` | project_path does not exist; init-docs-agent halts immediately |
-
-#### Steps
-
-init-docs-agent runs these steps in order:
-
-1. **Guard** — `ls <project_path>` verifies the path exists; halts on failure.
-2. **Discover Systems** — `ls -la <project_path>` identifies top-level directories; each becomes a `SystemInfo`.
-3. **Discover Flows Per System** — for each `SystemInfo`, globs entry-point files (`routes.*`, `urls.*`, `router.*`, `cli.*`, `commands/*`, `handlers/*`, `listeners/*`, `controllers/*`, `views/*`, `endpoints/*`) and reads them to extract named actions/endpoints/commands. Each distinct action becomes a `FlowInfo`. If no flows are found for a system, one fallback `FlowInfo` using the system name is emitted. Duplicates are deduplicated by name slug.
-4. **Ensure docs/docs/ exists** — `mkdir -p <project_path>/docs/docs`.
-5. **Invoke investigation-agent per flow** — one Task-tool call per `FlowInfo`; each writes `docs/docs/<flow-name>.md` using the documentation template.
-6. **Write docs/docs/README.md** — index table with one row per successfully written flow doc.
-7. **Write CLAUDE.md** — minimal pointer doc at project root.
-
----
-
 ### Flow: `pr`
 
 - Core files: `agents/pr/agents/pr-agent.md`, `agents/pr/agents/resolve-pr-issue.md`
@@ -487,7 +425,6 @@ Agents are split into two tiers based on whether they perform deep reasoning:
 | `code-review-orchestrator-agent` | Creates issues.md, spawns parallel reviewers, runs resolver loop |
 | `fix-flow-orchestrator` | Sequences investigation → setup-wizard → ralph-fix-and-push; no debugging |
 | `ralph-fix-and-push` | Loops: debugger-agent → pr-agent → deploy; no debugging or PR work itself |
-| `init-orchestrator-agent` | Clones repo, sets bypassPermissions, delegates to init-docs-agent and pr-agent |
 
 **Workers — `model: sonnet`** (write code, plans, docs, tests, or perform deep reasoning/debugging/review):
 
@@ -506,7 +443,6 @@ Agents are split into two tiers based on whether they perform deep reasoning:
 | `update-documentation-agent` | Identifies affected flows/docs, updates/adds sections |
 | `debug-flow-agent` | Runs integration flow, waits, fetches logs, hands off to debugger-agent |
 | `setup-wizard` | Reads system document, generates trigger/wait/fetch-logs/deploy scripts |
-| `init-docs-agent` | Discovers systems, discovers flows per system, writes docs and CLAUDE.md |
 | `pr-agent` | Manages full PR lifecycle: build body, open PR, CI watch loop, comment resolution |
 | `resolve-pr-issue` | Resolves single PR issue (CI failure or review thread) |
 | `repair-agent` | Applies targeted changes, runs test suite, iteratively fixes failures |

@@ -27,5 +27,5 @@ The sub-agent will not have access to the same runtime context (project_path, na
 ## Notes
 
 - The root cause of path mismatches in multi-agent pipelines is that sub-agents reconstruct paths independently and may use different slugging or casing logic. Pre-computing and embedding the path in the parent eliminates this class of bug entirely.
-- This pattern was established when `init-docs-agent` was refactored from per-system to per-flow granularity: `FlowInfo.outputPath` is set by the parent as an absolute path so each `investigation-agent` invocation knows exactly where to write without needing `project_path` or the flow-name slug.
+- This pattern applies generally to any orchestrator-worker split where the parent discovers items and dispatches a sub-agent per item: the parent sets `outputPath` as an absolute path in the handoff struct so each sub-agent invocation knows exactly where to write without needing to reconstruct `project_path` or the item-name slug.
 - If the output directory may not exist yet, the parent should `mkdir -p` it before dispatching any sub-agent calls — do not rely on sub-agents to create directories.
