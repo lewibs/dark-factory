@@ -9,6 +9,7 @@ Use this pattern when:
 - A single agent is growing expensive because it both reasons heavily AND blocks on user interaction (paying Sonnet tokens for idle wait time).
 - An agent mixes responsibilities: user-facing display/questioning AND heavy codebase research or file writing.
 - You want to preserve an existing agent's external interface (input/output contract) while restructuring its internals.
+- You are auditing an existing multi-agent system to ensure all agents are on the correct model tier (see Auditing Existing Agents below).
 
 The canonical example is `planning-agent` (Haiku orchestrator) + `sub-planning-agent` (Sonnet worker).
 
@@ -61,6 +62,32 @@ The canonical example is `planning-agent` (Haiku orchestrator) + `sub-planning-a
    ```
 
 7. **Worker reads its own artifact on every invocation** — never trust that state from a previous invocation is in memory. The worker always reads the file at `<artifact path>` before modifying it.
+
+## Auditing Existing Agents
+
+When adding new agents or doing a cost-reduction pass, audit all agents in the system using a classification table. For each agent, answer:
+
+| Question | Orchestrator (haiku) | Worker (sonnet) |
+|---|---|---|
+| Does it write or edit files? | No | Yes |
+| Does it run Bash commands? | No | Yes |
+| Does it do codebase research or deep analysis? | No | Yes |
+| Does it write plans, code, docs, or tests? | No | Yes |
+| Does it spawn sub-agents and only pass results through? | Yes | Rarely |
+| Does it sequence phases or manage a loop without reasoning about what's inside? | Yes | No |
+| Does it use AskUserQuestion or PushNotification as its primary user-facing tool? | Yes | No |
+
+**Classification heuristics:**
+- If an agent's job is "call agent A, then agent B, then agent C and return" with no content reasoning — it is an orchestrator; use haiku.
+- If an agent reads logs, interprets failures, writes anything, or makes decisions based on content — it is a worker; use sonnet.
+- Borderline case: an agent that reads logs AND delegates debugging to another agent. Apply the "does it interpret content to make a decision?" test. If yes, keep sonnet.
+
+**Audit workflow:**
+1. List all agent `.md` files in the codebase.
+2. For each agent, read its instructions to classify as orchestrator or worker using the table above.
+3. Build a classification table in the plan with columns: Agent | File | Current Model | Classification | Justification | Action.
+4. For agents where Current Model does not match Classification, change only the `model:` field in YAML front-matter.
+5. No logic, instruction, or tooling changes are needed — model is purely a front-matter field.
 
 ## Notes
 

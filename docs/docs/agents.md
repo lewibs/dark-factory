@@ -471,9 +471,49 @@ Every agent file has a YAML front-matter block:
 | `user-invocable` | Whether the agent can be invoked directly by the developer |
 | `description` | One-line summary shown in Claude Code |
 | `tools` | Comma-separated list of Claude tools the agent may use |
-| `model` | Model to use (typically `sonnet`) |
+| `model` | Model to use (`haiku` for pure orchestrators, `sonnet` for workers) |
 | `skills` | Skill files the agent references |
 | `allowed-tools` | Fine-grained bash command allowlist |
 | `scripts` | Shell scripts the agent is permitted to run |
+
+### Model Assignment
+
+Agents are split into two tiers based on whether they perform deep reasoning:
+
+**Orchestrators — `model: haiku`** (route, sequence, and delegate; no code/plan/doc writing):
+
+| Agent | Role |
+|---|---|
+| `dark-factory-agent` | Classifies task, preps work dir, routes to worker, coordinates cleanup |
+| `planning-agent` | Pure phase-delegator; spawns sub-planning-agent per phase |
+| `feature-agent` | Drives phase-by-phase planning gate; calls planning-agent and execution-agent |
+| `execution-agent` | Sequences skeleton → testing → implementation agents; gate-checks checklists |
+| `code-review-orchestrator-agent` | Creates issues.md, spawns parallel reviewers, runs resolver loop |
+| `fix-flow-orchestrator` | Sequences investigation → setup-wizard → ralph-fix-and-push; no debugging |
+| `ralph-fix-and-push` | Loops: debugger-agent → pr-agent → deploy; no debugging or PR work itself |
+| `init-orchestrator-agent` | Clones repo, sets bypassPermissions, delegates to init-docs-agent and pr-agent |
+
+**Workers — `model: sonnet`** (write code, plans, docs, tests, or perform deep reasoning/debugging/review):
+
+| Agent | Role |
+|---|---|
+| `sub-planning-agent` | Researches codebase, writes plan files, runs mermaid scripts |
+| `skeleton-agent` | Reads plan, builds files checklist, creates skeleton files |
+| `testing-agent` | Reads plan, builds flows checklist, writes failing tests |
+| `implementation-agent` | Implements each flow from checklist, runs tests, invokes deviation-protocol |
+| `high-level-review-agent` | Reviews code against plan for structural/architectural conformance |
+| `low-level-review-agent` | Reviews code at function level for bugs, untested paths, conflicts |
+| `resolver-agent` | Reads issues, applies fixes, checks them off |
+| `debugger-agent` | Systematic debugging following debug skill checklist |
+| `detect-drift-agent` | Audits parity between docs and code, fixes drift in place |
+| `investigation-agent` | Explores codebase, validates/creates authoritative docs |
+| `update-documentation-agent` | Identifies affected flows/docs, updates/adds sections |
+| `debug-flow-agent` | Runs integration flow, waits, fetches logs, hands off to debugger-agent |
+| `setup-wizard` | Reads system document, generates trigger/wait/fetch-logs/deploy scripts |
+| `init-docs-agent` | Discovers systems, discovers flows per system, writes docs and CLAUDE.md |
+| `pr-agent` | Manages full PR lifecycle: build body, open PR, CI watch loop, comment resolution |
+| `resolve-pr-issue` | Resolves single PR issue (CI failure or review thread) |
+| `repair-agent` | Applies targeted changes, runs test suite, iteratively fixes failures |
+| `skill-update-agent` | Reviews completed work, identifies patterns, writes/updates skill files |
 
 Agents that call `PushNotification` in their body must declare it in `tools:` — the Claude Code runtime silently skips notifications for agents missing this declaration (see `docs/bugs/2026-04-25-push-notification-missing-from-tools.md`).
