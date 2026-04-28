@@ -20,6 +20,7 @@ if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] && [ -f "$DARK_FACTORY_POINTER_FILE" ]; t
 fi
 
 BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
+BRAIN_LOCK="${BRAIN_PATH}.lock"
 
 # pre-hook.no-brain: not a dark-factory session — pass through unchanged
 if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] || [ ! -f "$BRAIN_PATH" ]; then
@@ -52,27 +53,45 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
   NOW_MS=$(date +%s%3N)
   echo "pre-tool-use-hook | metrics-capture | key=${METRICS_KEY} start_ms=${NOW_MS}" >&2
 
-  METRICS_TMP=$(mktemp /tmp/brain-metrics-pre-XXXXXX.json)
-  jq --arg key "$METRICS_KEY" --argjson now "$NOW_MS" \
-    '.metrics[$key].start_ms = $now' "$BRAIN_PATH" > "$METRICS_TMP" \
-    && mv "$METRICS_TMP" "$BRAIN_PATH"
+  (
+    flock -x 200
+    METRICS_TMP=$(mktemp /tmp/brain-metrics-pre-XXXXXX.json)
+    jq --arg key "$METRICS_KEY" --argjson now "$NOW_MS" \
+      '.metrics[$key].start_ms = $now' "$BRAIN_PATH" > "$METRICS_TMP" \
+      && mv "$METRICS_TMP" "$BRAIN_PATH"
+  ) 200>"$BRAIN_LOCK"
 fi
 
 # pre-hook.set-phase-running: find the first phase that is not yet started
-# and set its *-running=true
-PHASE=$(jq -r '
-  .phases | to_entries |
-  map(select((.key | endswith("-complete")) and (.value == false))) |
-  first | .key | rtrimstr("-complete") // empty
-' "$BRAIN_PATH" 2>/dev/null || true)
+# and set its *-running=true — only for top-level orchestration phase agents
+PHASE_AGENTS="feature-agent|debugger-agent|fix-flow-orchestrator|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
 
-if [ -n "$PHASE" ]; then
-  echo "pre-tool-use-hook | set-phase-running | phase=${PHASE}" >&2
-  PRE_TMP=$(mktemp /tmp/brain-pre-XXXXXX.json)
-  jq ".phases[\"${PHASE}-running\"] = true" "$BRAIN_PATH" > "$PRE_TMP" \
-    && mv "$PRE_TMP" "$BRAIN_PATH"
+# Extract agent name for phase-agent check (TOOL_NAME and TOOL_INPUT already set above)
+PHASE_AGENT_NAME=""
+if [ "$TOOL_NAME" = "Agent" ]; then
+  PHASE_AGENT_NAME=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.subagent_type // ""')
+fi
+
+if [[ "$PHASE_AGENT_NAME" =~ ^($PHASE_AGENTS)$ ]]; then
+  PHASE=$(jq -r '
+    .phases | to_entries |
+    map(select((.key | endswith("-complete")) and (.value == false))) |
+    first | .key | rtrimstr("-complete") // empty
+  ' "$BRAIN_PATH" 2>/dev/null || true)
+
+  if [ -n "$PHASE" ]; then
+    echo "pre-tool-use-hook | set-phase-running | phase=${PHASE}" >&2
+    (
+      flock -x 200
+      PRE_TMP=$(mktemp /tmp/brain-pre-XXXXXX.json)
+      jq ".phases[\"${PHASE}-running\"] = true" "$BRAIN_PATH" > "$PRE_TMP" \
+        && mv "$PRE_TMP" "$BRAIN_PATH"
+    ) 200>"$BRAIN_LOCK"
+  else
+    echo "pre-tool-use-hook | set-phase-running | phase=none (all phases accounted for)" >&2
+  fi
 else
-  echo "pre-tool-use-hook | set-phase-running | phase=none (all phases accounted for)" >&2
+  echo "pre-tool-use-hook | set-phase-running | skipped (agent=${PHASE_AGENT_NAME} not a phase agent)" >&2
 fi
 
 # ---------------------------------------------------------------------------
@@ -100,7 +119,7 @@ AGENT_CHECKLISTS["debugger-agent"]="Reproduce bug|Identify root cause|Apply fix|
 AGENT_CHECKLISTS["pr-agent"]="Open PR|Wait for CI|Address review comments"
 AGENT_CHECKLISTS["update-documentation-agent"]="Identify affected docs|Update stale content|Add new information"
 AGENT_CHECKLISTS["skill-update-agent"]="Review completed work|Identify patterns|Write skill files"
-AGENT_CHECKLISTS["repair-implementation-agent"]="Apply fix|Run tests|Return success"
+AGENT_CHECKLISTS["repair-agent"]="Apply fix|Run tests|Return success"
 AGENT_CHECKLISTS["fix-flow-orchestrator"]="Understand system|Generate scripts|Run flow|Debug failures|Ship PR"
 
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
