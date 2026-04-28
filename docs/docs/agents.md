@@ -252,7 +252,7 @@ DocUpdateOutput {
 | --- | --- | --- | --- | --- |
 | `documentation.update` | `DocUpdateInput` | `DocUpdateOutput` | `happy path` | update-documentation-agent identifies affected flows and updates docs/docs/ files |
 | `documentation.missingPlan` | `DocUpdateInput{planFilePath=null}` | PushNotification + error | `error` | update-documentation-agent sends PushNotification before halting |
-| `documentation.driftDetected` | DetectDriftInput | drift report | `branch` | detect-drift-agent flags stale docs; fixes straightforward drift in place |
+| `documentation.driftDetected` | DetectDriftInput | drift report | `branch` | detect-drift-agent flags stale docs; fixes straightforward drift in place (investigation-agent does not perform staleness checks — it returns existing docs as authoritative) |
 
 ---
 
@@ -439,7 +439,7 @@ Agents are split into two tiers based on whether they perform deep reasoning:
 | `resolver-agent` | Reads issues, applies fixes, checks them off |
 | `debugger-agent` | Systematic debugging following debug skill checklist |
 | `detect-drift-agent` | Audits parity between docs and code, fixes drift in place |
-| `investigation-agent` | Explores codebase, validates/creates authoritative docs |
+| `investigation-agent` | Returns existing `docs/docs/` immediately (treated as authoritative); if none exist, explores codebase and creates new docs |
 | `update-documentation-agent` | Identifies affected flows/docs, updates/adds sections |
 | `debug-flow-agent` | Runs integration flow, waits, fetches logs, hands off to debugger-agent |
 | `setup-wizard` | Reads system document, generates trigger/wait/fetch-logs/deploy scripts |
@@ -449,3 +449,38 @@ Agents are split into two tiers based on whether they perform deep reasoning:
 | `skill-update-agent` | Reviews completed work, identifies patterns, writes/updates skill files |
 
 Agents that call `PushNotification` in their body must declare it in `tools:` — the Claude Code runtime silently skips notifications for agents missing this declaration (see `docs/bugs/2026-04-25-push-notification-missing-from-tools.md`).
+
+## Investigation Agent Pattern
+
+Worker agents delegate system-understanding work to `investigation-agent` rather than performing their own code research. This is the single-responsibility convention for documentation generation. Guidance is injected globally via `CLAUDE.md` so all agents receive it automatically.
+
+### When to invoke investigation-agent
+
+- Before making code changes to a system you don't fully understand
+- Before writing tests for a system
+- When planning changes that may affect other parts of the codebase
+- When you need to understand component interactions or system architecture
+
+### How investigation-agent behaves
+
+1. Checks `docs/docs/<system-name>.md` for existing documentation.
+2. If docs exist — returns them immediately. Existing docs are treated as authoritative; no staleness check is performed.
+3. If no docs exist — uses `skills/investigate/SKILL.md` to explore the codebase, then writes `docs/docs/<system-name>.md` using `skills/documentation/SKILL.md`.
+4. Returns the documentation content and file path to the caller.
+
+### Caller contract
+
+```
+result = invoke investigation-agent({
+  system: "<system-name>",
+  question: "<specific question or blank for general overview>"
+})
+
+if result.error:
+  log("doc lookup failed for " + system + ", continuing with partial knowledge")
+  # continue with best effort — do not block on investigation failures
+else:
+  # use result.content to inform your work
+```
+
+Drift detection is a separate concern owned by `detect-drift-agent`, not `investigation-agent`.
