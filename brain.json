@@ -1,9 +1,9 @@
 {
-  "taskDescription": "Fix reopen-remote-control.sh to walk up the process tree and kill only the closest terminal emulator (gnome-terminal, xterm, konsole, etc.) — never more than one.",
-  "taskName": "fix-kill-terminal",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-kill-terminal",
+  "taskDescription": "Add `destroy-factories` command: kill all other Claude terminals and start one fresh factory. Changes needed: Add a new command (likely `commands/destroy-factories.md`) that: Detects and terminates all other running Claude / dark-factory terminals/sessions; Spawns a fresh factory in a new terminal; Leaves the user with exactly one active terminal (the new one). Confirm cross-platform behavior (or document the supported platform) for finding + killing the other Claude processes. Make the command safe enough that it won't take down unrelated terminals — only ones running Claude.",
+  "taskName": "destroy-factories",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-destroy-factories",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "repair",
+  "classification": "feature",
   "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,
@@ -26,18 +26,25 @@
     "cleanup-complete": false
   },
   "metrics": {
+    "feature-agent": {
+      "elapsed_ms": 243716,
+      "tokens": 1595,
+      "runs": 2
+    },
     "dark-factory:repair:agents:repair-agent": {
-      "elapsed_ms": 71807,
-      "tokens": 570,
+      "elapsed_ms": 0,
+      "tokens": 547,
       "runs": 1
     },
     "dark-factory:code-review:agents:code-review-orchestrator-agent": {
-      "elapsed_ms": 49021,
-      "tokens": 464,
+      "elapsed_ms": 120336,
+      "tokens": 553,
       "runs": 1
     },
     "dark-factory:pr:agents:pr-agent": {
-      "start_ms": 1777361241254
+      "elapsed_ms": 74538,
+      "tokens": 172,
+      "runs": 1
     }
   }
 }
