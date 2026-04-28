@@ -140,10 +140,20 @@ _log "destroy-factories" "entry" "name=$NAME"
 KILLED=0
 for pid in $(find_claude_terminals); do
     _log "destroy-factories" "kill" "pid=$pid"
-    kill "$pid" 2>/dev/null || {
-        echo "Warning: could not kill terminal PID $pid" >&2
-        _log "destroy-factories" "kill_failed" "pid=$pid"
-    }
+    SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/"$pid"/cgroup 2>/dev/null | head -1)
+    if [ -n "$SCOPE" ]; then
+        _log "destroy-factories" "stop_scope" "pid=$pid scope=$SCOPE"
+        systemctl --user stop "$SCOPE" 2>/dev/null || {
+            echo "Warning: could not stop scope $SCOPE for terminal PID $pid" >&2
+            _log "destroy-factories" "kill_failed" "pid=$pid scope=$SCOPE"
+        }
+    else
+        _log "destroy-factories" "no_scope_fallback" "pid=$pid"
+        kill "$pid" 2>/dev/null || {
+            echo "Warning: could not kill terminal PID $pid" >&2
+            _log "destroy-factories" "kill_failed" "pid=$pid"
+        }
+    fi
     KILLED=$((KILLED + 1))
 done
 
@@ -158,3 +168,24 @@ open_terminal || {
 }
 
 _log "destroy-factories" "done" "terminals_killed=$KILLED"
+
+# ── Step 4: Self-close this terminal ──────────────────────────────────────────
+_log "destroy-factories" "self_close" "pid=$$"
+
+SELF_SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/"$$"/cgroup 2>/dev/null | head -1)
+if [ -n "$SELF_SCOPE" ]; then
+    systemctl --user stop "$SELF_SCOPE" 2>/dev/null || true
+fi
+
+# Also kill any claude ancestor process so the old session fully terminates
+self_pid=$$
+while [ "$self_pid" -gt 1 ]; do
+    self_ppid=$(ps -o ppid= -p "$self_pid" 2>/dev/null | tr -d ' ')
+    self_name=$(ps -o comm= -p "$self_pid" 2>/dev/null | tr -d ' ')
+    if [ "$self_name" = "claude" ]; then
+        kill "$self_pid" 2>/dev/null || true
+        break
+    fi
+    ([ -z "$self_ppid" ] || [ "$self_ppid" -le 1 ]) && break
+    self_pid=$self_ppid
+done
