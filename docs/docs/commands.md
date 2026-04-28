@@ -75,7 +75,7 @@ InstallOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `install.success` | `InstallInput` | `InstallOutput` | `happy path` | Runs `git pull`, `claude plugin marketplace add "$(pwd)"`, `claude plugin marketplace update dark-factory`, `claude plugin uninstall "dark-factory@dark-factory"`, `claude plugin install "dark-factory@dark-factory"`, `bash scripts/reopen-remote-control.sh "dark factory"` |
+| `install.success` | `InstallInput` | `InstallOutput` | `happy path` | Runs `git pull`, `claude plugin marketplace add "$(pwd)"`, `claude plugin marketplace update dark-factory`, `claude plugin uninstall "dark-factory@dark-factory"`, `claude plugin install "dark-factory@dark-factory"`, `bash scripts/reopen-remote-control.sh "dark factory"` — the script opens a new terminal running Claude in remote-control mode, then kills the installer terminal (via `kill $PPID`) if the new terminal opened successfully |
 
 ## Logs
 

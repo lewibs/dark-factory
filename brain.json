@@ -1,7 +1,7 @@
 {
-  "taskDescription": "Remove the Plan Metadata section (Plan type, Parent plan, Depends on, Status) from the plan templates",
-  "taskName": "remove-plan-metadata",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-remove-plan-metadata",
+  "taskDescription": "Update the install skill so that after opening a new terminal with Claude, it closes the old stale terminal (the one that ran the install command).",
+  "taskName": "install-close-old-terminal",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-install-close-old-terminal",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "repair",
   "planFilePath": null,
@@ -27,13 +27,13 @@
   },
   "metrics": {
     "dark-factory:repair:agents:repair-agent": {
-      "start_ms": 1777357506035
+      "start_ms": 1777358607162
     },
     "testing-agent": {
-      "start_ms": 1777357523285
+      "start_ms": 1777358617391
     },
     "planning-agent": {
-      "start_ms": 1777357523562
+      "start_ms": 1777358617678
     }
   }
 }
