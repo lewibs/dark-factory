@@ -1,7 +1,7 @@
 {
-  "taskDescription": "Fix reopen-remote-control.sh to walk up the process tree and kill only the closest terminal emulator (gnome-terminal, xterm, konsole, etc.) — never more than one.",
-  "taskName": "fix-kill-terminal",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-kill-terminal",
+  "taskDescription": "Fix reopen-remote-control.sh: send SIGHUP to the parent shell ($PPID) instead of walking the process tree. SIGHUP is the terminal-closed signal that bash responds to, and it only closes the current tab — not all gnome-terminal windows.",
+  "taskName": "fix-kill-terminal-sighup",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-kill-terminal-sighup",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "repair",
   "planFilePath": null,
@@ -27,17 +27,7 @@
   },
   "metrics": {
     "dark-factory:repair:agents:repair-agent": {
-      "elapsed_ms": 71807,
-      "tokens": 570,
-      "runs": 1
-    },
-    "dark-factory:code-review:agents:code-review-orchestrator-agent": {
-      "elapsed_ms": 49021,
-      "tokens": 464,
-      "runs": 1
-    },
-    "dark-factory:pr:agents:pr-agent": {
-      "start_ms": 1777361241254
+      "start_ms": 1777361718840
     }
   }
 }

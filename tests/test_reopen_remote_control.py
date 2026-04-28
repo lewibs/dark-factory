@@ -39,91 +39,58 @@ def test_reopen_remote_control_error_handling():
         "Script should check terminal command exit status"
 
 
-def test_reopen_remote_control_walks_process_tree():
-    """Verify the script walks the process tree to find the terminal emulator ancestor"""
+def test_reopen_remote_control_sends_sighup_to_ppid():
+    """Verify the script sends SIGHUP to $PPID to close the current terminal tab"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should use ps to query parent PIDs
-    assert "ps -o ppid=" in content, \
-        "Script should use 'ps -o ppid=' to walk the process tree"
-
-    # Should use ps to get process name
-    assert "ps -o comm=" in content, \
-        "Script should use 'ps -o comm=' to get the ancestor process name"
-
-    # Should start the walk from $$ (current script PID)
-    assert "$$" in content, \
-        "Script should start the process tree walk from $$ (current script PID)"
+    # Should use kill -HUP targeting $PPID
+    assert "kill -HUP" in content and "$PPID" in content, \
+        "Script should send SIGHUP to $PPID to close the current terminal tab"
 
 
-def test_reopen_remote_control_kills_only_first_terminal_ancestor():
-    """Verify the script stops after killing the first terminal emulator found"""
+def test_reopen_remote_control_guards_ppid_gt_1():
+    """Verify the script only sends SIGHUP when PPID > 1"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should have a return/break immediately after killing, so it never continues
-    # walking after the first match.  The function must contain a kill followed
-    # by a return inside the match block.
-    assert "kill_terminal_ancestor" in content, \
-        "Script should define a kill_terminal_ancestor function"
-
-    # After the kill there should be a 'return' to stop walking
-    kill_idx = content.find('kill "$ppid"')
-    assert kill_idx != -1, "Script should kill the ancestor by PID variable"
-    after_kill = content[kill_idx:]
-    assert "return" in after_kill, \
-        "Script should return immediately after killing the first terminal ancestor"
+    # Should guard against sending SIGHUP to PID 1 or below
+    assert '"-gt 1"' in content or "\"$PPID\" -gt 1" in content or "$PPID\" -gt 1" in content, \
+        "Script should guard against sending SIGHUP when PPID <= 1"
 
 
-def test_reopen_remote_control_never_kills_pid_1_or_below():
-    """Verify the script never kills PID 1 or any PID <= 1"""
+def test_reopen_remote_control_sighup_only_on_success():
+    """Verify the script only sends SIGHUP after the new terminal opens successfully"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should have a guard that stops the walk at PID 1 or below
-    assert "-le 1" in content or "<= 1" in content, \
-        "Script should guard against killing PID 1 or below"
+    # TERMINAL_EXIT check must appear before the kill -HUP
+    terminal_exit_idx = content.find("TERMINAL_EXIT")
+    kill_hup_idx = content.find("kill -HUP")
+    assert terminal_exit_idx != -1, "Script should check TERMINAL_EXIT"
+    assert kill_hup_idx != -1, "Script should contain kill -HUP"
+    assert terminal_exit_idx < kill_hup_idx, \
+        "Script should check TERMINAL_EXIT before sending SIGHUP"
 
 
-def test_reopen_remote_control_skips_silently_when_no_terminal_found():
-    """Verify the script skips silently when no terminal emulator is in the process tree"""
+def test_reopen_remote_control_sighup_silently_fails_in_non_terminal():
+    """Verify the script silently ignores errors when SIGHUP is not accepted (non-terminal context)"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # The function should simply return (or fall off the end) without printing
-    # an error when no terminal emulator ancestor is found.  There should NOT
-    # be an unconditional error message inside kill_terminal_ancestor after the
-    # loop ends.
-    func_start = content.find("kill_terminal_ancestor()")
-    assert func_start != -1, "Script should define kill_terminal_ancestor function"
-
-    # Find the closing brace of the function body
-    func_body_start = content.find("{", func_start)
-    # Count braces to find the matching closing brace
-    depth = 0
-    func_body_end = func_body_start
-    for i, ch in enumerate(content[func_body_start:], start=func_body_start):
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                func_body_end = i
-                break
-
-    func_body = content[func_body_start:func_body_end + 1]
-    # The comment about skipping silently should be present
-    assert "silently" in func_body or "skip" in func_body.lower(), \
-        "Script should document that it skips silently when no terminal emulator is found"
+    # kill -HUP should have error suppression so it fails silently in non-terminal contexts
+    assert "2>/dev/null" in content, \
+        "Script should suppress kill errors so it fails silently in non-terminal contexts"
+    assert "|| true" in content, \
+        "Script should use '|| true' so a failing kill does not abort the script"
 
 
 def test_reopen_remote_control_kill_error_handling():
@@ -156,24 +123,23 @@ def test_reopen_remote_control_terminal_emulator_fallback():
         "Script should support at least one terminal emulator"
 
 
-def test_reopen_remote_control_known_terminals_in_ancestor_check():
-    """Verify all known terminal emulators are checked during the ancestor walk"""
+def test_reopen_remote_control_supported_terminal_emulators():
+    """Verify the script supports multiple terminal emulators in open_terminal"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # All terminals listed in the task description must appear in the known-terms list
+    # The open_terminal function should attempt multiple terminal emulators
     required_terms = [
         "gnome-terminal",
-        "gnome-terminal-server",
         "xterm",
         "konsole",
         "x-terminal-emulator",
     ]
     for term in required_terms:
         assert term in content, \
-            f"Script should check for '{term}' as a known terminal emulator ancestor"
+            f"Script should support '{term}' as a terminal emulator in open_terminal"
 
 
 def test_reopen_remote_control_accepts_name_argument():
