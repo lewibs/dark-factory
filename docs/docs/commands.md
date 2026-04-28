@@ -5,11 +5,11 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `commands/`
-- Command count: 4 slash commands
+- Command count: 2 slash commands
 
 ## System Intent
 
-- What this is: The `commands/` directory contains the four Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent. Commands carry a `description` field for the Claude Code command picker and a single delegation line in the body.
+- What this is: The `commands/` directory contains the two Claude Code slash commands that Dark Factory exposes to the developer. Each command file is a minimal markdown stub that delegates all logic to the corresponding orchestrator agent or runs inline shell commands. Commands carry a `description` field for the Claude Code command picker and a delegation line or inline commands in the body.
 - Primary consumer(s): Developers invoking slash commands from the Claude Code interface.
 - Boundary: Commands only contain front-matter and a delegation line. All orchestration logic lives in `agents/`.
 
@@ -18,14 +18,10 @@
 ```mermaid
 flowchart TD
   Dev([Developer]) -->|/dark-factory:manufacture task| CMD_M[commands/manufacture.md]
-  Dev -->|/dark-factory:repair task| CMD_R[commands/repair.md]
-  Dev -->|/dark-factory:init github_url?| CMD_I[commands/init.md]
-  Dev -->|/dark-factory:update| CMD_U[commands/update.md]
+  Dev -->|/dark-factory:install| CMD_I[commands/install.md]
 
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
-  CMD_R -->|delegates to| RA[agents/dark-factory/agents/repair-agent.md]
-  CMD_I -->|delegates to| IOA[agents/initialization/agents/init-orchestrator-agent.md]
-  CMD_U -->|runs directly| GIT[git pull + claude plugin update]
+  CMD_I -->|runs directly| GIT[git pull + claude plugin marketplace add/update/uninstall/install]
 ```
 
 ## Flows
@@ -59,19 +55,19 @@ StandardError {
 
 ---
 
-### Flow: `init`
+### Flow: `install`
 
-- Core files: `commands/init.md`, `agents/initialization/agents/init-orchestrator-agent.md`
+- Core files: `commands/install.md`
 
 #### Types
 
 ```txt
-InitInput {
-  githubUrl: string | void (optional GitHub repo URL to clone; omit to use CWD)
+InstallInput {
+  void (no arguments; run from repo root)
 }
 
-InitOutput {
-  prUrl: string (the "init: dark factory" PR)
+InstallOutput {
+  void (outputs plugin reinstall progress to terminal)
 }
 ```
 
@@ -79,70 +75,13 @@ InitOutput {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `init.newRepo` | `InitInput{githubUrl}` | `InitOutput` | `happy path` | Clones repo, runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
-| `init.existingCWD` | `InitInput{void}` | `InitOutput` | `happy path` | Treats CWD as target; runs init.sh, discovers user-facing flows per system, generates one docs/docs/<flow-name>.md per flow, opens PR |
-
----
-
-### Flow: `repair`
-
-- Core files: `commands/repair.md`, `agents/dark-factory/agents/repair-agent.md`
-
-#### Types
-
-```txt
-RepairInput {
-  taskDescription: string (free-text description of what to fix, e.g. "fix null check in login handler")
-  taskName: string (optional — short slug; derived from taskDescription if omitted)
-}
-
-RepairOutput {
-  prUrl: string
-}
-
-StandardError {
-  message: string (human-readable description of what went wrong)
-}
-```
-
-#### Paths
-
-| path | input | output | path-type | notes |
-| --- | --- | --- | --- | --- |
-| `repair.success` | `RepairInput` | `RepairOutput` | `happy path` | Delegates to repair-agent; implements change, runs tests, optionally updates docs, opens PR (pr-agent returns ready), repair-agent merges |
-| `repair.implementation-failure` | `RepairInput` | `StandardError` | `error` | repair-agent returns success=false after 5 retry attempts; cleanup runs |
-| `repair.pr-failure` | `RepairInput` | `StandardError` | `error` | pr-agent fails to open PR or returns error; cleanup runs |
-| `repair.prep-failure` | `RepairInput` | `StandardError` | `error` | prep-feature-dir.sh fails; no work dir to clean up |
-
----
-
-### Flow: `update`
-
-- Core files: `commands/update.md`
-
-#### Types
-
-```txt
-UpdateInput {
-  void (no arguments)
-}
-
-UpdateOutput {
-  void (outputs plugin version info to terminal)
-}
-```
-
-#### Paths
-
-| path | input | output | path-type | notes |
-| --- | --- | --- | --- | --- |
-| `update.success` | `UpdateInput` | `UpdateOutput` | `happy path` | Runs `git pull` then `claude plugin update "dark-factory@dark-factory"` |
+| `install.success` | `InstallInput` | `InstallOutput` | `happy path` | Runs `git pull`, `claude plugin marketplace add "$(pwd)"`, `claude plugin marketplace update dark-factory`, `claude plugin uninstall "dark-factory@dark-factory"`, `claude plugin install "dark-factory@dark-factory"`, `bash scripts/reopen-remote-control.sh "dark factory"` |
 
 ## Logs
 
 | Source | Location |
 |--------|----------|
-| N/A | Commands are thin stubs; they produce no structured log output. Terminal output from `git pull` and `claude plugin update` is the only observable output for the update command. |
+| N/A | Commands are thin stubs; they produce no structured log output. Terminal output from `git pull` and `claude plugin install` is the only observable output for the install command. |
 
 ## Deployment
 
