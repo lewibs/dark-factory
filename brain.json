@@ -1,10 +1,10 @@
 {
-  "taskDescription": "Remove the Plan Metadata section (Plan type, Parent plan, Depends on, Status) from the plan templates",
-  "taskName": "remove-plan-metadata",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-remove-plan-metadata",
+  "taskDescription": "docs/plans/2026-04-27-spawn-factory-command.md",
+  "taskName": "spawn-factory-command",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-spawn-factory-command",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "repair",
-  "planFilePath": null,
+  "classification": "feature",
+  "planFilePath": "/home/lewibs/github/dark_factory/dark_factory-spawn-factory-command/docs/plans/2026-04-27-spawn-factory-command.md",
   "bugFiles": null,
   "prUrl": null,
   "docsWritten": null,
@@ -13,7 +13,7 @@
     "prep-running": false,
     "prep-complete": true,
     "worker-running": false,
-    "worker-complete": false,
+    "worker-complete": true,
     "review-running": false,
     "review-complete": false,
     "docs-running": false,
@@ -26,14 +26,38 @@
     "cleanup-complete": false
   },
   "metrics": {
-    "dark-factory:repair:agents:repair-agent": {
-      "start_ms": 1777357506035
+    "dark-factory:featurework:agents:feature-agent": {
+      "elapsed_ms": 89259,
+      "tokens": 803,
+      "runs": 2
+    },
+    "dark-factory:code-review:agents:code-review-orchestrator-agent": {
+      "elapsed_ms": 104608,
+      "tokens": 323,
+      "runs": 1,
+      "start_ms": 1777360631638
+    },
+    "dark-factory:featurework:execution:agents:execution-agent": {
+      "elapsed_ms": 58802,
+      "tokens": 536,
+      "runs": 1
+    },
+    "dark-factory:documentation:agents:update-documentation-agent": {
+      "elapsed_ms": 70440,
+      "tokens": 242,
+      "runs": 1
+    },
+    "dark-factory:skill-update:agents:skill-update-agent": {
+      "start_ms": 1777360625361
+    },
+    "dark-factory:pr:agents:pr-agent": {
+      "start_ms": 1777360680389
     },
     "testing-agent": {
-      "start_ms": 1777357523285
+      "start_ms": 1777360701029
     },
     "planning-agent": {
-      "start_ms": 1777357523562
+      "start_ms": 1777360701309
     }
   }
 }
