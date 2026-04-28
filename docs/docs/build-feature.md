@@ -7,47 +7,184 @@
 ## System Intent
 
 - What this is: The end-to-end feature-building flow. Orchestrates planning (with Mermaid diagram, typed I/O contracts, and per-flow pseudocode), a human approval gate with feedback-and-retry, and then full execution (skeleton → tests → implementation). Does not open a PR itself — that is the caller's responsibility after documentation agents complete.
+- Approval gate protocol: feature-agent does not call AskUserQuestion directly. Instead it returns structured `{ status: "question", ... }` objects to dark-factory-agent (depth-2), which calls AskUserQuestion and re-invokes feature-agent with the answer. This is the return-question protocol.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  Input["feature-agent(description)"] --> PA["planning-agent\n(Haiku orchestrator)"]
-  PA -->|phase=draft_plan| SPA["sub-planning-agent\n(Sonnet worker)"]
+  DFA["dark-factory-agent\n(depth-2)"]
+  FA["feature-agent\n(depth-3)"]
+  PA["planning-agent\n(Haiku orchestrator)"]
+  SPA["sub-planning-agent\n(Sonnet worker)"]
+  DEV["Developer"]
+  PF["plan file\n(state anchor)"]
+
+  DFA -->|"invoke feature-agent\n(taskDescription, answer: null, planPath: null)"| FA
+  FA -->|"calls planning-agent\nfor each phase"| PA
+  PA -->|phase=draft_plan / mermaid / flows| SPA
   SPA -->|planPath + summary| PA
-  PA -->|AskUserQuestion: draft review| Dev([Developer])
-  Dev -->|feedback| PA
-  Dev -->|approve| PA
+  PA -->|planPath + summary| FA
+  SPA -->|content written to plan file| PF
+  PF -.->|"feature-agent reads\nto know where it is\n(Stage Gate Tracker)"| FA
 
-  PA -->|phase=mermaid| SPA
-  SPA -->|url + summary| PA
-  PA -->|PushNotification: diagram URL| Dev
-  PA -->|AskUserQuestion: mermaid review| Dev
-  Dev -->|feedback| PA
-  Dev -->|approve| PA
+  FA -->|"{ status: 'question',\nquestion, options, planPath }"| DFA
+  DFA -->|AskUserQuestion| DEV
+  DEV -->|answer| DFA
+  DFA -->|"re-invoke feature-agent\n(answer, planPath)"| FA
 
-  PA -->|phase=flows (one at a time)| SPA
-  SPA -->|summary| PA
-  PA -->|AskUserQuestion: flow review| Dev
-  Dev -->|feedback| PA
-  Dev -->|approve| PA
+  FA -->|"{ status: 'done', planPath }"| DFA
+  DFA -->|continue to\ncode review + PR| DFA
 
-  PA -->|planPath| Input
-  Input --> Gate{Developer approval\nvia feature-agent}
-  Gate -->|abort| Abort["Stop"]
-  Gate -->|approve| Exec["execution-agent(planPath)"]
+  FA -->|"{ status: 'hard-stop', reason }"| DFA
+  DFA -->|cleanup + STOP| DFA
+
+  FA -->|"all phases approved"| Exec["execution-agent(planPath)"]
   Exec --> Skeleton["skeleton-agent\n(creates file stubs)"]
   Skeleton --> FilesChecklist["tmp/files-checklist.md"]
   FilesChecklist --> Testing["testing-agent\n(writes failing tests)"]
   Testing --> FlowsChecklist["tmp/flows-checklist.md"]
   FlowsChecklist --> Impl["implementation-agent\n(makes tests pass)"]
-  Impl -->|hardStop| Push2["PushNotification: Execution Paused"]
-  Push2 --> Wait["Wait for developer to fix plan"]
-  Wait --> Impl
-  Impl -->|allFlowsGreen| Done["Report: Feature complete. planPath=<path>"]
+  Impl -->|hardStop| HardStop["{ status: 'hard-stop' }"]
+  Impl -->|allFlowsGreen| Done["{ status: 'done', planPath }"]
 ```
 
 ## Flows
+
+### Flow: `question-return-protocol`
+
+- Test files: `N/A`
+- Core files: `agents/featurework/agents/feature-agent.md`, `agents/dark-factory/agents/dark-factory-agent.md`
+
+#### Types
+
+```txt
+FeatureAgentInput {
+  taskDescription: string       (first invocation — the user's feature request)
+  answer: string | null         (re-invocation — user's answer to the returned question)
+  planPath: string | null       (re-invocation — path to the existing plan file)
+}
+
+FeatureAgentResult =
+  | { status: "question", question: string, options: string[], planPath: string, phase: string }
+  | { status: "done", planPath: string }
+  | { status: "hard-stop", reason: string }
+
+StandardError {
+  message: string
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `question.firstInvoke` | `{ taskDescription, answer: null, planPath: null }` | `FeatureAgentResult{status:"question"}` | happy path | feature-agent runs draft_plan phase via planning-agent, returns question with System Intent section |
+| `question.reInvoke` | `{ answer, planPath }` | `FeatureAgentResult{status:"question"}` | happy path | feature-agent reads planPath Stage Gate Tracker to determine current phase, applies answer, continues to next gate, returns next question |
+| `question.done` | `{ answer, planPath }` (last phase approved) | `FeatureAgentResult{status:"done", planPath}` | happy path | all phases approved and execution-agent complete; dark-factory-agent continues to code review + PR |
+| `question.hardStop` | execution-agent hard-stop | `FeatureAgentResult{status:"hard-stop", reason}` | error | dark-factory-agent reports reason, runs cleanup, and stops |
+
+#### Pseudocode
+
+```
+# feature-agent — return-question protocol
+
+Input: taskDescription, answer (may be null), planPath (may be null)
+
+# Determine resume point by reading plan file
+if planPath exists:
+  read planPath
+  determine current phase from Stage Gate Tracker checkboxes:
+    - if "Stage 1 Mermaid approved" unchecked → phase = "mermaid" (apply answer, continue)
+    - if "Stage 2 Flows approved" unchecked → phase = "flows" (apply answer, continue)
+    - if all gates checked → phase = "execution"
+else:
+  phase = "draft_plan"
+
+# Phase 1: Draft Plan
+if phase == "draft_plan":
+  invoke planning-agent(phase="draft_plan", feedback=taskDescription)
+  receive { planPath, summary }
+  PushNotification("Draft Plan Ready", ...)
+  RETURN { status: "question", question: "<System Intent section>",
+           options: ["Looks good — continue to Mermaid diagram", "Request Changes"],
+           planPath, phase: "draft_plan" }
+
+# Phase 2: Mermaid Diagram
+if phase == "mermaid":
+  invoke planning-agent(phase="mermaid", planPath, feedback=answer ?? "none")
+  receive { planPath, url, summary }
+  if url: PushNotification("Mermaid Diagram Ready", url)
+  RETURN { status: "question", question: "<Mermaid section>",
+           options: ["Approve — continue to flows", "Request Changes"],
+           planPath, phase: "mermaid" }
+
+# Phase 3: Flows (one at a time, tracked via flows-state.json)
+if phase == "flows":
+  load/init $DARK_FACTORY_WORK_DIR/flows-state.json
+  if answer == "Approve — continue to next flow": mark current flow approved
+  elif answer is feedback: re-invoke planning-agent(phase="flows", flowName=state.current, feedback=answer)
+  nextFlow = first flow in allFlows not yet approved
+  if nextFlow is null: GOTO phase == "execution"
+  state.current = nextFlow; write stateFile
+  RETURN { status: "question", question: "<nextFlow section>",
+           options: ["Approve — continue to next flow", "Request Changes"],
+           planPath, phase: "flows" }
+
+# Phase 4: Execution
+if phase == "execution":
+  invoke execution-agent(planPath)
+  if hardStop: RETURN { status: "hard-stop", reason }
+  write brain-patch.json { "planFilePath": planPath }
+  RETURN { status: "done", planPath }
+```
+
+### Flow: `dark-factory-reinvoke-loop`
+
+- Test files: `N/A`
+- Core files: `agents/dark-factory/agents/dark-factory-agent.md`
+
+#### Types
+
+```txt
+FeatureAgentResult =
+  | { status: "question", question: string, options: string[], planPath: string, phase: string }
+  | { status: "done", planPath: string }
+  | { status: "hard-stop", reason: string }
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `loop.question` | `FeatureAgentResult{status:"question"}` | AskUserQuestion → re-invoke feature-agent | happy path | dark-factory-agent asks question at depth-2 (where AskUserQuestion works), re-invokes feature-agent with answer + planPath |
+| `loop.done` | `FeatureAgentResult{status:"done"}` | continue to Step 4 (code review) | happy path | planning + execution complete; planFilePath captured from result |
+| `loop.hardStop` | `FeatureAgentResult{status:"hard-stop"}` | cleanup + report + STOP | error | surface reason to developer; dark-factory-agent runs cleanup before stopping |
+
+#### Pseudocode
+
+```
+# dark-factory-agent — feature route (Step 3)
+
+result = invoke feature-agent({ taskDescription, answer: null, planPath: null })
+
+LOOP:
+  if result.status == "done":
+    planFilePath = result.planPath
+    BREAK  # proceed to Step 4 (code review)
+
+  if result.status == "hard-stop":
+    rm -f /tmp/dark-factory-work-dir
+    run cleanup(WORK_DIR)
+    report "Hard stop: " + result.reason
+    STOP
+
+  if result.status == "question":
+    AskUserQuestion(result.question, result.options)
+    answer = developer response
+    result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
+    CONTINUE LOOP
+```
 
 ### Flow: `planFeature`
 
@@ -57,14 +194,6 @@ flowchart TD
 #### Types
 
 ```txt
-PlanFeatureInput {
-  description: string (required — feature description passed to planning-agent)
-}
-
-PlanFeatureOutput {
-  planPath: string (absolute path to the written plan file, e.g. docs/plans/2026-04-26-add-oauth.md)
-}
-
 SubPlanningAgentInput {
   phase: "draft_plan" | "mermaid" | "flows"
   planPath: string | null  (null for draft_plan phase)
@@ -87,35 +216,11 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planFeature.draftApproved` | `PlanFeatureInput` | proceeds to mermaid phase | happy path | planning-agent (Haiku) spawns sub-planning-agent (Sonnet) with phase=draft_plan; worker researches codebase (optionally via investigation-agent), creates plan file from template; orchestrator reads System Intent section, shows developer via AskUserQuestion |
-| `planFeature.mermaidApproved` | planPath from draft | proceeds to flows phase | happy path | orchestrator spawns sub-planning-agent with phase=mermaid; worker updates diagram section and runs `python3 scripts/mermaid_to_image.py`; orchestrator pushes diagram URL via PushNotification if url is non-null |
-| `planFeature.flowsApproved` | planPath | `PlanFeatureOutput` | happy path | orchestrator iterates each `### Flow:` section one at a time, shows developer, collects feedback if needed, re-spawns sub-planning-agent with phase=flows for updates; returns planPath after all flows approved |
-| `planFeature.phaseRetry` | any phase | revised content | loop | developer provides feedback during any phase; orchestrator re-spawns sub-planning-agent for that phase |
-| `planFeature.error` | `PlanFeatureInput` | `StandardError` | error | sub-planning-agent fails to complete a phase |
-
-### Flow: `approveFeature`
-
-- Core files: `agents/featurework/agents/feature-agent.md`
-
-#### Types
-
-```txt
-ApproveFeatureInput {
-  planPath: string (path to the plan file displayed to the developer)
-}
-
-ApproveFeatureOutput {
-  approved: true
-}
-```
-
-#### Paths
-
-| path | input | output | path-type | notes |
-| --- | --- | --- | --- | --- |
-| `approveFeature.approved` | `ApproveFeatureInput` | `ApproveFeatureOutput` | happy path | developer replies "yes" or "approve" |
-| `approveFeature.feedback` | `ApproveFeatureInput` | feedback string | retry | developer provides revision text; feature-agent loops back to planning-agent |
-| `approveFeature.abort` | `ApproveFeatureInput` | stopped | user abort | developer replies "abort" |
+| `planFeature.draftQuestion` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"question", phase:"draft_plan"}` | happy path | feature-agent invokes planning-agent with phase=draft_plan; reads System Intent section from plan; returns question to dark-factory-agent |
+| `planFeature.mermaidQuestion` | answer="Looks good", planPath | `FeatureAgentResult{status:"question", phase:"mermaid"}` | happy path | feature-agent invokes planning-agent with phase=mermaid; pushes diagram URL via PushNotification if url is non-null; returns question to dark-factory-agent |
+| `planFeature.flowQuestion` | answer, planPath, flows-state.json | `FeatureAgentResult{status:"question", phase:"flows"}` | happy path | feature-agent iterates each Flow section one at a time, returning a question per flow; tracks approved flows in flows-state.json |
+| `planFeature.phaseRetry` | answer=feedback text, planPath | revised question for same phase | loop | developer provides feedback during any phase; feature-agent re-invokes planning-agent for that phase with the feedback, then returns another question |
+| `planFeature.error` | `FeatureAgentInput` | `StandardError` | error | sub-planning-agent fails to complete a phase |
 
 ### Flow: `executeFeature`
 
@@ -143,8 +248,8 @@ HardStop {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `executeFeature.success` | `ExecuteFeatureInput` | `ExecuteFeatureOutput` | happy path | skeleton → tests → implementation all pass; tmp checklists deleted |
-| `executeFeature.hard-stop` | `ExecuteFeatureInput` | `HardStop` | paused | implementation-agent encounters unresolvable deviation; developer must edit plan and resume |
+| `executeFeature.success` | `ExecuteFeatureInput` | `FeatureAgentResult{status:"done", planPath}` | happy path | skeleton → tests → implementation all pass; tmp checklists deleted; feature-agent writes brain-patch.json then returns done |
+| `executeFeature.hard-stop` | `ExecuteFeatureInput` | `FeatureAgentResult{status:"hard-stop", reason}` | paused | implementation-agent encounters unresolvable deviation; feature-agent returns hard-stop to dark-factory-agent which runs cleanup |
 | `executeFeature.plan-not-found` | `ExecuteFeatureInput` | `StandardError` | error | plan file does not exist |
 
 #### Pseudocode
@@ -177,10 +282,11 @@ execution-agent(planPath):
 | Source | Location |
 |--------|----------|
 | planning-agent output | docs/plans/<date>-<slug>.md |
+| flows approval state | $DARK_FACTORY_WORK_DIR/flows-state.json (deleted after all flows approved) |
 | test results | Claude Code session transcript |
 | checklists | tmp/files-checklist.md, tmp/flows-checklist.md (deleted on success) |
 
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent
-- Notes: feature-agent is not user-invocable directly; it is spawned by dark-factory-agent when the task classification is "new feature". The PR is opened by the caller (dark-factory-agent) after update-documentation-agent completes.
+- Notes: feature-agent is not user-invocable directly; it is spawned by dark-factory-agent when the task classification is "new feature". feature-agent does not call AskUserQuestion — it returns structured question objects to dark-factory-agent, which handles all user interaction at depth-2 via AskUserQuestion. The PR is opened by the caller (dark-factory-agent) after update-documentation-agent completes.
