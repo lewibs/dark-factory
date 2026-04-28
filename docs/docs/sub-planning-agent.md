@@ -66,7 +66,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `draftPlan.success` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | happy path | researches codebase via Grep/Glob/Read; optionally spawns investigation-agent for deep investigation; reads plan template; creates `docs/plans/<YYYY-MM-DD>-<slug>.md`; fills in Plan Metadata, System Intent, Stage Gate Tracker, placeholder Mermaid Diagram |
+| `draftPlan.success` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | happy path | researches codebase via Grep/Glob/Read; optionally spawns investigation-agent for deep investigation; reads plan template; creates `docs/plans/<YYYY-MM-DD>-<slug>.md`; fills in System Intent, Stage Gate Tracker, placeholder Mermaid Diagram |
 | `draftPlan.investigationError` | `SubPlanningAgentInput (phase=draft_plan)` | `SubPlanningAgentOutput` | graceful degradation | investigation-agent returns error; error is logged as comment in System Intent section; plan creation continues |
 | `draftPlan.error` | `SubPlanningAgentInput (phase=draft_plan)` | `StandardError` | error | sub-planning-agent cannot create the plan file |
 
@@ -81,7 +81,7 @@ sub-planning-agent (phase=draft_plan):
     on error: log as comment in System Intent, continue
   read agents/featurework/planning/templates/plan-template.md
   create docs/plans/<YYYY-MM-DD>-<slug>.md (date = today, slug from description)
-  fill in: Plan Metadata, System Intent, Stage Gate Tracker, placeholder Mermaid Diagram
+  fill in: System Intent, Stage Gate Tracker, placeholder Mermaid Diagram
   return { planPath, url: null, summary }
 ```
 

@@ -1,20 +1,5 @@
 # Mermaid to Image — Plan Diagram to Phone
 
-## Plan Metadata
-
-- Plan type: `plan`
-- Parent plan: `N/A`
-- Depends on: `N/A`
-- Status: `draft`
-
-Status semantics:
-- `draft`: Plan is being created or updated and is not final.
-- `approved`: Plan is approved but not yet applied in code.
-- `documentation`: Code currently exists and matches the plan contract.
-
-Update rule:
-- When an existing plan is edited, set status to `draft` until re-approved.
-
 ## System Intent
 
 - What is being built: A Python script (`scripts/mermaid_to_image.py`) that extracts a Mermaid fenced code block (by 1-indexed position, defaulting to the first) from a plan `.md` file, base64-encodes it, and returns a `mermaid.ink` URL. The planning-agent is updated to call this script after writing the plan and push the URL to the user's phone via PushNotification so they can tap it.

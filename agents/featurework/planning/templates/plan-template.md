@@ -1,21 +1,5 @@
 # Plan Title
 
-## Plan Metadata
-
-- Plan type: `plan` | `sub-plan`
-- Parent plan: `required for sub-plan; otherwise N/A`
-- Depends on: `N/A`
-  - `plan-link`
-- Status: `draft` | `approved` | `documentation`
-
-Status semantics:
-- `draft`: Plan is being created or updated and is not final.
-- `approved`: Plan is approved but not yet applied in code.
-- `documentation`: Code currently exists and matches the plan contract.
-
-Update rule:
-- When an existing plan is edited, set status to `draft` until re-approved.
-
 ## System Intent
 
 - What is being built:
