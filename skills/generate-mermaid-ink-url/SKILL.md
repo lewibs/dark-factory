@@ -29,3 +29,25 @@ When you need to share or display a Mermaid diagram as an image URL — for exam
 - The script at `scripts/mermaid_to_image.py` implements this pattern; import or call it rather than re-implementing inline.
 - `mermaid.ink` is treated as an external black box — do not depend on its availability for correctness tests; unit tests should only assert the URL structure (`startswith("https://mermaid.ink/img/")`).
 - Padding characters (`=`) from base64 output are harmless in the URL for `mermaid.ink`, but if a future service requires padding-free encoding, strip them with `.rstrip("=")`.
+
+## Calling the script from agents
+
+When invoking `scripts/mermaid_to_image.py` from an agent (e.g. sub-planning-agent), always set `MERMAID_SKIP_VALIDATE=1`:
+
+```bash
+MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
+```
+
+**Why:** By default the script calls `mmdc` (via `npx @mermaid-js/mermaid-cli`) to validate syntax before generating the URL. In agent/CI environments `npx` may be unavailable or slow, causing the script to exit non-zero even though the diagram content is valid and the URL could be generated. `MERMAID_SKIP_VALIDATE=1` bypasses this validation step and proceeds directly to URL generation.
+
+## Inline fallback if the script fails
+
+If the script exits non-zero or produces no output even with `MERMAID_SKIP_VALIDATE=1`, fall back to generating the URL inline using Python. Extract the raw mermaid diagram text from the plan file (content between ` ```mermaid ` and the closing ` ``` `), then:
+
+```python
+import base64
+encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+url = f"https://mermaid.ink/img/{encoded}"
+```
+
+Only set `url = null` if both the script and the inline fallback fail (e.g., no mermaid block is found in the plan file).

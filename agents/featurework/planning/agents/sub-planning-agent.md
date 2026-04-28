@@ -46,11 +46,18 @@ When `phase == "mermaid"`:
 
 1. Read the plan file at `planPath`.
 2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file.
-3. Run the mermaid image script:
+3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
-   python3 scripts/mermaid_to_image.py <planPath>
+   MERMAID_SKIP_VALIDATE=1 python3 scripts/mermaid_to_image.py <planPath>
    ```
-   Capture stdout as `url`. If the script exits with a non-zero exit code, produces no output, or produces only whitespace, set `url = null`. Do not treat stderr output as a failure on its own — check the exit code.
+   Capture stdout as `url`. If the script exits with a non-zero exit code, produces no output, or produces only whitespace, fall back to generating the URL inline:
+   ```python
+   import base64
+   # extract the raw mermaid diagram text from the plan file (content between ```mermaid and ```)
+   encoded = base64.urlsafe_b64encode(mermaid_string.encode("utf-8")).decode("utf-8")
+   url = f"https://mermaid.ink/img/{encoded}"
+   ```
+   Only set `url = null` if both the script and the inline fallback fail (e.g., no mermaid block found in the plan). Do not treat stderr output as a failure on its own — check the exit code.
 5. Return:
    ```json
    {

@@ -1,7 +1,7 @@
 {
-  "taskDescription": "let's delete the init command and the workflow for it.  I would rather have the docs get written as the agent learns then the other way around.",
-  "taskName": "delete-init-command",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-delete-init-command",
+  "taskDescription": "The planning agent doesn't always return a URL for the mermaid diagram whenever it's in the mermaid phase. can you please make sure that's still always occurs. favor that over opening VS code because it's nice to look at the image",
+  "taskName": "mermaid-url-always",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-mermaid-url-always",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "repair",
   "planFilePath": null,
@@ -27,13 +27,13 @@
   },
   "metrics": {
     "dark-factory:repair:agents:repair-agent": {
-      "start_ms": 1777352141800
+      "start_ms": 1777357917852
     },
     "testing-agent": {
-      "start_ms": 1777352166097
+      "start_ms": 1777357950756
     },
     "planning-agent": {
-      "start_ms": 1777352166816
+      "start_ms": 1777357951015
     }
   }
 }
