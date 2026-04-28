@@ -22,7 +22,7 @@ You are the investigation-agent. Your job is to investigate a system and produce
 
 1. Receive the system name or topic to investigate.
 2. Check `docs/docs/` for existing documentation covering that system:
-   - **If docs exist**: read them, then validate against the actual code. Update any sections that are stale or wrong.
+   - **If docs exist**: return them immediately (they are treated as authoritative; no staleness check).
    - **If no docs exist**: use `skills/investigate/SKILL.md` to explore the codebase, then create `docs/docs/<system-name>.md` using `skills/documentation/SKILL.md`.
 3. Return the paths to all files written or updated.
 
@@ -32,15 +32,6 @@ You are the investigation-agent. Your job is to investigate a system and produce
 |---|---|
 | `agents/documentation/skills/investigate/SKILL.md` | Exploring an unknown codebase — entry points, data flow, log sources, failure modes, deployment discovery |
 | `agents/documentation/skills/documentation/SKILL.md` | Writing or updating a `docs/docs/` file using the documentation template |
-| `agents/documentation/skills/detect-drift/SKILL.md` | Auditing parity between docs/plans and actual implementation — works for both `docs/docs/` system documents and `docs/plans/` plan files |
-
-## Drift detection
-
-When asked to validate whether documentation or plans match the code, use `skills/detect-drift/SKILL.md`. It covers:
-- **Plans** (`docs/plans/`): checks flow/file/test references against real code.
-- **Docs** (`docs/docs/`): checks documented system behavior against the actual implementation.
-
-You can run both together or target one type specifically.
 
 ## Output
 
