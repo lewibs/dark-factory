@@ -34,6 +34,8 @@ flowchart TD
   SPA -->|writes plan file| PF[docs/plans/YYYY-MM-DD-slug.md]
   SPA -->|url + summary| PA
   PA -->|planPath + summary| FA
+  FA -->|section content stdin| RS[scripts/render_section.py]
+  RS -->|formatted ASCII output| FA
   FA -->|"{ status: question, question, options, planPath }"| DFA
   DFA -->|AskUserQuestion: approve each phase| Dev2([Developer])
   Dev2 -->|answer| DFA
@@ -158,8 +160,8 @@ PlanFile {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `featurework.approved` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"done", planPath}` | `happy path` | feature-agent returns structured question objects (`{ status: "question" }`) to dark-factory-agent for each planning phase (draft, mermaid, flows); dark-factory-agent calls AskUserQuestion at depth-2 and re-invokes feature-agent with the answer; after all phases approved, execution-agent implements |
-| `featurework.feedbackLoop` | `FeatureAgentInput{answer, planPath}` | `FeatureAgentResult{status:"question"}` | `loop` | Developer provides feedback during any phase; dark-factory-agent passes answer to feature-agent on re-invocation; feature-agent re-spawns planning-agent for that phase and returns a new question; loop repeats per-phase until explicit approval |
+| `featurework.approved` | `FeatureAgentInput{taskDescription}` | `FeatureAgentResult{status:"done", planPath}` | `happy path` | feature-agent returns structured question objects (`{ status: "question" }`) to dark-factory-agent for each planning phase (draft, mermaid, flows); each section is piped through scripts/render_section.py so markdown tables display as ASCII; dark-factory-agent calls AskUserQuestion at depth-2 and re-invokes feature-agent with the answer; after all phases approved, execution-agent implements |
+| `featurework.feedbackLoop` | `FeatureAgentInput{answer, planPath}` | `FeatureAgentResult{status:"question"}` | `loop` | Developer provides feedback during any phase; dark-factory-agent passes answer to feature-agent on re-invocation; feature-agent re-spawns planning-agent for that phase and returns a new question (rendered via scripts/render_section.py); loop repeats per-phase until explicit approval |
 | `featurework.hardStop` | `FeatureAgentInput` | `FeatureAgentResult{status:"hard-stop"}` | `error` | implementation-agent triggers deviation-protocol; feature-agent returns hard-stop to dark-factory-agent; if architecture changed, deviation-protocol invokes `skills/create-mermaid-diagram/SKILL.md` to update the diagram before halting; dark-factory-agent runs cleanup |
 
 ---

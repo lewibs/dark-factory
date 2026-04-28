@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent for each phase (draft, mermaid, flows), gates on human approval between phases via return-question protocol, then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Write, Bash, Agent, PushNotification, Skill
+tools: Read, Write, Bash, Agent, PushNotification, Skill, AskUserQuestion
 model: haiku
 allowed-tools: Bash(find *), Bash(grep -r *)
 ---
@@ -65,11 +65,18 @@ feature-agent(taskDescription, answer, planPath):
 
     Read planPath and extract the ## System Intent section.
 
+    Render the section by piping it through scripts/render_section.py:
+      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      if rendered.exit_code == 0:
+        formatted_content = rendered.stdout
+      else:
+        formatted_content = section_content  # fallback to raw
+
     Call PushNotification with title: "Draft Plan Ready" and message: "Review the System Intent section and approve or request changes."
 
     RETURN {
       status: "question",
-      question: "The planning agent has drafted the plan overview. Here is the System Intent section:\n\n<section content>\n\nHow would you like to proceed?",
+      question: "The planning agent has drafted the plan overview. Here is the System Intent section:\n\n<formatted_content>\n\nHow would you like to proceed?",
       options: ["Looks good — continue to Mermaid diagram", "Request Changes"],
       planPath: planPath,
       phase: "draft_plan"
@@ -92,12 +99,19 @@ feature-agent(taskDescription, answer, planPath):
 
     Read planPath and extract the ## Mermaid Diagram section.
 
+    Render the section by piping it through scripts/render_section.py:
+      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      if rendered.exit_code == 0:
+        formatted_content = rendered.stdout
+      else:
+        formatted_content = section_content  # fallback to raw
+
     If url is null or empty:
       Note in question text: "(Note: the Mermaid diagram image could not be rendered — please review the raw diagram text below.)"
 
     RETURN {
       status: "question",
-      question: "Here is the Mermaid diagram:\n\n<section content>\n\nHow would you like to proceed?",
+      question: "Here is the Mermaid diagram:\n\n<formatted_content>\n\nHow would you like to proceed?",
       options: ["Approve — continue to flows", "Request Changes"],
       planPath: planPath,
       phase: "mermaid"
@@ -146,20 +160,44 @@ feature-agent(taskDescription, answer, planPath):
 
     Read planPath and extract the ### Flow: <nextFlow> section.
 
+    Render the section by piping it through scripts/render_section.py:
+      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      if rendered.exit_code == 0:
+        formatted_content = rendered.stdout
+      else:
+        formatted_content = section_content  # fallback to raw
+
     RETURN {
       status: "question",
-      question: "Here is the `<nextFlow>` flow section:\n\n<section content>\n\nHow would you like to proceed?",
+      question: "Here is the `<nextFlow>` flow section:\n\n<formatted_content>\n\nHow would you like to proceed?",
       options: ["Approve — continue to next flow", "Request Changes"],
       planPath: planPath,
       phase: "flows"
     }
 
-  # ── Phase 4: Execution ──────────────────────────────────────────────────────
+  # ── Phase 4: Final Plan Approval ────────────────────────────────────────────
   if phase == "execution":
     Read the plan file at planPath using the Read tool.
-    Display: "Plan written to <planPath>. All sections approved. Please do a final review."
-    Display the full contents of the plan file to the developer.
+    planContent = the full contents of the plan file
 
+    # Call AskUserQuestion for final approval gate (with Abort option)
+    answer = AskUserQuestion(
+      header: "Final Plan Approval",
+      question: "All planning phases have been approved. Here is the complete plan:\n\n" + planContent + "\n\nAre you ready to execute this plan?",
+      options: [
+        { label: "Approve and Execute", description: "Proceed with plan execution" },
+        { label: "Abort", description: "Cancel plan execution entirely" }
+      ]
+    )
+
+    if answer == "Abort":
+      RETURN {
+        status: "aborted",
+        reason: "User aborted plan execution at final approval gate",
+        planPath: planPath
+      }
+
+    # ── Phase 5: Execution ──────────────────────────────────────────────────────
     invoke execution-agent with: planPath
 
     If execution-agent returns hardStop == true:
@@ -168,9 +206,9 @@ feature-agent(taskDescription, answer, planPath):
         reason: <execution-agent reason>
       }
 
-    # Phase 5: done — caller opens the PR
+    # Phase 6: done — caller opens the PR
     # Do NOT invoke pr-agent here. The caller (dark-factory-agent) runs documentation
-    # agents after this returns, then opens the PR in its own Step 5.
+    # agents after this returns, then opens the PR in its own Step 6.
     
     Write brain-patch.json:
       {
