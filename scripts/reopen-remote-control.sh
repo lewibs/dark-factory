@@ -48,11 +48,9 @@ if [ $TERMINAL_EXIT -ne 0 ]; then
     exit $TERMINAL_EXIT
 fi
 
-# Send SIGHUP to the parent shell (the terminal tab running this script).
-# SIGHUP is the "terminal closed" signal — bash/zsh respond to it and exit,
-# closing only the current tab.  If invoked from a non-terminal context (e.g.
-# Claude Code's bash tool), the parent will simply ignore the signal, which is
-# fine — it will silently fail.
-if [ -n "$PPID" ] && [ "$PPID" -gt 1 ]; then
-    kill -HUP "$PPID" 2>/dev/null || true
+# Find this terminal tab's vte-spawn scope from the cgroup
+SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/$$/cgroup 2>/dev/null | head -1)
+
+if [ -n "$SCOPE" ]; then
+    systemctl --user stop "$SCOPE" 2>/dev/null || true
 fi
