@@ -4,8 +4,8 @@ user-invocable: true
 description: Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair-implementation), runs code review and doc housekeeping, opens a PR, then removes the work dir.
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
-scripts: agents/dark-factory/scripts/prep-feature-dir.sh, agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 scripts/update-metrics.py *), Bash(echo * > /tmp/dark-factory-work-dir)
+scripts: ~/.dark-factory/agents/dark-factory/scripts/prep-feature-dir.sh, ~/.dark-factory/agents/dark-factory/scripts/cleanup-worktree.sh
+allowed-tools: Bash(bash ~/.dark-factory/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ~/.dark-factory/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 ~/.dark-factory/scripts/update-metrics.py *), Bash(echo * > /tmp/dark-factory-work-dir)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -24,7 +24,7 @@ All paths are relative to the project dir (or CWD when the agent is running insi
 
 | Resource | Path |
 |---|---|
-| `prep-feature-dir.sh` | `agents/dark-factory/scripts/prep-feature-dir.sh` |
+| `prep-feature-dir.sh` | `~/.dark-factory/agents/dark-factory/scripts/prep-feature-dir.sh` |
 | `feature-agent` | `agents/featurework/agents/feature-agent.md` |
 | `debugger-agent` | `agents/debugger/agents/debugger-agent.md` |
 | `fix-flow-orchestrator` | `agents/fix-flow/agents/fix-flow-orchestrator.md` |
@@ -44,7 +44,7 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 2 — prep isolated work dir (all routes)
   Run from the project root (git repo):
-    bash agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
+    bash ~/.dark-factory/agents/dark-factory/scripts/prep-feature-dir.sh <taskName>
 
   Capture WORK_DIR from stdout line: WORK_DIR=<value>
   If script fails: report error and STOP (no cleanup needed — worktree was never created)
@@ -181,7 +181,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 7 — cleanup
   # metrics.flush — flush brain.json metrics to the permanent project-level CSV before deleting brain.json
   PROJECT_DIR = brain.json.projectDir  (the original git project root — not the worktree; stored at brain.create time)
-  python3 scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
+  python3 ~/.dark-factory/scripts/update-metrics.py --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
 
   # brain.delete — remove brain.json and pointer file before cleaning the worktree
   rm -f $WORK_DIR/brain.json
@@ -195,7 +195,7 @@ dark-factory-agent(taskDescription, taskName):
 ## cleanup(WORK_DIR, taskName)
 
 ```
-bash agents/dark-factory/scripts/cleanup-worktree.sh WORK_DIR taskName
+bash ~/.dark-factory/agents/dark-factory/scripts/cleanup-worktree.sh WORK_DIR taskName
 ```
 
 ## Classification rules

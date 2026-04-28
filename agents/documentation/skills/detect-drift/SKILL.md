@@ -15,7 +15,7 @@ Use this skill whenever drift may exist between `docs/docs/` system documentatio
 2. Build inventory and baseline checklist artifacts.
    - Enumerate all files in `docs/docs/*.md`. Check that each documented system still exists in the codebase.
    - Generate checklists:
-     - `python agents/documentation/skills/detect-drift/scripts/generate_checklists.py`
+     - `python ~/.dark-factory/agents/documentation/skills/detect-drift/scripts/generate_checklists.py`
    - Review:
      - `tmp/drift-checklists/DRIFT-SUMMARY.md`
      - `tmp/drift-checklists/docs/*.md`

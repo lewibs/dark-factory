@@ -66,7 +66,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ## System Intent section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 ~/.dark-factory/scripts/render_section.py', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:
@@ -100,7 +100,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ## Mermaid Diagram section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 ~/.dark-factory/scripts/render_section.py', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:
@@ -161,7 +161,7 @@ feature-agent(taskDescription, answer, planPath):
     Read planPath and extract the ### Flow: <nextFlow> section.
 
     Render the section by piping it through scripts/render_section.py:
-      rendered = bash(f'python3 scripts/render_section.py', stdin=section_content)
+      rendered = bash(f'python3 ~/.dark-factory/scripts/render_section.py', stdin=section_content)
       if rendered.exit_code == 0:
         formatted_content = rendered.stdout
       else:

@@ -5,7 +5,7 @@ description: Audits parity between docs/docs/ system documentation and actual co
 tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification, AskUserQuestion
 model: sonnet
 skills: detect-drift
-allowed-tools: Bash(python agents/documentation/skills/detect-drift/scripts/*), Bash(find *), Bash(grep -r *)
+allowed-tools: Bash(python ~/.dark-factory/agents/documentation/skills/detect-drift/scripts/*), Bash(find *), Bash(grep -r *)
 ---
 
 # detect-drift-agent

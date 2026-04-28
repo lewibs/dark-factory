@@ -27,7 +27,7 @@ Linux only. Requires at least one of: `gnome-terminal`, `x-terminal-emulator`, `
 ## Implementation
 
 ```bash
-bash scripts/destroy-factories.sh "dark factory"
+bash ~/.dark-factory/scripts/destroy-factories.sh "dark factory"
 ```
 
 ## Flows

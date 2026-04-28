@@ -11,6 +11,7 @@ git clone https://github.com/lewibs/dark-factory
 cd dark-factory
 claude plugin marketplace add "$(pwd)"
 claude plugin install dark-factory
+rm -rf ~/.dark-factory && mkdir -p ~/.dark-factory && cp -r "$(pwd)/scripts" ~/.dark-factory/ && cp -r "$(pwd)/agents" ~/.dark-factory/
 bash scripts/reopen-remote-control.sh "dark factory"
 ```
 
@@ -22,6 +23,7 @@ claude plugin marketplace add "$(pwd)"
 claude plugin marketplace update dark-factory
 claude plugin uninstall dark-factory
 claude plugin install dark-factory
+rm -rf ~/.dark-factory && mkdir -p ~/.dark-factory && cp -r "$(pwd)/scripts" ~/.dark-factory/ && cp -r "$(pwd)/agents" ~/.dark-factory/
 bash scripts/reopen-remote-control.sh "dark factory"
 ```
 
