@@ -4,7 +4,7 @@ user-invocable: false
 description: Manages the PR lifecycle for a code fix. Opens a PR, waits for CI, addresses review comments, and stops once CI is green and all threads are resolved. Does not merge. Accepts a file path or description string as input for the PR body; falls back to looking at the changes.
 tools: Read, Bash, Write, Edit
 skills: create-pr
-allowed-tools: Bash(gh pr checks *), Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr review *), Bash(gh api graphql *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *), Bash(gh pr create *), Bash(cat > /tmp/pr-body.md *), Bash(git status *), Bash(git log *)
+allowed-tools: Bash(gh pr checks *), Bash(gh pr view *), Bash(gh pr comment *), Bash(gh pr review *), Bash(gh api graphql *), Bash(git push *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *), Bash(gh pr create *), Bash(cat > /tmp/pr-body.md *), Bash(git status *), Bash(git log *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * branch *), Bash(git -C * status *), Bash(git -C * log *)
 model: sonnet
 ---
 
@@ -102,8 +102,10 @@ If neither is provided, look at the git diff and any relevant `docs/bugs/` or `d
 
 ## Rules
 
-- The fix is already applied to the working tree when you are spawned. Do not re-apply it.
-- Always stage with `git add --all` before committing — never stage individual files, so nothing is missed.
+- The fix is already applied to the working tree (WORK_DIR) when you are spawned. Do not re-apply it.
+- Always use `git -C "$WORK_DIR"` for all git operations (add, commit, push, branch, checkout, status, log). Never run bare `git` commands from the default CWD — the default CWD is the main worktree and running git there causes commits to land on `main` instead of the feature branch.
+- WORK_DIR is available in the brain context injected by the pre-hook (`brain.workDir`). Read it before issuing any git commands.
+- Always stage with `git -C "$WORK_DIR" add --all` before committing — never stage individual files, so nothing is missed.
 - Always use `agents/pr/templates/pr-template.md` as the PR body structure. Never free-form the body.
 - Always write the PR body to `/tmp/pr-body.md` and open the PR with `gh pr create --body-file /tmp/pr-body.md`. Never use `--body` with inline content — large bodies cause a "Parser aborted" interactive prompt.
 - Do not merge — stop once CI is green and all review threads are resolved.

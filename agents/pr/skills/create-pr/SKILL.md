@@ -10,26 +10,33 @@ Open a pull request on GitHub and manage it through to merge.
 
 ## Steps
 
-1. Create a new branch for the fix:
+The worktree is already on the correct feature branch (`feature/<taskName>`). Do NOT create a
+new branch — committing from the main worktree CWD on a new `fix/` branch would cause commits
+to land on `main` instead of `feature/<taskName>`. All git commands must use `-C "$WORK_DIR"`
+to operate on the feature worktree.
+
+1. Confirm the current branch in the worktree:
    ```bash
-   git checkout -b fix/<slug-from-bug-title>
+   git -C "$WORK_DIR" branch --show-current
+   # Expected output: feature/<taskName>
+   # If not on the correct feature branch, stop and report the error.
    ```
 
-2. Stage and commit all changes:
+2. Stage and commit all changes from the worktree:
    ```bash
-   git add --all
-   git commit -m "<short title from bug explanation>"
+   git -C "$WORK_DIR" add --all
+   git -C "$WORK_DIR" commit -m "<short title from bug explanation>"
    ```
 
-3. Push the branch and open the PR:
+3. Push the feature branch and open the PR:
    ```bash
-   git push -u origin HEAD
+   git -C "$WORK_DIR" push -u origin HEAD
    # Always write the body to a temp file — never pass it inline with --body.
    # Inline bodies fail with "Parser aborted" when the content is large.
    cat > /tmp/pr-body.md << 'EOF'
    <body content here>
    EOF
-   gh pr create --title "<type>(<scope>): <description>" --body-file /tmp/pr-body.md
+   gh pr create --title "<type>(<scope>): <description>" --body-file /tmp/pr-body.md --head feature/<taskName>
    ```
 
 ## PR Title Format
