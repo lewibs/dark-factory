@@ -7,6 +7,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-session-files.sh\""
+          },
+          {
+            "type": "command",
             "command": "if [ -n \"$DARK_FACTORY_WORK_DIR\" ] && [ -n \"$DARK_FACTORY_TASK_NAME\" ]; then bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$DARK_FACTORY_WORK_DIR\" \"$DARK_FACTORY_TASK_NAME\"; fi"
           }
         ]
