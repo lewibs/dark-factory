@@ -5,7 +5,7 @@ description: Top-level dark-factory orchestrator. Preps an isolated work dir, ro
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(echo * > /tmp/dark-factory-work-dir)
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(jq *), Bash(rm -f *), Bash(export *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(echo * > /tmp/dark-factory-work-dir), Bash(git -C * log *)
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
@@ -132,6 +132,19 @@ dark-factory-agent(taskDescription, taskName):
       rm -f /tmp/dark-factory-work-dir
       run cleanup(WORK_DIR)
       report error and STOP
+
+  # branch-drift guard — verify worker committed to the feature branch, not main
+  # Run this check immediately after the worker returns and before proceeding to code review.
+  # If the feature branch has no commits ahead of main the worker either committed to the
+  # wrong branch or did not commit at all. Halt with a clear error rather than silently
+  # proceeding to code review with no changes.
+  featureBranch = "feature/" + taskName
+  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + featureBranch + " --oneline")
+  if driftCheck output is empty:
+    rm -f /tmp/dark-factory-work-dir
+    run cleanup(WORK_DIR)
+    report error: "Branch-drift guard failed: feature/" + taskName + " has no commits ahead of main. The worker agent may have committed to the wrong branch or failed to commit at all. Halting before code review to prevent opening a PR with no changes."
+    STOP
 
   # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)
   Read $WORK_DIR/brain.json

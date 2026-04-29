@@ -214,12 +214,16 @@ OpenPROutput {
 | `openPR.comments-resolved` | `OpenPRInput` | `OpenPROutput` | happy path | Review threads resolved, CI re-checked, returns ready |
 | `openPR.ci-unfixable` | `OpenPRInput` | `StandardError` | error | ciWatchLoop aborted with unfixable error |
 | `openPR.comment-unfixable` | `OpenPRInput` | `StandardError` | error | commentResolutionLoop aborted with unfixable thread |
+| `openPR.wrong-branch` | `OpenPRInput` | `StandardError` | error | create-pr confirms worktree is not on expected feature/<taskName>; stops before staging |
 
 #### Pseudocode
 
 ```
 openPR(planFilePathOrDescription):
   // Steps 1-2: build body, open PR via create-pr skill
+  // create-pr reads WORK_DIR from brain context.
+  // It confirms the worktree is on feature/<taskName> (does NOT create a new branch).
+  // All git commands run with git -C "$WORK_DIR" to operate on the feature worktree.
   prUrl = open PR via create-pr skill
 
   // Step 3: CI watch loop
@@ -290,4 +294,4 @@ ResolvePRIssueOutput {
 ## Deployment
 
 - Mechanism: `local only` — invoked as a sub-agent by dark-factory-agent
-- Notes: Always stages with `git add --all` before committing — never stages individual files. Always writes PR body to `/tmp/pr-body.md` and uses `--body-file` (never `--body` inline) to avoid "Parser aborted" interactive prompt on large bodies. Does not merge — caller is responsible for merge after receiving `status: "ready"`.
+- Notes: Always stages with `git -C "$WORK_DIR" add --all` before committing — never stages individual files. All git commands use `-C "$WORK_DIR"` to operate on the feature worktree; bare `git` commands from the default CWD are not used. `create-pr` does NOT create a new branch — it verifies the worktree is already on `feature/<taskName>` before proceeding. Always writes PR body to `/tmp/pr-body.md` and uses `--body-file` (never `--body` inline) to avoid "Parser aborted" interactive prompt on large bodies. Does not merge — caller is responsible for merge after receiving `status: "ready"`. WORK_DIR is read from the brain context injected by the pre-hook.

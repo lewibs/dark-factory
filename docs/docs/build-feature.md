@@ -171,8 +171,9 @@ FeatureAgentResult =
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
 | `loop.question` | `FeatureAgentResult{status:"question"}` | AskUserQuestion → re-invoke feature-agent | happy path | dark-factory-agent asks question at depth-2 (where AskUserQuestion works), re-invokes feature-agent with answer + planPath |
-| `loop.done` | `FeatureAgentResult{status:"done"}` | continue to Step 4 (code review) | happy path | planning + execution complete; planFilePath captured from result |
+| `loop.done` | `FeatureAgentResult{status:"done"}` | branch-drift guard → Step 4 (code review) | happy path | planning + execution complete; planFilePath captured from result; branch-drift guard verifies feature branch is ahead of main before proceeding |
 | `loop.hardStop` | `FeatureAgentResult{status:"hard-stop"}` | cleanup + report + STOP | error | surface reason to developer; dark-factory-agent runs cleanup before stopping |
+| `loop.branchDrift` | branch-drift guard: feature branch has no commits ahead of main | cleanup + report + STOP | error | worker committed to wrong branch or not at all; guard fires after worker returns and before code review to prevent empty PR |
 
 #### Pseudocode
 
@@ -184,7 +185,7 @@ result = invoke feature-agent({ taskDescription, answer: null, planPath: null })
 LOOP:
   if result.status == "done":
     planFilePath = result.planPath
-    BREAK  # proceed to Step 4 (code review)
+    BREAK  # proceed to branch-drift guard then Step 4 (code review)
 
   if result.status == "hard-stop":
     rm -f /tmp/dark-factory-work-dir
@@ -197,6 +198,18 @@ LOOP:
     answer = developer response
     result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
     CONTINUE LOOP
+
+# branch-drift guard — runs after the worker returns and before Step 4 (code review)
+featureBranch = "feature/" + taskName
+driftCheck = bash("git -C \"$WORK_DIR\" log main.." + featureBranch + " --oneline")
+if driftCheck output is empty:
+  rm -f /tmp/dark-factory-work-dir
+  run cleanup(WORK_DIR)
+  report error: "Branch-drift guard failed: feature/<taskName> has no commits ahead of main.
+    The worker agent may have committed to the wrong branch or failed to commit at all.
+    Halting before code review to prevent opening a PR with no changes."
+  STOP
+# Guard passed — proceed to Step 4 (code review)
 ```
 
 ### Flow: `planFeature`
