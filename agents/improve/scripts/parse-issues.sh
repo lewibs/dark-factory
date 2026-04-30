@@ -41,19 +41,20 @@ for item in "${ITEMS[@]}"; do
 
   # Check if it's a GitHub issue number (#NN) or a quoted freeform description
   if [[ "$item" =~ ^#([0-9]+)$ ]]; then
-    # GitHub issue number
+    # GitHub issue number with # prefix
     NUMBER="${BASH_REMATCH[1]}"
 
     # Fetch issue details using gh CLI
-    ISSUE_JSON=$(gh issue view "$NUMBER" --json number,title,body --jq '.' 2>/dev/null || echo '{}')
+    ISSUE_JSON=$(gh issue view "$NUMBER" --json number,title,body 2>/dev/null || echo '')
 
-    if [[ "$ISSUE_JSON" != "{}" ]] && [[ ! "$ISSUE_JSON" =~ "error" ]]; then
+    if [[ -n "$ISSUE_JSON" ]]; then
       # Successfully fetched GitHub issue
       TITLE=$(echo "$ISSUE_JSON" | jq -r '.title // "N/A"')
       BODY=$(echo "$ISSUE_JSON" | jq -r '.body // ""' | head -c 500)  # First 500 chars of body
 
-      # Add to JSON
-      ISSUE_ENTRY="{\"type\": \"github\", \"number\": $NUMBER, \"title\": $(echo "$TITLE" | jq -Rs .), \"body\": $(echo "$BODY" | jq -Rs .)}"
+      # Add to JSON, using proper jq escaping
+      ISSUE_ENTRY=$(jq -n --arg type "github" --argjson number "$NUMBER" --arg title "$TITLE" --arg body "$BODY" \
+        '{type: $type, number: $number, title: $title, body: $body}')
       OUTPUT=$(echo "$OUTPUT" | jq ".issues += [$ISSUE_ENTRY]")
     else
       # GitHub issue not found, skip it
@@ -64,7 +65,8 @@ for item in "${ITEMS[@]}"; do
     # Freeform description (quoted)
     DESCRIPTION="${BASH_REMATCH[1]}"
 
-    ISSUE_ENTRY="{\"type\": \"freeform\", \"description\": $(echo "$DESCRIPTION" | jq -Rs .)}"
+    ISSUE_ENTRY=$(jq -n --arg type "freeform" --arg description "$DESCRIPTION" \
+      '{type: $type, description: $description}')
     OUTPUT=$(echo "$OUTPUT" | jq ".issues += [$ISSUE_ENTRY]")
 
   else
@@ -73,20 +75,22 @@ for item in "${ITEMS[@]}"; do
     if [[ "$item" =~ ^[0-9]+$ ]]; then
       # Numeric only — treat as GitHub issue
       NUMBER="$item"
-      ISSUE_JSON=$(gh issue view "$NUMBER" --json number,title,body --jq '.' 2>/dev/null || echo '{}')
+      ISSUE_JSON=$(gh issue view "$NUMBER" --json number,title,body 2>/dev/null || echo '')
 
-      if [[ "$ISSUE_JSON" != "{}" ]] && [[ ! "$ISSUE_JSON" =~ "error" ]]; then
+      if [[ -n "$ISSUE_JSON" ]]; then
         TITLE=$(echo "$ISSUE_JSON" | jq -r '.title // "N/A"')
         BODY=$(echo "$ISSUE_JSON" | jq -r '.body // ""' | head -c 500)
 
-        ISSUE_ENTRY="{\"type\": \"github\", \"number\": $NUMBER, \"title\": $(echo "$TITLE" | jq -Rs .), \"body\": $(echo "$BODY" | jq -Rs .)}"
+        ISSUE_ENTRY=$(jq -n --arg type "github" --argjson number "$NUMBER" --arg title "$TITLE" --arg body "$BODY" \
+          '{type: $type, number: $number, title: $title, body: $body}')
         OUTPUT=$(echo "$OUTPUT" | jq ".issues += [$ISSUE_ENTRY]")
       else
         echo "Warning: GitHub issue #$NUMBER not found, skipping" >&2
       fi
     else
       # Treat as freeform description
-      ISSUE_ENTRY="{\"type\": \"freeform\", \"description\": $(echo "$item" | jq -Rs .)}"
+      ISSUE_ENTRY=$(jq -n --arg type "freeform" --arg description "$item" \
+        '{type: $type, description: $description}')
       OUTPUT=$(echo "$OUTPUT" | jq ".issues += [$ISSUE_ENTRY]")
     fi
   fi

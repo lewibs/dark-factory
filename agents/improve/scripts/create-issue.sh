@@ -57,19 +57,17 @@ This violation was automatically detected by the dark-factory:improve orchestrat
 "
 
 # Create GitHub issue with the violation label
-if gh issue create \
+# gh issue create outputs the issue URL on success
+ISSUE_OUTPUT=$(gh issue create \
   --title "$TITLE" \
   --body "$BODY" \
   --label "pipeline-violation" \
-  2>&1 | grep -q "created"; then
+  2>&1)
 
-  # Extract the issue number from the created issue
-  # gh issue create outputs: "https://github.com/owner/repo/issues/NNNN"
-  ISSUE_NUMBER=$(gh issue create \
-    --title "$TITLE" \
-    --body "$BODY" \
-    --label "pipeline-violation" \
-    2>&1 | grep -o '#[0-9]\+' | grep -o '[0-9]\+' | head -1 || echo "")
+if [[ $? -eq 0 ]]; then
+  # Extract the issue number from the output
+  # Output format: "https://github.com/owner/repo/issues/NNNN"
+  ISSUE_NUMBER=$(echo "$ISSUE_OUTPUT" | grep -o '[0-9]\+$' | head -1)
 
   if [[ -n "$ISSUE_NUMBER" ]]; then
     echo "$ISSUE_NUMBER"
@@ -77,15 +75,7 @@ if gh issue create \
   fi
 fi
 
-# If creation failed or we couldn't extract the number, try fetching the last issue
-# (this is a fallback and may not be reliable)
-LAST_ISSUE=$(gh issue list --limit 1 --json number --jq '.[0].number' 2>/dev/null || echo "")
-
-if [[ -n "$LAST_ISSUE" ]]; then
-  echo "$LAST_ISSUE"
-  exit 0
-fi
-
-# If all else fails, return empty (caller should handle gracefully)
-echo ""
+# If creation failed or we couldn't extract the number, return error
+# Fallback to fetching last issue is unreliable and not recommended
+echo "Error: Failed to create GitHub issue" >&2
 exit 1

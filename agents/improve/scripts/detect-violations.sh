@@ -62,10 +62,11 @@ for LOG_DIR in "${LOG_DIRS[@]}"; do
   [[ ! -d "$LOG_DIR" ]] && continue
 
   # ── Detection Pattern 1: Agent explicitly states it skipped a required step ──
-  # Look for patterns like: "I will skip", "skipping", "bypassing"
+  # Look for patterns like: "I will skip", "skipping", "bypassing" in agent logs
+  # Must match patterns that indicate intentional skipping, not just mentions of skipping
   while IFS= read -r line; do
-    if grep -iq "skip.*hook\|bypass.*hook\|skip.*required\|skip.*test\|skip.*doc" <<< "$line"; then
-      # Extract agent name from filename or context
+    if grep -iq "i will skip\|i'm skipping\|bypassing.*hook\|skip.*hook.*required\|skip.*required.*step" <<< "$line"; then
+      # Extract agent name from filename or context, with fallback to "unknown-agent"
       AGENT_NAME=$(grep -o "feature-agent\|execution-agent\|implementation-agent\|pr-agent\|code-review-agent" <<< "$line" | head -1 || echo "unknown-agent")
 
       add_violation \
@@ -77,9 +78,10 @@ for LOG_DIR in "${LOG_DIRS[@]}"; do
   done < <(find "$LOG_DIR" -type f \( -name "*.log" -o -name "*.txt" -o -name "*.md" \) -exec grep -h . {} \; 2>/dev/null | head -500)
 
   # ── Detection Pattern 2: Missing Co-Authored-By footer ──
-  # Look for patterns like: "add Co-Authored-By", "forgot Co-Authored-By", "missing footer"
+  # Look for patterns like: "forgot Co-Authored-By", "missing.*Co-Authored-By", "add Co-Authored-By"
+  # Avoid false positives from documentation mentions
   while IFS= read -r line; do
-    if grep -iq "co-author\|coauthor" <<< "$line"; then
+    if grep -iq "forgot.*co-author\|missing.*co-author\|add.*co-author.*footer\|without.*co-author" <<< "$line"; then
       AGENT_NAME=$(grep -o "feature-agent\|execution-agent\|implementation-agent\|pr-agent\|code-review-agent" <<< "$line" | head -1 || echo "unknown-agent")
 
       add_violation \
@@ -174,5 +176,6 @@ if [[ -f "$WORK_DIR/brain.json" ]]; then
   fi
 fi
 
-# Output all detected violations
-cat "$VIOLATIONS_FILE"
+# Output all detected violations, deduplicated
+# Deduplicate by category, agentName, and quote to avoid duplicate violations
+cat "$VIOLATIONS_FILE" | jq 'unique_by({category, agentName, quote})'

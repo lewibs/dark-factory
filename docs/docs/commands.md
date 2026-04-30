@@ -5,7 +5,7 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `commands/`
-- Command count: 4 slash commands
+- Command count: 5 slash commands
 
 ## System Intent
 
@@ -21,11 +21,13 @@ flowchart TD
   Dev -->|/dark-factory:build-factory| CMD_S[commands/build-factory.md]
   Dev -->|/dark-factory:install| CMD_I[commands/install.md]
   Dev -->|/dark-factory:destroy-factories| CMD_D[commands/destroy-factories.md]
+  Dev -->|/dark-factory:improve --issues list| CMD_IMP[commands/improve.md]
 
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
   CMD_S -->|launches| TERM[New gnome-terminal running claude /remote-control]
   CMD_I -->|runs directly| GIT[git pull + claude plugin marketplace add/update/uninstall/install]
   CMD_D -->|"bash ${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"| DS[scripts/destroy-factories.sh kills Claude terminals, spawns fresh one]
+  CMD_IMP -->|delegates to| ORCH[agents/improve/agents/improve-orchestrator.md]
 ```
 
 ## Flows
