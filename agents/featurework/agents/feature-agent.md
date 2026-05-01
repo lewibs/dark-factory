@@ -29,6 +29,7 @@ You will be invoked with:
 - Write, edit, or scaffold code files yourself (other than flows-state.json and brain-patch.json).
 - Call AskUserQuestion directly — return `{ status: "question", ... }` instead; dark-factory-agent asks the question at depth-2.
 - Skip the approval gate and proceed directly to execution.
+- Skip the per-flow gate: each flow MUST be presented via AskUserQuestion and explicitly approved before advancing to the next flow or to execution.
 - Re-invoke `execution-agent` after a hard-stop.
 - Invoke `pr-agent`. The caller (dark-factory-agent) handles the PR.
 

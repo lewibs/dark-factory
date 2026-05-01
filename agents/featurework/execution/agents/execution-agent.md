@@ -17,17 +17,23 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
 
 1. Read the plan file at `planPath`.
    - If the file does not exist: stop and report the error. Do not spawn any sub-agents.
-2. Spawn `skeleton-agent` with `planPath`. Wait for it to return.
+
+2. Assert that all flows in the plan have been approved before proceeding.
+   - Read `$DARK_FACTORY_WORK_DIR/flows-state.json` to check the approval state.
+   - Parse the plan file to get the total number of flows: `allFlows = count of "### Flow:" sections`.
+   - Assert: `flows-state.approved.length == allFlows`. If not, stop with error: "Not all flows have been approved. User must approve each flow via feature-agent before execution can proceed."
+
+4. Spawn `skeleton-agent` with `planPath`. Wait for it to return.
    - Assert `tmp/files-checklist.md` is fully checked off.
    - Assert every file listed in the checklist exists on disk.
-4. Spawn `testing-agent` with `planPath`. Wait for it to return.
+5. Spawn `testing-agent` with `planPath`. Wait for it to return.
    - Assert `tmp/flows-checklist.md` exists.
    - Assert the test run output confirms all new tests are failing.
-5. Spawn `implementation-agent` with `planPath` and the path to `tmp/flows-checklist.md`. Wait for it to return.
+6. Spawn `implementation-agent` with `planPath` and the path to `tmp/flows-checklist.md`. Wait for it to return.
    - If it returns `hardStop: true`: enter planning mode (see Planning Mode below).
    - If it returns `allFlowsGreen: true`:
-6. Delete `tmp/files-checklist.md` and `tmp/flows-checklist.md`.
-7. Report success to the developer.
+7. Delete `tmp/files-checklist.md` and `tmp/flows-checklist.md`.
+8. Report success to the developer.
 
 ## Planning Mode
 
