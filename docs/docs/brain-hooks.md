@@ -255,7 +255,13 @@ HookConfig {
   // All script paths use ${CLAUDE_PLUGIN_ROOT} so hooks work from any install location.
   hooks: {
     PreToolUse: [
-      { matcher: "Agent", hooks: [{ type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\"" }] }
+      {
+        matcher: "Agent",
+        hooks: [
+          { type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/phase-order-enforcement-hook.sh\"" },
+          { type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\"" }
+        ]
+      }
     ]
     PostToolUse: [
       { matcher: "Agent", hooks: [{ type: "command", command: "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/post-tool-use-hook.sh\"" }] }
@@ -269,9 +275,106 @@ HookConfig {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
+| `hooks.phase-order-check` | Agent tool call with `agentName` + `currentPhase` in tool_input | allowed or blocked — hook allows or raises SubagentStop | happy path | PreToolUse hook runs before pre-tool-use-hook.sh; exits early for unknown agents |
 | `hooks.pre-agent` | Agent tool call | modified prompt with brain context + start_ms written to brain.json | happy path | PreToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
 | `hooks.post-agent` | Agent tool result | brain.json updated (patch merge + phase flags + metrics accumulation) | happy path | PostToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
 | `hooks.stop-cleanup` | Claude stop event | cleanup-worktree.sh called if DARK_FACTORY_WORK_DIR and DARK_FACTORY_TASK_NAME set | happy path | Stop hook fires on session end; script path uses `${CLAUDE_PLUGIN_ROOT}` |
+
+---
+
+### Flow: `phase-order-enforcement-hook`
+
+- Core files: `agents/dark-factory/scripts/phase-order-enforcement-hook.sh`
+- Test files: `tests/test_phase_order_enforcement_hook.py`
+
+#### Types
+
+```txt
+PhaseOrderHookInput {
+  tool_name: string  (e.g. "Agent")
+  tool_input: {
+    agentName: string    (required for dispatch; unknown agents are allowed through)
+    currentPhase: int    (1-based; required for check-phase-order dispatch)
+    command: string      (optional; "mark-phase-complete" triggers mark flow)
+    phaseNumber: int     (required when command == "mark-phase-complete")
+  }
+}
+
+PhaseState {
+  // Stored in brain.json under .phases.completedPhases
+  completedPhases: int[]  (1-based phase numbers that have completed)
+}
+
+CheckPhaseOrderOutput {
+  allowed: bool
+  reason: string | null  (populated when allowed == false)
+}
+
+MarkPhaseCompleteOutput {
+  updated: bool
+  newCompletedPhases: int[]  (populated on success)
+  error: string | null       (populated on failure)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `check-phase-order.allowed` | `agentName` not in phase map | `{ allowed: true }` | `happy path` | Agents outside the allowlist always pass through |
+| `check-phase-order.allowed` | `currentPhase <= 1` | `{ allowed: true }` | `happy path` | Phase 1 has no prerequisites |
+| `check-phase-order.allowed` | all phases 1..N-1 complete | `{ allowed: true }` | `happy path` | All prerequisites satisfied |
+| `check-phase-order.allowed` | brain.json absent | `{ allowed: true }` | `happy path` | No state file — allow gracefully |
+| `check-phase-order.blocked` | one or more phases 1..N-1 incomplete | `{ allowed: false, reason: string }` | `error` | reason names the specific incomplete phases |
+| `mark-phase-complete.success` | `command == "mark-phase-complete"`, brain.json writable | `{ updated: true, newCompletedPhases: [...] }` | `happy path` | phaseNumber appended to completedPhases (deduplicated, sorted) via flock |
+| `mark-phase-complete.error` | brain.json absent | `{ updated: false, error: string }` | `error` | |
+| `mark-phase-complete.error` | brain.json not writable | `{ updated: false, error: string }` | `error` | |
+
+#### Pseudocode
+
+```
+phase-order-enforcement-hook.sh:
+  BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
+  DARK_FACTORY_WORK_DIR resolved from env or /tmp/dark-factory-work-dir pointer file
+
+  TOOL_INPUT = stdin JSON
+
+  command = TOOL_INPUT.tool_input.command
+
+  if command == "mark-phase-complete":
+    agentName = TOOL_INPUT.tool_input.agentName
+    phaseNumber = TOOL_INPUT.tool_input.phaseNumber
+    // Acquire flock on brain.json.lock, append phaseNumber to .phases.completedPhases (unique+sort), atomic mv
+    output { updated: true, newCompletedPhases: [...] } or { updated: false, error: "..." }
+    exit 0
+
+  // Default: check-phase-order
+  agentName = TOOL_INPUT.tool_input.agentName
+  currentPhase = TOOL_INPUT.tool_input.currentPhase
+
+  PHASE_MAP = { "dark-factory-agent": 7, "update-documentation-agent": 3, "fix-flow-orchestrator": 3 }
+
+  if agentName not in PHASE_MAP or agentName empty or currentPhase == 0:
+    output { allowed: true }; exit 0
+
+  if currentPhase <= 1:
+    output { allowed: true }; exit 0
+
+  if brain.json absent:
+    output { allowed: true }; exit 0
+
+  completedPhases = jq '.phases.completedPhases // []' brain.json
+
+  for required_phase in 1..(currentPhase-1):
+    if required_phase not in completedPhases:
+      add to incompletePhases
+
+  if incompletePhases is empty:
+    output { allowed: true }; exit 0
+  else:
+    output { allowed: false, reason: "Phase order violation in <agent>: cannot execute phase <N> until phases <list> are complete." }
+    exit 0
+```
 
 ---
 
@@ -381,7 +484,7 @@ BrainPatch {
 
 ## Testing
 
-The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. Checklist script and hook injection are covered by `tests/test_generate_checklist.py`. Each test executes the actual shell script via `subprocess.run()` and asserts real outcomes: stdout content, brain.json file state, and exit codes.
+The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. Checklist script and hook injection are covered by `tests/test_generate_checklist.py`. Phase order enforcement is covered by `tests/test_phase_order_enforcement_hook.py`. Each test executes the actual shell script via `subprocess.run()` and asserts real outcomes: stdout content, brain.json file state, and exit codes.
 
 | Test class / function | Flow covered | Script under test |
 |---|---|---|
@@ -401,12 +504,20 @@ The hook scripts are covered by behavioral unit tests in `tests/test_hooks.py`. 
 | `test_pre_hook_injects_checklist_unknown_agent` | `pre-hook.checklist-skip` (unknown agent) | `pre-tool-use-hook.sh` |
 | `test_pre_hook_injects_checklist_no_brain` | `pre-hook.no-brain` (no checklist injected) | `pre-tool-use-hook.sh` |
 | `test_pre_hook_non_agent_tool` | non-Agent tool — no checklist injection | `pre-tool-use-hook.sh` |
+| `TestCheckPhaseOrderAllowed.test_unknown_agent_allowed` | `check-phase-order.allowed` — unknown agent | `phase-order-enforcement-hook.sh` |
+| `TestCheckPhaseOrderAllowed.test_first_phase_always_allowed` | `check-phase-order.allowed` — phase 1 | `phase-order-enforcement-hook.sh` |
+| `TestCheckPhaseOrderAllowed.test_phase_allowed_when_prerequisites_complete` | `check-phase-order.allowed` — prerequisites met | `phase-order-enforcement-hook.sh` |
+| `TestCheckPhaseOrderBlocked.test_phase_blocked_when_prerequisites_incomplete` | `check-phase-order.blocked` | `phase-order-enforcement-hook.sh` |
+| `TestCheckPhaseOrderBlocked.test_blocked_message_lists_incomplete_phases` | `check-phase-order.blocked` — reason lists phases | `phase-order-enforcement-hook.sh` |
+| `TestMarkPhaseComplete.test_mark_phase_updates_brain` | `mark-phase-complete.success` | `phase-order-enforcement-hook.sh` |
+| `TestMarkPhaseComplete.test_mark_phase_error_on_unwritable_brain` | `mark-phase-complete.error` | `phase-order-enforcement-hook.sh` |
 
 Run the tests with:
 
 ```bash
 pytest tests/test_hooks.py -v
 pytest tests/test_generate_checklist.py -v
+pytest tests/test_phase_order_enforcement_hook.py -v
 ```
 
 Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `brain.json` using the `make_brain()` helper (or the `brain_env` fixture in `test_generate_checklist.py`), invokes the hook via `run_hook()`, and asserts the resulting file state and/or stdout/stderr content. `DARK_FACTORY_WORK_DIR` is set or cleared via `env_override` to control whether hooks see a brain file.
@@ -434,8 +545,10 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
   # Hook scripts must be executable:
   chmod +x agents/dark-factory/scripts/pre-tool-use-hook.sh
   chmod +x agents/dark-factory/scripts/post-tool-use-hook.sh
+  chmod +x agents/dark-factory/scripts/phase-order-enforcement-hook.sh
   chmod +x scripts/generate_checklist.sh
   # Run tests to validate checklist script and hook injection:
   pytest tests/test_generate_checklist.py -v
+  pytest tests/test_phase_order_enforcement_hook.py -v
   ```
-- Notes: Hook scripts must be executable (`chmod +x`). Hooks are registered via `hooks/hooks.json` (referenced in `plugin.json`) and are activated automatically when the plugin is installed — no manual `.claude/settings.json` edits needed. All script paths in `hooks/hooks.json` use `${CLAUDE_PLUGIN_ROOT}` so hooks resolve correctly from any install location. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.
+- Notes: Hook scripts must be executable (`chmod +x`). Hooks are registered via `hooks/hooks.json` (referenced in `plugin.json`) and are activated automatically when the plugin is installed — no manual `.claude/settings.json` edits needed. All script paths in `hooks/hooks.json` use `${CLAUDE_PLUGIN_ROOT}` so hooks resolve correctly from any install location. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. `phase-order-enforcement-hook.sh` runs before `pre-tool-use-hook.sh` in the PreToolUse chain and is a no-op for agents not in its allowlist. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.

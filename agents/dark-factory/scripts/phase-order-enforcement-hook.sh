@@ -29,13 +29,16 @@ BRAIN_LOCK="${BRAIN_PATH}.lock"
 
 # Phase map: agents with strictly ordered numbered phases
 # Maps agent name -> number of phases (informational; we only check completedPhases array)
+# Per plan (docs/plans/2026-05-01-phase-order-enforcement-hook.md):
+# - dark-factory-agent: 7 phases (numbered workflow)
+# - update-documentation-agent: 3 phases (numbered workflow)
+# - fix-flow-orchestrator: 3 phases (numbered workflow)
+# - planning-agent: 1 phase (non-numbered, mentioned for completeness)
+# - execution-agent: variable phases per flow (mentioned in plan but not enforced here)
 declare -A PHASE_MAP
 PHASE_MAP["dark-factory-agent"]=7
 PHASE_MAP["update-documentation-agent"]=3
 PHASE_MAP["fix-flow-orchestrator"]=3
-PHASE_MAP["execution-agent"]=3
-PHASE_MAP["code-review-orchestrator-agent"]=4
-PHASE_MAP["pr-agent"]=4
 
 # ---------------------------------------------------------------------------
 # checkPhaseOrder
@@ -98,8 +101,9 @@ checkPhaseOrder() {
     incomplete_list=$(printf '%s' "$incomplete_phases" | jq -r 'join(", ")')
     local reason="Phase order violation in ${agent_name}: cannot execute phase ${current_phase} until phases ${incomplete_list} are complete."
     log "check-phase-order.blocked | agent=${agent_name} phase=${current_phase} incomplete=${incomplete_list}"
-    printf '{"allowed":false,"reason":"%s"}\n' "$reason"
-    exit 2
+    # Use jq to properly escape the reason string in JSON output; exit 0 for normal hook completion
+    printf '%s\n' "$(jq -n --arg reason "$reason" '{allowed: false, reason: $reason}')"
+    exit 0
   fi
 }
 
