@@ -188,6 +188,24 @@ class TestHookFiredUnknownAgentType:
         )
 
 
+class TestHookFiredWorkDirNotSet:
+    """Flow: hook-fired — path: hook-fired.dark-factory-work-dir-not-set"""
+
+    def test_hook_fired_work_dir_not_set(self):
+        # Plan path: hook-fired.dark-factory-work-dir-not-set
+        # Arrange: run hook without setting DARK_FACTORY_WORK_DIR
+        result = run_hook("skeleton-agent", work_dir=None)
+
+        # Assert: exits 0 (non-blocking) and logs that env var is not set
+        assert result.returncode == 0, (
+            f"Expected exit 0 when DARK_FACTORY_WORK_DIR not set, got {result.returncode}. stderr: {result.stderr}"
+        )
+        # stderr should contain a message about the env var not being set
+        assert "DARK_FACTORY_WORK_DIR" in result.stderr, (
+            "Expected mention of DARK_FACTORY_WORK_DIR in stderr"
+        )
+
+
 class TestHookFiredGitCommandFailure:
     """Flow: hook-fired — path: hook-fired.git-command-failure"""
 
