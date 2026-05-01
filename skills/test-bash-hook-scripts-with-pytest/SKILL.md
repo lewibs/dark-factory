@@ -159,6 +159,67 @@ assert "no-patch" in result.stderr        # post-hook: no brain-patch.json prese
 assert "no running phase found" in result.stderr  # post-hook: no phase is running
 ```
 
+### 9. Testing hook scripts that run git commands (e.g. SubagentStop hooks)
+
+When the hook script itself calls `git` (e.g., `git -C "$work_dir" commit`), tests must
+set up a real git repo with a committed-friendly config, because `git commit` fails without
+`user.email` and `user.name`:
+
+```python
+import tempfile, subprocess, os
+
+def init_temp_git_repo():
+    """Create a temp directory with a real git repo and a configured user."""
+    tmp = tempfile.mkdtemp()
+    subprocess.run(["git", "init", tmp], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", tmp, "config", "user.email", "test@test.com"],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", tmp, "config", "user.name", "Test User"],
+        check=True, capture_output=True,
+    )
+    return tmp
+
+def stage_file(repo_dir, filename="file.txt", content="hello"):
+    """Write a file and stage it so there are changes to commit."""
+    path = os.path.join(repo_dir, filename)
+    with open(path, "w") as f:
+        f.write(content)
+    subprocess.run(["git", "-C", repo_dir, "add", filename], check=True, capture_output=True)
+```
+
+To verify whether a commit was created and what message it has:
+
+```python
+def get_commit_count(repo_dir):
+    result = subprocess.run(
+        ["git", "-C", repo_dir, "rev-list", "--count", "HEAD"],
+        capture_output=True, text=True,
+    )
+    return 0 if result.returncode != 0 else int(result.stdout.strip())
+
+def get_last_commit_message(repo_dir):
+    result = subprocess.run(
+        ["git", "-C", repo_dir, "log", "-1", "--format=%s"],
+        capture_output=True, text=True,
+    )
+    return result.stdout.strip()
+```
+
+For `SubagentStop` hooks, pass the agent name as a plain string (not JSON) to `input=`:
+
+```python
+result = subprocess.run(
+    ["bash", HOOK_SCRIPT],
+    input="skeleton-agent",   # plain text, not JSON
+    capture_output=True,
+    text=True,
+    env={**os.environ, "DARK_FACTORY_WORK_DIR": repo_dir},
+)
+```
+
 ## Notes
 
 - The `bash` binary must be on PATH for `subprocess.run(["bash", hook_path])` to work. This is always true on Linux/macOS CI.
@@ -166,4 +227,7 @@ assert "no running phase found" in result.stderr  # post-hook: no phase is runni
 - The pre-hook stdout is the tool-input override channel; the post-hook stdout is unused. Tests must reflect this asymmetry: assert `result.stdout == ""` for the post-hook no-brain case.
 - Always include `f"stderr: {result.stderr}"` in assert messages so failures show the hook's log output.
 - Phase names and their ordering in `ALL_PHASES_FALSE` must match the order declared in the actual hook scripts. If a new phase is added to the hooks, update this constant.
+- `git commit` fails silently (or with error) when `user.email` and `user.name` are not configured. Always configure them in `init_temp_git_repo()` — do not assume they are inherited from the host git config, because CI environments often have no global git identity.
+- `git rev-list --count HEAD` returns a non-zero exit code on a repo with zero commits (no HEAD yet). Always guard against this by checking `result.returncode != 0` and returning 0.
 - See also: `claude-code-hook-stdout-reserved` skill for why stdout discipline matters in PreToolUse hooks.
+- See also: `subagent-stop-hook-stdin-format` skill for the plain-text stdin format used by SubagentStop hooks.
