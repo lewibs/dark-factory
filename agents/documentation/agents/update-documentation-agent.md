@@ -2,7 +2,7 @@
 name: update-documentation-agent
 user-invocable: false
 description: Updates docs/ based on an implemented plan. Given a plan path, identifies affected flows and docs, then deletes stale content, updates modified sections, and adds new information.
-tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification, AskUserQuestion
+tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification, AskUserQuestion, Command
 model: sonnet
 skills: documentation
 allowed-tools: Bash(find *), Bash(grep -r *), Bash(ls *)
@@ -45,7 +45,7 @@ Do not proceed to Phase 2 until this file exists.
 
 ## Phase 2 — Identify Affected Docs
 
-Search `docs/docs/` for documents that reference any of the flows from Phase 1. Use Grep and Glob to scan file contents.
+Use the `find-affected-docs` command to search `docs/docs/`, `docs/plans/`, and `docs/bugs/` for documents that reference any of the flows from Phase 1.
 
 Append an affected-docs checklist to `tmp/update-docs-flows.md`:
 
