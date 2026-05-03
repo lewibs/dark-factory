@@ -2,7 +2,7 @@
 name: planning-agent
 user-invocable: false
 description: "Pure phase-delegator for the planning system. Receives a phase + context from feature-agent, delegates to sub-planning-agent, and returns structured output. Does NOT interact with the user — all user interaction (AskUserQuestion) happens in feature-agent."
-tools: Read, Agent, TodoWrite
+tools: Read, Agent
 model: haiku
 ---
 
@@ -18,22 +18,7 @@ You receive from feature-agent:
 
 ## Your task
 
-### Step 1 — Set up TodoWrite
-
-Call TodoWrite with the following tasks at the start:
-
-```json
-{
-  "todos": [
-    {"id": "1", "content": "Delegate to sub-planning-agent", "status": "pending"},
-    {"id": "2", "content": "Return structured output to feature-agent", "status": "pending"}
-  ]
-}
-```
-
-### Step 2 — Delegate to sub-planning-agent
-
-Mark todo 1 as in_progress.
+### Step 1 — Delegate to sub-planning-agent
 
 Spawn sub-planning-agent with:
 ```json
@@ -52,18 +37,12 @@ Receive from sub-planning-agent:
 
 If sub-planning-agent errors or returns no planPath: return error to feature-agent immediately.
 
-Mark todo 1 as completed.
-
-### Step 3 — Return structured output
-
-Mark todo 2 as in_progress.
+### Step 2 — Return structured output
 
 Return the structured output received from sub-planning-agent directly to feature-agent:
 - For `draft_plan`: return `{ planPath, summary }`
 - For `mermaid`: return `{ planPath, url, summary }`
 - For `flows`: return `{ planPath, summary }`
-
-Mark todo 2 as completed.
 
 ## Rules
 

@@ -94,58 +94,7 @@ else
   echo "pre-tool-use-hook | set-phase-running | skipped (agent=${PHASE_AGENT_NAME} not a phase agent)" >&2
 fi
 
-# ---------------------------------------------------------------------------
-# pre-hook.checklist-inject: inject agent checklist into prompt (Agent tool only)
-# ---------------------------------------------------------------------------
-AGENT_NAME=""
-if [ "$TOOL_NAME" = "Agent" ]; then
-  AGENT_NAME=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.subagent_type // ""')
-fi
-
-declare -A AGENT_CHECKLISTS
-AGENT_CHECKLISTS["dark-factory-agent"]="Classify task|Prep work dir|Run worker agent|Code review|Update docs|Update skills|Open PR|Cleanup"
-AGENT_CHECKLISTS["feature-agent"]="Plan feature|Get plan approval|Execute plan"
-AGENT_CHECKLISTS["execution-agent"]="Build skeleton|Write tests|Implement flows"
-AGENT_CHECKLISTS["skeleton-agent"]="Read plan|Build files checklist|Create skeleton files"
-AGENT_CHECKLISTS["testing-agent"]="Read plan|Build flows checklist|Write failing tests"
-AGENT_CHECKLISTS["implementation-agent"]="Read plan|Implement each flow|Run tests"
-AGENT_CHECKLISTS["planning-agent"]="Spawn draft-plan sub-agent|Run mermaid phase|Run flows phase (one at a time)|Return planPath"
-AGENT_CHECKLISTS["sub-planning-agent"]="Research phase context|Update plan file|Run mermaid script (mermaid phase only)|Return structured output"
-AGENT_CHECKLISTS["code-review-orchestrator-agent"]="Run high-level review|Run low-level review|Resolve issues"
-AGENT_CHECKLISTS["high-level-review-agent"]="Read plan|Review code structure|Append issues"
-AGENT_CHECKLISTS["low-level-review-agent"]="Review functions|Check edge cases|Append issues"
-AGENT_CHECKLISTS["resolver-agent"]="Read issues|Apply fixes|Check off resolved items"
-AGENT_CHECKLISTS["debugger-agent"]="Reproduce bug|Identify root cause|Apply fix|Write audit log"
-AGENT_CHECKLISTS["pr-agent"]="Open PR|Wait for CI|Address review comments"
-AGENT_CHECKLISTS["update-documentation-agent"]="Identify affected docs|Update stale content|Add new information"
-AGENT_CHECKLISTS["skill-update-agent"]="Review completed work|Identify patterns|Write skill files"
-AGENT_CHECKLISTS["repair-agent"]="Apply fix|Run tests|Return success"
-AGENT_CHECKLISTS["fix-flow-orchestrator"]="Understand system|Generate scripts|Run flow|Debug failures|Ship PR"
-
-HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$HOOK_DIR/../../.." && pwd)"
-CHECKLIST_SCRIPT="$REPO_ROOT/scripts/generate_checklist.sh"
-
-if [[ -n "$AGENT_NAME" ]] && [[ -n "${AGENT_CHECKLISTS[$AGENT_NAME]:-}" ]]; then
-  echo "pre-tool-use-hook | checklist-inject | agent=${AGENT_NAME}" >&2
-  IFS='|' read -ra ITEMS <<< "${AGENT_CHECKLISTS[$AGENT_NAME]}"
-  CHECKLIST_JSON=$(bash "$CHECKLIST_SCRIPT" "${ITEMS[@]}")
-  CHECKLIST_INSTRUCTION="At the start of your work, call TodoWrite with this exact body:
-${CHECKLIST_JSON}
-Then work through each item, marking it in_progress when you start and completed when done."
-  ORIGINAL_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // ""')
-  NEW_PROMPT="${CHECKLIST_INSTRUCTION}
-
-${ORIGINAL_PROMPT}"
-  TOOL_INPUT=$(printf '%s' "$TOOL_INPUT" | jq --arg p "$NEW_PROMPT" '.tool_input.prompt = $p')
-elif [ "$TOOL_NAME" = "Agent" ]; then
-  echo "pre-tool-use-hook | checklist-skip | agent=${AGENT_NAME}" >&2
-fi
-
 # pre-hook.inject: inject brain context into the agent prompt
-# NOTE: TOOL_INPUT may already have the checklist prepended by the block above.
-# We read the current prompt from the (possibly already modified) TOOL_INPUT so
-# that we prepend brain context to the full prompt, not just the original prompt.
 BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
 CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
 NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
