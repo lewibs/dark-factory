@@ -57,6 +57,9 @@ dark-factory-agent(taskDescription, taskName):
 
   If brain-state-manager errors: report error and STOP
 
+  # Write pointer file so hook processes can resolve WORK_DIR without the env var
+  bash("printf '%s' \"$WORK_DIR\" > /tmp/dark-factory-work-dir")
+
   # Step 4 — route to worker agent
   featureBranch = "feature/" + taskName
 
@@ -128,6 +131,7 @@ dark-factory-agent(taskDescription, taskName):
   # Step 12 — flush metrics then cleanup
   bash("python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py\" --csv \"$projectDir/metrics.csv\" --brain \"$WORK_DIR/brain.json\" || true")
   invoke brain-state-manager({ operation: "delete", workDir: WORK_DIR })
+  bash("rm -f /tmp/dark-factory-work-dir")
   bash("${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh \"$WORK_DIR\" \"$taskName\"")
 
   Report: "Done. PR: " + prUrl + ". Worktree " + WORK_DIR + " removed."
@@ -138,6 +142,7 @@ dark-factory-agent(taskDescription, taskName):
 
 ```
 invoke brain-state-manager({ operation: "delete", workDir: WORK_DIR })
+bash("rm -f /tmp/dark-factory-work-dir")
 bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh" "$WORK_DIR" "$taskName"
 ```
 
