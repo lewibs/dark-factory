@@ -42,3 +42,17 @@ Apply this rule whenever you design or refactor an agent hierarchy that needs hu
 - **The fix is always structural, not parametric.** You cannot pass a flag or set an option to make a depth-3 `AskUserQuestion` reach the human. The only fix is to move the interaction up to depth 2.
 - **The canonical example:** `planning-agent` was originally a monolith at depth 2 that used `AskUserQuestion` for plan approval. After the `haiku-orchestrator-worker-split` refactor, `feature-agent` became depth 2 and `planning-agent` became depth 3. All `AskUserQuestion` calls had to move from `planning-agent` into `feature-agent`. Any `AskUserQuestion` left in `planning-agent` would be silently auto-answered by `feature-agent`.
 - **`PushNotification` has the same constraint.** Although notifications failing silently are less catastrophic than approval gates failing silently, keep `PushNotification` at depth 2 for the same structural reason.
+
+## Anti-pattern: multi-turn relay loop (status:question protocol)
+
+A common workaround when the correct depth-2 agent cannot use `AskUserQuestion` is to implement a relay protocol where:
+- The depth-2 agent returns `{ status: "question", question: "...", options: [...] }` instead of calling `AskUserQuestion` itself.
+- The depth-1 orchestrator catches `status == "question"`, calls `AskUserQuestion`, then re-invokes the depth-2 agent with `{ answer: <user answer> }`.
+
+This pattern is fragile and should not be used. The problems:
+- Every interaction round-trip re-invokes the depth-2 agent from scratch, paying full context-reconstruction cost.
+- State must be passed through plan files or external storage between invocations, creating new failure modes.
+- The orchestrator grows complex loop logic that belongs in the agent.
+- Any agent that previously called AskUserQuestion directly only needs to check its own depth — if it is at depth 2, it can and should call `AskUserQuestion` directly.
+
+**The correct design:** if the agent that owns the interaction logic is at depth 2 (direct child of the CLI command), declare `AskUserQuestion` in its `tools:` frontmatter and call it directly. Remove the relay loop from the parent. The `feature-agent` fix in the manufacture flow (2026-05-04) is the canonical example: the multi-turn relay was removed from `dark-factory-agent` and `AskUserQuestion` was restored in `feature-agent`, which is already at depth 2.
