@@ -5,7 +5,9 @@ user-invocable: false
 ---
 ## When to use
 
-Any time you add, remove, or modify a Claude Code PreToolUse, PostToolUse, Stop, or SubagentStop hook that belongs to the dark-factory plugin — as opposed to a project-local hook that a user configures themselves.
+Any time you add, remove, or modify a Claude Code PreToolUse, PostToolUse, or Stop hook that belongs to the dark-factory plugin — as opposed to a project-local hook that a user configures themselves.
+
+**SubagentStop hooks are NOT declared in hooks.json.** They are declared in the YAML frontmatter of the individual agent `.md` file. See the `subagent-stop-in-agent-frontmatter` skill for how to declare them.
 
 ## Steps
 
@@ -36,4 +38,4 @@ Any time you add, remove, or modify a Claude Code PreToolUse, PostToolUse, Stop,
 - `.claude/settings.json` hooks use bare relative paths (e.g. `bash agents/dark-factory/scripts/foo.sh`) which only work when the CWD matches the plugin repo root. `hooks/hooks.json` hook commands using `${CLAUDE_PLUGIN_ROOT}` resolve correctly regardless of CWD.
 - If you need a hook for a one-project use case (not part of the plugin), use `.claude/settings.json` as normal — this rule applies only to hooks that are part of the plugin itself.
 - After modifying `hooks/hooks.json`, reinstall the plugin with `/dark-factory:install` to pick up the changes.
-- For `SubagentStop` hooks: the matcher is a regex matched against the subagent tool name. Use a pipe-separated pattern (e.g. `"skeleton-agent|testing-agent"`) to match multiple agents in one entry. The hook script receives the matched agent name as plain text on stdin — not JSON. See the `subagent-stop-hook-stdin-format` skill for details.
+- `SubagentStop` hooks are NOT in `hooks/hooks.json`. They live in the YAML frontmatter of the individual agent `.md` file as a `SubagentStop:` key. This keeps each agent's stop-hook co-located with its instructions rather than relying on a central regex matcher. See the `subagent-stop-in-agent-frontmatter` skill for the correct approach.

@@ -5,6 +5,7 @@ description: Phase 1 of plan execution. Reads a plan file, builds a files checkl
 tools: Read, Write, Edit, Bash, Glob
 model: sonnet
 allowed-tools: Bash(mkdir -p *), Bash(touch *), Bash(find *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the skeleton-agent. Your job is Phase 1 of plan execution: read the plan, identify every file that needs to exist, and create them all as skeletons with no implementation logic.

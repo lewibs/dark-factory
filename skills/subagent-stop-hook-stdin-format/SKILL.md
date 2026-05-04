@@ -5,7 +5,7 @@ user-invocable: false
 ---
 ## When to use
 
-When writing a bash script that is registered as a `SubagentStop` hook in `hooks/hooks.json`. Use this to correctly read which agent fired the hook and to avoid confusing the plain-text stdin format with the JSON format used by other hook types.
+When writing a bash script that is wired as a `SubagentStop` hook for an agent. Use this to correctly read which agent fired the hook and to avoid confusing the plain-text stdin format with the JSON format used by other hook types.
 
 ## Steps
 
@@ -39,24 +39,20 @@ When writing a bash script that is registered as a `SubagentStop` hook in `hooks
    }
    ```
 
-4. Register the hook with a pipe-separated matcher in `hooks/hooks.json` to match multiple agents:
-   ```json
-   "SubagentStop": [
-     {
-       "matcher": "skeleton-agent|testing-agent|implementation-agent",
-       "hooks": [
-         {
-           "type": "command",
-           "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/your-hook.sh\""
-         }
-       ]
-     }
-   ]
+4. Declare the hook in the agent's YAML frontmatter (NOT in `hooks/hooks.json`). Add a `SubagentStop:` key to the frontmatter of the agent `.md` file:
+   ```yaml
+   ---
+   name: skeleton-agent
+   description: "..."
+   tools: Read, Write, Edit, Bash
+   SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/your-hook.sh"
+   ---
    ```
+   This keeps the hook co-located with the agent's instructions. Each agent that needs a SubagentStop hook declares it directly in its own frontmatter rather than via a central regex matcher in `hooks/hooks.json`. See the `subagent-stop-in-agent-frontmatter` skill for full details on this pattern.
 
 ## Notes
 
-- The matcher value is a regex pattern matched against the subagent tool name. Pipe-separated alternatives work correctly.
 - The plain-text stdin format contrasts with `PreToolUse` and `PostToolUse` hooks, which receive the full tool call input as JSON on stdin. Do not call `jq` or `json.loads()` on SubagentStop stdin.
+- SubagentStop hooks are no longer declared in `hooks/hooks.json` with a regex matcher. They are declared per-agent in YAML frontmatter. This means each hook script is no longer responsible for branching on multiple agent names — one script per agent (or shared scripts that don't need to branch) is the expected shape.
 - In tests, pass the agent name as a plain string (not JSON-encoded) to the subprocess `input=` parameter. See the `test-bash-hook-scripts-with-pytest` skill for the test harness pattern.
 - `DARK_FACTORY_WORK_DIR` is still available as an environment variable in SubagentStop hooks, just as in other hook types.
