@@ -48,7 +48,7 @@ Match signals in the order listed below — first match wins.
 | Signal in taskDescription | Route to | Examples |
 |---|---|---|
 | "small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter" | `repair` | "tweak the login button color", "rename AuthProvider to AuthService", "quick fix for typo" |
-| "add", "build", "create", "implement", "new feature" | `feature` | "add OAuth support", "create new dashboard widget", "implement dark mode" |
+| "major refactor", "refactor", "redesign", "overhaul", "restructure", "rewrite", "new feature", "new command", "new skill", "new agent", "add", "build", "create", "implement", "make", "design", "write" | `feature` | "add OAuth support", "create new dashboard widget", "implement dark mode", "make a gen-hooks command", "major refactor of the auth system", "design a new skill" |
 | "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow` | "authentication flow is broken", "payment pipeline failing", "end-to-end test broken" |
 | "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger` | "login button crashes", "fix null pointer error", "database query broken" |
 | Ambiguous | Query user | Any task without clear keywords |
