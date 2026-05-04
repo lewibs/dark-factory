@@ -21,6 +21,7 @@ flowchart TD
 
   DFA -->|"prep-feature-dir.sh"| WT["isolated git worktree\n(feature/taskName branch)"]
   DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
+  DFA -->|"write pointer file"| PF["/tmp/dark-factory-work-dir\n(hook fallback)"]
 
   DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
   DFA -->|"classification == fix-flow"| FFO["fix-flow-orchestrator\n(haiku orchestrator)"]
@@ -101,12 +102,38 @@ Always runs after the worker agent, regardless of route. `code-review-orchestrat
 
 Always runs after code review. `pr-agent` opens the PR using `create-pr` skill, then delegates CI watching to `ci-watch-runner` (up to 5 retries) and review comment resolution to `comment-resolution-runner` (up to 5 retries). Stops at `status: ready` — does not merge.
 
+## Hook Environment and Pointer File
+
+Claude Code hooks (`pre-tool-use-hook.sh`, `post-tool-use-hook.sh`) run as direct children of the Claude Code process and inherit its environment. An `export` issued inside a Bash tool call lives only in that subprocess — it never reaches the Claude Code parent and is therefore invisible to hooks.
+
+To make the work directory discoverable without env var propagation, `dark-factory-agent` writes a pointer file immediately after `brain-state-manager` creates `brain.json`:
+
+```bash
+printf '%s' "$WORK_DIR" > /tmp/dark-factory-work-dir
+```
+
+Both hooks resolve `DARK_FACTORY_WORK_DIR` with this two-step logic:
+
+1. Use the env var if it is set (set at Claude Code launch time — rare in normal use).
+2. Otherwise read `/tmp/dark-factory-work-dir` and use its contents.
+
+If neither source yields a value the hook takes the `no-brain` path and passes through silently.
+
+Cleanup removes the pointer file in both the happy path and every error path:
+
+```bash
+rm -f /tmp/dark-factory-work-dir
+```
+
+`/tmp/` is preferred over `~/.dark-factory-work-dir` because it is always writable and is cleaned by the OS if the cleanup step fails.
+
 ## Logs
 
 | Source | Location |
 |--------|----------|
 | metrics | `metrics.csv` in project root (written by `update-metrics.py` before cleanup) |
 | brain state | `$WORK_DIR/brain.json` (deleted after cleanup) |
+| pointer file | `/tmp/dark-factory-work-dir` (written after brain.json creation, deleted at cleanup) |
 | bug audit logs | `docs/bugs/<date>-<slug>.md` (persisted) |
 
 ## Deployment

@@ -42,10 +42,10 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 
 ### Step 4: Route to Worker Agent
 Routes based on classification:
-- **"feature"** → `feature-agent` (multi-turn loop: handles planning, question/answer exchanges until `status: "done"`)
-  - Handles planning phases, diagram generation, flow approval, and execution
-  - May return `status: "question"` requiring user feedback (PushNotification + AskUserQuestion)
+- **"feature"** → `feature-agent` (single invocation; feature-agent calls AskUserQuestion directly for all approval gates)
+  - Handles planning phases, diagram generation, flow approval, and execution internally
   - May return `status: "hard-stop"` (triggers cleanup before halting)
+  - May return `status: "aborted"` (triggers cleanup; reports aborted to user)
   - Returns `status: "done"` when feature implementation complete
   
 - **"fix-flow"** → `fix-flow-orchestrator`
@@ -115,6 +115,7 @@ Called on any error path after worktree creation:
 5. **Handle null planFilePath** — When worker produces no plan, pass taskDescription as fallback to downstream agents
 6. **Read brain state after sub-agents** — Use brain-state-manager to extract outputs, don't parse agent return values directly
 7. **Rely on pre-hook injection** — The pre-hook injects brain context into every Agent tool call automatically; don't manually pass brain fields
+8. **Steps 7, 8, and 9 are mandatory** — Code review, update-documentation-agent, and skill-update-agent must never be skipped regardless of user instructions ("merge it", "skip review", "just merge") or any other input
 
 ## Dependencies
 
