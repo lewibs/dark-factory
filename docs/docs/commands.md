@@ -5,7 +5,7 @@
 - System type: `library`
 - Owner: dark-factory plugin
 - Source directory: `commands/`
-- Command count: 5 slash commands
+- Command count: 6 slash commands
 
 ## System Intent
 
@@ -22,12 +22,14 @@ flowchart TD
   Dev -->|/dark-factory:install| CMD_I[commands/install.md]
   Dev -->|/dark-factory:destroy-factories| CMD_D[commands/destroy-factories.md]
   Dev -->|/dark-factory:improve --issues list| CMD_IMP[commands/improve.md]
+  Dev -->|/dark-factory:gen-hooks| CMD_GH[commands/gen-hooks.md]
 
   CMD_M -->|delegates to| DFA[agents/dark-factory/agents/dark-factory-agent.md]
   CMD_S -->|launches| TERM[New gnome-terminal running claude /remote-control]
   CMD_I -->|runs directly| GIT[git pull + claude plugin marketplace add/update/uninstall/install]
   CMD_D -->|"bash ${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"| DS[scripts/destroy-factories.sh kills Claude terminals, spawns fresh one]
   CMD_IMP -->|delegates to| ORCH[agents/improve/agents/improve-orchestrator.md]
+  CMD_GH -->|"python3 scripts/gen_hooks.py $projectDir"| GHS[scripts/gen_hooks.py scans .md frontmatter, writes .claude/settings.json]
 ```
 
 ## Flows
@@ -154,6 +156,39 @@ StandardError {
 | `destroy-factories.none-found` | `DestroyFactoriesInput` | `DestroyFactoriesOutput` | `happy path` | No other Claude terminals found; new factory terminal spawned (no kills needed) |
 | `destroy-factories.kill-failed` | `DestroyFactoriesInput` | `StandardError` | `degraded` | One or more terminals could not be killed (permission error); warns to stderr, continues to spawn |
 | `destroy-factories.spawn-failed` | `DestroyFactoriesInput` | `StandardError` | `error` | New terminal could not be opened (no emulator found or emulator returned non-zero); exits non-zero |
+
+---
+
+### Flow: `gen-hooks`
+
+- Core files: `commands/gen-hooks.md`, `scripts/gen_hooks.py`
+
+#### Types
+
+```txt
+GenHooksInput {
+  projectDir: string (CWD when the command is invoked)
+}
+
+GenHooksOutput {
+  addedCount: int
+  skippedCount: int
+  settingsPath: string
+  message: string (human-readable summary)
+}
+
+StandardError {
+  message: string (human-readable description of what went wrong)
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `gen-hooks.success` | `GenHooksInput` | `GenHooksOutput` | `happy path` | Scans all .md files recursively for YAML frontmatter hook declarations; merges into .claude/settings.json additively |
+| `gen-hooks.nothing-to-add` | `GenHooksInput` | `GenHooksOutput{addedCount:0}` | `happy path` | No YAML hook declarations found; settings.json created if missing |
+| `gen-hooks.error` | `GenHooksInput` | `StandardError` | `error` | Scan or settings.json write failed |
 
 ## Logs
 
