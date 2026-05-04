@@ -13,11 +13,11 @@ When adding a new sub-agent to the dark-factory pipeline, or when modifying how 
 
 1. After `prep-feature-dir.sh` captures `WORK_DIR`, write `$WORK_DIR/brain.json` with all fields initialized. The `phases` object must have every phase pair (`*-running` / `*-complete`) set to `false`, except `prep-complete: true`.
 
-2. Export the env var so hook scripts (child processes) can find brain.json:
+2. Write the work dir to the pointer file so hook processes can resolve it. Do NOT rely on `export` inside a Bash tool call — env vars set that way die with the subprocess and are never seen by hook processes (which inherit Claude Code's environment, not the LLM tool-call shell). The pointer file is the authoritative channel:
    ```bash
-   export DARK_FACTORY_WORK_DIR=<WORK_DIR>
+   printf '%s' "$WORK_DIR" > /tmp/dark-factory-work-dir
    ```
-   The variable must be `export`-ed — not merely set — because hooks run as separate processes.
+   See the `claude-code-hook-env-isolation` skill for a full explanation of why `export` fails here.
 
 3. Invoke sub-agents normally. Do NOT pass brainPath as an argument; the pre-hook injects brain state automatically.
 
@@ -79,7 +79,7 @@ Hooks are registered via the plugin's `hooks/hooks.json` file (referenced from `
 - Phase sequencing is implicit: the pre-hook always picks the first unstarted phase in declaration order. If a sub-agent runs more than once (e.g., retries), the hook will attempt to start the next unstarted phase — ensure phase names and ordering in brain.json match the actual invocation order.
 - `jq -s '.[0] * .[1]'` does a shallow merge. Nested objects are replaced wholesale, not deeply merged. If a patch needs deep merge, the post-hook logic must be extended.
 - Hook scripts must be executable (`chmod +x`). The allowed-tools list in the agent frontmatter must include `Bash(jq *)`, `Bash(rm -f *)`, and `Bash(export *)` for the orchestrator to create/delete brain.json and export the env var.
-- The `DARK_FACTORY_WORK_DIR` env var is the sole coupling point between the orchestrator and the hook scripts. If this var is not exported before the first Agent tool call, all hooks will silently pass through.
+- The pointer file `/tmp/dark-factory-work-dir` is the authoritative coupling point between the orchestrator and the hook scripts. It must be written immediately after `brain.json` is created (Step 2) and deleted in both the happy-path cleanup and every error-path `cleanup()` function. If the pointer file is absent and the env var is also unset (the common in-process case), all hooks will silently pass through and metrics will never accumulate.
 - `brain.json.workDir` is the path to the ephemeral git worktree, which is deleted by `cleanup-worktree.sh`. If any cleanup step must write a permanent file to the real project root (e.g., a metrics CSV), capture `PROJECT_DIR=$(git rev-parse --show-toplevel)` before entering the worktree, store it as `brain.json.projectDir`, and read it back in the cleanup step before deleting brain.json. See the `capture-project-dir-before-worktree` skill for the full pattern.
 - When hooks fire at multiple nesting depths (e.g., feature-agent calls repair-agent which calls a helper), multiple hook processes can write brain.json concurrently. Wrap every read-modify-write block with `flock` inside a subshell. See the `flock-shared-file-in-hooks` skill for the exact pattern.
 - Phase transitions (`*-running` / `*-complete`) must only fire for top-level orchestration agents, not for nested sub-agents. Use a `PHASE_AGENTS` allowlist regex in both hook scripts to guard phase-transition blocks while still accumulating metrics for all agents. See the `phase-agent-allowlist` skill for the exact pattern.
