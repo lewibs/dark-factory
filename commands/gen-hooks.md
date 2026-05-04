@@ -17,4 +17,12 @@ Scans all `.md` files in the project directory for YAML frontmatter hook declara
 
 ## Implementation
 
-TODO: genHooksCommand flow implementation
+The command invokes the Python script at `scripts/gen_hooks.py` with the current project directory, which performs the following:
+
+1. **scanFrontmatter**: Recursively scans all `.md` files in the project for YAML frontmatter containing hook declarations (PreToolUse, PostToolUse, Stop, SubagentStop, PreCompact)
+2. **mergeIntoSettings**: Merges discovered hooks into `.claude/settings.json` additively, preserving existing entries and deduplicating by command string
+3. **genHooksCommand**: Orchestrates both flows and returns a summary message
+
+### Output
+
+Returns a message indicating the number of hooks added and duplicates skipped, along with the path to `.claude/settings.json`.

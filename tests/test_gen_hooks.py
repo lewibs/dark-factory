@@ -52,8 +52,9 @@ invalid: [
 ---
 # Test""")
             result = scanFrontmatter(tmpdir)
-            # Should either return empty or error, not crash
+            # Should return error message per plan
             assert result is not None
+            assert "message" in result, "Invalid YAML should return error message"
 
 
 class TestMergeIntoSettings:
@@ -110,14 +111,10 @@ class TestMergeIntoSettings:
         settings_path = "/root/nonexistent/settings.json"
         new_hooks = [FrontmatterHook("PreToolUse", "./hooks/pre-use.sh", "", "test.md")]
 
-        # Should handle error gracefully or return error
-        try:
-            result = mergeIntoSettings(settings_path, new_hooks)
-            # If no exception, result should indicate error
-            assert result is not None
-        except (OSError, IOError):
-            # Also acceptable - function can raise
-            pass
+        # Should return error dict with message (not raise exception)
+        result = mergeIntoSettings(settings_path, new_hooks)
+        assert result is not None
+        assert "message" in result, "Write error should return error message dict"
 
 
 class TestGenHooksCommand:

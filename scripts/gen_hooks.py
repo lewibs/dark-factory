@@ -30,7 +30,7 @@ HOOK_TYPES = {"PreToolUse", "PostToolUse", "Stop", "SubagentStop", "PreCompact"}
 
 
 def _parse_yaml_frontmatter(file_path: str) -> Optional[Dict[str, Any]]:
-    """Extract YAML frontmatter from a markdown file."""
+    """Extract YAML frontmatter from a markdown file. Raises exception on invalid YAML."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -52,11 +52,14 @@ def _parse_yaml_frontmatter(file_path: str) -> Optional[Dict[str, Any]]:
 
         # Extract frontmatter
         frontmatter_str = '\n'.join(lines[1:closing_index])
-        frontmatter = yaml.safe_load(frontmatter_str)
+        try:
+            frontmatter = yaml.safe_load(frontmatter_str)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML in {file_path}: {str(e)}")
 
         return frontmatter if isinstance(frontmatter, dict) else None
-    except Exception:
-        # Return None for unparseable files
+    except (IOError, OSError) as e:
+        # File read errors are not frontmatter issues, skip silently
         return None
 
 
@@ -71,6 +74,7 @@ def scanFrontmatter(rootDir: str) -> Dict[str, Any]:
     """
     Flow: scanFrontmatter
     Parse YAML frontmatter from all .md files and extract hook declarations
+    Returns error dict on invalid YAML or other unrecoverable errors.
     """
     results = []
 
@@ -81,7 +85,12 @@ def scanFrontmatter(rootDir: str) -> Dict[str, Any]:
 
         # Recursively scan all .md files
         for md_file in root_path.rglob('*.md'):
-            frontmatter = _parse_yaml_frontmatter(str(md_file))
+            try:
+                frontmatter = _parse_yaml_frontmatter(str(md_file))
+            except ValueError as e:
+                # Invalid YAML detected - return error per plan
+                return {"message": str(e)}
+
             if frontmatter is None:
                 continue
 
@@ -97,8 +106,8 @@ def scanFrontmatter(rootDir: str) -> Dict[str, Any]:
                             sourceFile=str(md_file)
                         )
                         results.append(hook)
-    except Exception:
-        pass
+    except Exception as e:
+        return {"message": f"Error scanning frontmatter: {str(e)}"}
 
     return {"hooks": results}
 
@@ -106,72 +115,87 @@ def scanFrontmatter(rootDir: str) -> Dict[str, Any]:
 def mergeIntoSettings(settingsPath: str, newHooks: List[FrontmatterHook]) -> Dict[str, Any]:
     """
     Flow: mergeIntoSettings
-    Merge new hooks into existing settings.json without deleting existing entries
+    Merge new hooks into existing settings.json without deleting existing entries.
+    Returns error dict on write failure.
     """
+    # Read existing settings or create empty dict
+    settings = {}
+    settings_path = Path(settingsPath)
     try:
-        # Read existing settings or create empty dict
-        settings = {}
-        settings_path = Path(settingsPath)
         if settings_path.exists():
             try:
                 with open(settings_path, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
-            except Exception:
-                settings = {}
+            except json.JSONDecodeError as e:
+                # If settings.json is corrupt, return error
+                return {
+                    "message": f"Corrupt settings.json: {str(e)}"
+                }
+            except IOError as e:
+                # If settings.json can't be read, return error
+                return {
+                    "message": f"Cannot read settings.json: {str(e)}"
+                }
+    except (OSError, IOError) as e:
+        # If we can't even check if file exists (permission issues), return error
+        return {
+            "message": f"Cannot access settings path: {str(e)}"
+        }
 
-        # Get or create hooks key
-        if "hooks" not in settings:
-            settings["hooks"] = {}
+    # Get or create hooks key
+    if "hooks" not in settings:
+        settings["hooks"] = {}
 
-        existing = settings["hooks"]
-        added = 0
-        skipped = 0
+    existing = settings["hooks"]
+    added = 0
+    skipped = 0
 
-        for hook in newHooks:
-            # Create event list if needed
-            if hook.eventType not in existing:
-                existing[hook.eventType] = []
+    for hook in newHooks:
+        # Create event list if needed
+        if hook.eventType not in existing:
+            existing[hook.eventType] = []
 
-            event_list = existing[hook.eventType]
+        event_list = existing[hook.eventType]
 
-            # Build command string
-            command_str = f"bash {hook.command}"
+        # Build command string
+        command_str = f"bash {hook.command}"
 
-            # Check for duplicate
-            already_present = False
-            for matcher_obj in event_list:
-                for entry in matcher_obj.get("hooks", []):
-                    if entry.get("command") == command_str:
-                        already_present = True
-                        break
-                if already_present:
+        # Check for duplicate
+        already_present = False
+        for matcher_obj in event_list:
+            for entry in matcher_obj.get("hooks", []):
+                if entry.get("command") == command_str:
+                    already_present = True
                     break
-
             if already_present:
-                skipped += 1
-            else:
-                # Add new hook entry
-                event_list.append({
-                    "matcher": hook.matcher,
-                    "hooks": [{"type": "command", "command": command_str}]
-                })
-                added += 1
+                break
 
-        # Write updated settings
-        settings["hooks"] = existing
+        if already_present:
+            skipped += 1
+        else:
+            # Add new hook entry
+            event_list.append({
+                "matcher": hook.matcher,
+                "hooks": [{"type": "command", "command": command_str}]
+            })
+            added += 1
+
+    # Write updated settings
+    settings["hooks"] = existing
+    try:
         settings_path.parent.mkdir(parents=True, exist_ok=True)
         with open(settings_path, 'w', encoding='utf-8') as f:
             json.dump(settings, f, indent=2)
+    except IOError as e:
+        return {
+            "message": f"Cannot write settings.json: {str(e)}"
+        }
 
-        return {
-            "addedCount": added,
-            "skippedCount": skipped,
-            "settingsPath": settingsPath
-        }
-    except Exception as e:
-        return {
-            "message": f"Error writing settings: {str(e)}"
-        }
+    return {
+        "addedCount": added,
+        "skippedCount": skipped,
+        "settingsPath": settingsPath
+    }
 
 
 def genHooksCommand(projectDir: str) -> Dict[str, Any]:
