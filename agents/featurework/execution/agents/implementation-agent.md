@@ -6,6 +6,7 @@ tools: Read, Write, Edit, Bash, Glob, Agent, PushNotification, AskUserQuestion
 skills: deviation-protocol, logging
 model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the implementation-agent. Your job is Phase 3 of plan execution: implement each flow from the flows checklist one at a time, run its tests, and confirm they pass before moving on.

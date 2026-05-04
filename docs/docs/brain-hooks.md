@@ -244,7 +244,7 @@ post-tool-use-hook.sh:
 
 ### Flow: `plugin-hooks`
 
-- Core files: `hooks/hooks.json`, `plugin.json`
+- Core files: `hooks/hooks.json`, `plugin.json`, `agents/featurework/execution/agents/skeleton-agent.md`, `agents/featurework/execution/agents/testing-agent.md`, `agents/featurework/execution/agents/implementation-agent.md`, `agents/pr/agents/pr-agent.md`
 - Test files: N/A
 
 #### Types
@@ -253,6 +253,8 @@ post-tool-use-hook.sh:
 HookConfig {
   // hooks/hooks.json — registered in plugin.json as "hooks": "./hooks/hooks.json"
   // All script paths use ${CLAUDE_PLUGIN_ROOT} so hooks work from any install location.
+  // SubagentStop hooks are NOT declared here — they are declared in YAML frontmatter
+  // of individual agent .md files (skeleton-agent, testing-agent, implementation-agent, pr-agent).
   hooks: {
     PreToolUse: [
       {
@@ -269,6 +271,19 @@ HookConfig {
     Stop: [{ matcher: "", hooks: [{ type: "command", command: string }] }]
   }
 }
+
+AgentFrontmatterSubagentStop {
+  // Declared in YAML frontmatter of individual agent .md files.
+  // Claude Code reads this field and fires the command when the agent's subagent stops.
+  // skeleton-agent.md:
+  SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+  // testing-agent.md:
+  SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+  // implementation-agent.md:
+  SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+  // pr-agent.md:
+  SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh"
+}
 ```
 
 #### Paths
@@ -279,6 +294,8 @@ HookConfig {
 | `hooks.pre-agent` | Agent tool call | modified prompt with brain context + start_ms written to brain.json | happy path | PreToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
 | `hooks.post-agent` | Agent tool result | brain.json updated (patch merge + phase flags + metrics accumulation) | happy path | PostToolUse hook matched to "Agent" tool; script path uses `${CLAUDE_PLUGIN_ROOT}` |
 | `hooks.stop-cleanup` | Claude stop event | cleanup-worktree.sh called if DARK_FACTORY_WORK_DIR and DARK_FACTORY_TASK_NAME set | happy path | Stop hook fires on session end; script path uses `${CLAUDE_PLUGIN_ROOT}` |
+| `hooks.subagent-stop-commit` | skeleton-agent, testing-agent, or implementation-agent subagent stops | commit-on-subagent-stop.sh runs, committing staged changes | happy path | Declared via `SubagentStop` YAML frontmatter in each agent .md; not in hooks.json |
+| `hooks.subagent-stop-pr-cleanup` | pr-agent subagent stops | pr-agent-cleanup-hook.sh runs | happy path | Declared via `SubagentStop` YAML frontmatter in pr-agent.md; not in hooks.json |
 
 ---
 
@@ -551,4 +568,4 @@ Each test creates an isolated `tempfile.TemporaryDirectory`, writes a minimal `b
   pytest tests/test_generate_checklist.py -v
   pytest tests/test_phase_order_enforcement_hook.py -v
   ```
-- Notes: Hook scripts must be executable (`chmod +x`). Hooks are registered via `hooks/hooks.json` (referenced in `plugin.json`) and are activated automatically when the plugin is installed — no manual `.claude/settings.json` edits needed. All script paths in `hooks/hooks.json` use `${CLAUDE_PLUGIN_ROOT}` so hooks resolve correctly from any install location. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. `phase-order-enforcement-hook.sh` runs before `pre-tool-use-hook.sh` in the PreToolUse chain and is a no-op for agents not in its allowlist. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.
+- Notes: Hook scripts must be executable (`chmod +x`). Hooks are registered via `hooks/hooks.json` (referenced in `plugin.json`) and are activated automatically when the plugin is installed — no manual `.claude/settings.json` edits needed. All script paths in `hooks/hooks.json` use `${CLAUDE_PLUGIN_ROOT}` so hooks resolve correctly from any install location. `DARK_FACTORY_WORK_DIR` must be exported by dark-factory-agent before any Agent tool calls — if it is unset, both hooks are no-ops. `scripts/generate_checklist.sh` must be executable and accessible — the pre-tool-use-hook resolves its path relative to the hook's own directory using `BASH_SOURCE[0]`. `phase-order-enforcement-hook.sh` runs before `pre-tool-use-hook.sh` in the PreToolUse chain and is a no-op for agents not in its allowlist. All transient files managed by these hooks (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git. `SubagentStop` hooks for skeleton-agent, testing-agent, implementation-agent, and pr-agent are declared in the `SubagentStop` YAML frontmatter field of each agent's `.md` file — they are not registered in `hooks/hooks.json`. This means each agent carries its own stop-hook declaration co-located with its instructions, rather than relying on a central matcher pattern in hooks.json.
