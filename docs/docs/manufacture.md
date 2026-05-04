@@ -6,176 +6,114 @@
 
 ## System Intent
 
-- What this is: The top-level user-facing orchestration flow. Given a task description, classifies the request and routes to the correct worker agent (repair, feature, debugger, or fix-flow). All routes — including repair — create an isolated work directory, run code review, update documentation, update skills, open a PR, and clean up without manual intervention.
+- What this is: The `/dark-factory:manufacture` command is the top-level entry point for the dark-factory autonomous coding pipeline. It accepts a task description, classifies the work type, isolates it in a fresh git worktree, routes to the appropriate worker agent, runs code review, updates documentation, opens a PR, and cleans up — all without manual intervention.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  User["User: /dark-factory:manufacture <task>"] --> DarkFactory["dark-factory-agent\n(model: haiku)"]
-  DarkFactory --> Classify{Classify task}
-  Classify -->|repair signals| Prep["prep-feature-dir.sh\n(creates isolated WORK_DIR)"]
-  Classify -->|new feature| Prep
-  Classify -->|bug/crash/fix| Prep
-  Classify -->|broken integration flow| Prep
-  Classify -->|ambiguous| Push["PushNotification: Clarification Required"]
-  Push --> User2["Ask developer one question"]
-  Prep --> BrainCreate["Write brain.json\n(export DARK_FACTORY_WORK_DIR)"]
-  BrainCreate --> RepairAgent["repair-implementation-agent"]
-  BrainCreate --> Feature["feature-agent"]
-  BrainCreate --> Debug["debugger-agent"]
-  BrainCreate --> FixFlow["fix-flow-orchestrator"]
-  PreHook["pre-tool-use-hook.sh\n(injects brain state + sets *-running)"] -.->|fires before each Agent call| RepairAgent
-  PreHook -.->|fires before each Agent call| Feature
-  PreHook -.->|fires before each Agent call| Debug
-  PreHook -.->|fires before each Agent call| FixFlow
-  RepairAgent -->|writes brain-patch.json| PostHook["post-tool-use-hook.sh\n(merges patch + sets *-complete)"]
-  Feature -->|writes brain-patch.json| PostHook
-  Debug -->|writes brain-patch.json| PostHook
-  FixFlow -->|writes brain-patch.json| PostHook
-  PostHook --> ReadBrain["Read brain.json\n(planFilePath, prUrl from hooks)"]
-  ReadBrain --> CodeReview["code-review-orchestrator-agent"]
-  CodeReview --> UpdateDocs["update-documentation-agent"]
-  UpdateDocs --> SkillUpdate["skill-update-agent (non-fatal)"]
-  SkillUpdate --> PR["pr-agent"]
-  PR --> MetricsFlush["${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py\n(flush metrics.csv — non-fatal)"]
-  MetricsFlush --> BrainDelete["rm brain.json"]
-  BrainDelete --> Cleanup["cleanup-worktree.sh"]
-  Cleanup --> Done["Report: Done. PR: <url>"]
+  User["User: /dark-factory:manufacture\ntaskDescription, taskName"] --> DFA
+
+  DFA["dark-factory-agent\n(haiku orchestrator)"]
+
+  DFA -->|"invoke skill"| TC["task-classifier\n(skill)"]
+  TC -->|"classification: feature | fix-flow | debugger | repair"| DFA
+
+  DFA -->|"prep-feature-dir.sh"| WT["isolated git worktree\n(feature/taskName branch)"]
+  DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
+
+  DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
+  DFA -->|"classification == fix-flow"| FFO["fix-flow-orchestrator\n(haiku orchestrator)"]
+  DFA -->|"classification == debugger"| DA["debugger-agent\n(sonnet)"]
+  DFA -->|"classification == repair"| RA["repair-agent"]
+
+  FA -->|"phases: draft → mermaid → flows → execute"| EA["execution-agent"]
+  EA -->|"code written, committed"| DFA
+
+  FFO -->|"investigate → setup → fix-and-push loop"| DFA
+  DA -->|"systematic debug, bug audit log"| DFA
+
+  DFA -->|"branch-drift guard"| DFA
+
+  DFA --> CRO["code-review-orchestrator-agent\n(haiku)"]
+  CRO -->|"parallel"| HLR["high-level-review-agent"]
+  CRO -->|"parallel"| LLR["low-level-review-agent"]
+  HLR & LLR --> Resolver["resolver-agent\n(loop until issues.md empty)"]
+  Resolver --> DFA
+
+  DFA --> UDA["update-documentation-agent"]
+  UDA --> DFA
+
+  DFA --> PRA["pr-agent\n(sonnet)"]
+  PRA -->|"open PR"| GH["GitHub PR"]
+  PRA -->|"ci-watch-runner"| CI["CI checks"]
+  PRA -->|"comment-resolution-runner"| Comments["review threads"]
+  PRA -->|"status: ready"| DFA
+
+  DFA -->|"cleanup-worktree.sh"| Done["Done\nreport PR URL"]
 ```
 
 ## Flows
 
-### Flow: `manufacture`
+### Flow: `manufacture.feature`
 
-- Test files: `tests/`
-- Core files: `agents/dark-factory/agents/dark-factory-agent.md`, `agents/dark-factory/scripts/prep-feature-dir.sh`, `commands/manufacture.md`
+- Core files: `commands/manufacture.md`, `agents/dark-factory/agents/dark-factory-agent.md`, `agents/featurework/agents/feature-agent.md`
 
-#### Types
-
-```txt
-ManufactureInput {
-  taskDescription: string (required — verbatim user request)
-  taskName: string (optional — short slug; derived from taskDescription if omitted)
-}
-
-ManufactureOutput {
-  pr_url: string (URL of the opened PR)
-  workDir: string (path that was cleaned up)
-  skillsWritten: SkillFile[] (may be empty)
-}
-
-SkillFile {
-  path: string (relative path within workDir, e.g. "skills/handle-git-conflicts/SKILL.md")
-  action: "created" | "updated"
-}
-
-StandardError {
-  message: string (human-readable description of what went wrong)
-}
-```
+The feature route is a multi-turn human-in-the-loop planning flow. `dark-factory-agent` invokes `feature-agent` in a loop, receiving `{ status: "question" }` responses that it relays to the user via `AskUserQuestion`. The user approves each planning phase (draft → mermaid diagram → individual flows → final execution) before `feature-agent` calls `execution-agent` to write the code.
 
 #### Paths
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `manufacture.repair` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals repair (small change / tweak / rename / minor update / quick fix / adjust / alter); preps worktree, delegates directly to repair-implementation-agent, then runs full review, docs, skills, PR, and cleanup — same as all other routes |
-| `manufacture.feature` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals new feature; routes to feature-agent |
-| `manufacture.debug` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals bug/crash; routes to debugger-agent |
-| `manufacture.fix-flow` | `ManufactureInput` | `ManufactureOutput` | happy path | taskDescription signals broken integration; routes to fix-flow-orchestrator |
-| `manufacture.ambiguous` | `ManufactureInput` | paused | clarification | agent asks developer one question before routing |
-| `manufacture.worker-error` | `ManufactureInput` | `StandardError` | error | worker agent returns hard-stop; WORK_DIR cleaned up |
-| `manufacture.prep-fail` | `ManufactureInput` | `StandardError` | error | prep-feature-dir.sh fails; no cleanup (work dir never created) |
-| `manufacture.metrics-flush` | brain.json with metrics section | metrics.csv upserted at `$PROJECT_DIR/metrics.csv` | happy path | runs before `rm -f brain.json`; non-fatal — `|| true` ensures failure never blocks cleanup |
-| `manufacture.metrics-flush-error` | scripts/update-metrics.py error | error logged to stderr; manufacture continues | error | Non-fatal; metrics failure never blocks a PR or worktree cleanup |
+| `manufacture.feature.success` | `taskDescription` | PR URL | happy path | all planning phases approved, code written, review clean, PR opened |
+| `manufacture.feature.hard-stop` | `taskDescription` | error + cleanup | error | execution-agent hits a hard stop; worktree cleaned up |
+| `manufacture.feature.aborted` | `taskDescription` | aborted message | error | user selects Abort at final approval gate |
 
-#### Pseudocode
+---
 
-```
-dark-factory-agent(taskDescription, taskName):
+### Flow: `manufacture.fix-flow`
 
-  # Step 1 — classify and route
-  classify taskDescription (first match wins):
-    - repair signals ("small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter") → will route to repair-implementation-agent (Step 3)
-    - feature keywords ("add", "build", "create", "implement", "new feature") → will route to feature-agent (Step 3)
-    - flow keywords ("broken flow", "integration failing", "end-to-end", "pipeline") → will route to fix-flow-orchestrator (Step 3)
-    - bug keywords ("bug", "crash", "error", "fix", "broken", "not working", "debug") → will route to debugger-agent (Step 3)
-    - ambiguous → PushNotification("Clarification Required"), ask developer one question, then route
+- Core files: `agents/fix-flow/agents/fix-flow-orchestrator.md`
 
-  # Step 2 — prep work dir (all routes)
-  bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh" <taskName>
-  capture WORK_DIR from stdout
-  if fail: report error, STOP
+Routes to `fix-flow-orchestrator`, which runs three phases in strict sequence: (1) investigation via `investigation-agent` to understand the broken flow, (2) script generation via `setup-wizard`, (3) an iterative fix-trigger-debug loop via `ralph-fix-and-push` until CI is green. All fixes accumulate on a single branch and are merged into one PR.
 
-  # brain.create — write brain.json immediately after WORK_DIR is captured
-  Write $WORK_DIR/brain.json with BrainState (taskDescription, taskName, workDir, classification,
-    planFilePath=null, bugFiles=null, prUrl=null, docsWritten=null, skillsWritten=null,
-    phases all false except prep-complete=true)
-  export DARK_FACTORY_WORK_DIR=<WORK_DIR>
-  # Hooks (pre-tool-use-hook.sh / post-tool-use-hook.sh) automatically inject brain context
-  # into every Agent tool call and merge brain-patch.json outputs back into brain.json.
-  # dark-factory-agent MUST NOT pass brain fields to sub-agents manually.
+---
 
-  # Step 3 — delegate to worker
-  cd WORK_DIR
-  invoke classified worker agent with taskDescription:
-    - repair signals → repair-implementation-agent(taskDescription)
-    - feature → feature-agent(taskDescription)
-    - fix-flow → fix-flow-orchestrator(taskDescription)
-    - debugger → debugger-agent(taskDescription)
-  if worker errors: cleanup(WORK_DIR), STOP
+### Flow: `manufacture.debugger`
 
-  # brain.read-results — read brain.json to get planFilePath (hooks merged it from sub-agent patches)
-  Read $WORK_DIR/brain.json
-  planFilePath = brain.json.planFilePath  (null if worker produced no plan)
+- Core files: `agents/debugger/agents/debugger-agent.md`
 
-  # Step 4 — code review
-  code-review-orchestrator-agent(planFilePath ?? "Task: <taskDescription>", WORK_DIR)
-  if error: cleanup(WORK_DIR), STOP
+Routes to `debugger-agent`, which follows the systematic debug checklist: write a failing reproduction test, identify root cause from evidence, fix, verify, and write a bug audit log to `docs/bugs/`. No plan file is produced; `taskDescription` is passed as fallback to downstream agents.
 
-  # Step 5 — update docs (must complete before PR)
-  update-documentation-agent(planFilePath)
+---
 
-  # Step 5c — skill update (non-fatal)
-  try: skill-update-agent(planFilePath, WORK_DIR, taskDescription)
-  catch: warn and continue
+### Flow: `manufacture.code-review`
 
-  # Step 6 — open PR
-  pr-agent(planFilePath ?? taskDescription)
-  if error: cleanup(WORK_DIR), STOP
+- Core files: `agents/code-review/agents/code-review-orchestrator-agent.md`
 
-  # Read prUrl from brain.json (merged by post-hook after pr-agent wrote brain-patch.json)
-  Read $WORK_DIR/brain.json
-  prUrl = brain.json.prUrl
+Always runs after the worker agent, regardless of route. `code-review-orchestrator-agent` spawns a high-level and low-level reviewer in parallel, collects findings into `issues.md`, then loops a `resolver-agent` until all issues are resolved. Halts with error if the resolver runs more than 10 iterations without clearing all items.
 
-  # Step 7 — cleanup
-  # metrics.flush — flush accumulated brain.json metrics to permanent CSV before deleting brain.json
-  PROJECT_DIR = jq '.workDir' $WORK_DIR/brain.json
-  python3 "${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py" --csv "$PROJECT_DIR/metrics.csv" --brain "$WORK_DIR/brain.json" || true
-  # Non-fatal: metrics failure never blocks the PR or cleanup.
+---
 
-  # brain.delete — remove brain.json before cleaning the worktree
-  rm -f $WORK_DIR/brain.json
-  cleanup(WORK_DIR, taskName)
-  report "Done. PR: <prUrl>. Worktree <WORK_DIR> removed."
-```
+### Flow: `manufacture.pr`
+
+- Core files: `agents/pr/agents/pr-agent.md`
+
+Always runs after code review. `pr-agent` opens the PR using `create-pr` skill, then delegates CI watching to `ci-watch-runner` (up to 5 retries) and review comment resolution to `comment-resolution-runner` (up to 5 retries). Stops at `status: ready` — does not merge.
 
 ## Logs
 
 | Source | Location |
 |--------|----------|
-| dark-factory-agent output | Claude Code session transcript |
-| prep-feature-dir.sh | stdout captured by dark-factory-agent |
-| pre-tool-use-hook.sh | stderr only (errors and phase-running events); stdout is reserved for modified tool input |
-| post-tool-use-hook.sh | stderr only (errors/warnings and phase-complete events) |
-| brain.json | `$DARK_FACTORY_WORK_DIR/brain.json` — readable at any point during a run; deleted on cleanup |
+| metrics | `metrics.csv` in project root (written by `update-metrics.py` before cleanup) |
+| brain state | `$WORK_DIR/brain.json` (deleted after cleanup) |
+| bug audit logs | `docs/bugs/<date>-<slug>.md` (persisted) |
 
 ## Deployment
 
-- Mechanism: `local only` — runs inside Claude Code as a slash command
+- Mechanism: `local only`
 - Deploy command:
   ```bash
-  # Invoked via Claude Code slash command
-  /dark-factory:manufacture <task description>
+  /dark-factory:manufacture
   ```
-- Notes: Requires Claude Code with the dark-factory plugin installed. All worker agents run in an isolated WORK_DIR cloned from the project root. Transient files created during a manufacture run (`brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`) are listed in the root `.gitignore` and are never committed to git.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The worktree is created under the system temp directory and removed after the PR is opened.

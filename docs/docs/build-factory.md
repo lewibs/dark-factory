@@ -2,49 +2,46 @@
 
 ## Metadata
 
-- System type: `flow`
-- Owner: dark-factory plugin
-- Source files: `commands/build-factory.md`, `scripts/build-factory.sh`
-- Test files: `tests/test_build_factory_no_destroy.py`
+- System type: `command`
 
 ## System Intent
 
-- What this is: A slash command and companion shell script that opens a new terminal window running Claude in remote-control mode (`claude "/remote-control <name>"`). Unlike `reopen-remote-control.sh`, this script is strictly open-only — the calling terminal is never closed, killed, or modified in any way. Useful for spawning additional parallel factory processing sessions without disrupting the current session.
-- Primary consumer(s): Developers invoking `/dark-factory:build-factory` from the Claude Code interface.
-- Boundary: `commands/build-factory.md` is the slash command entrypoint (thin stub). All logic runs in `scripts/build-factory.sh`. The script is responsible only for launching the new terminal — it has no process-tree-walk logic, no `kill $PPID`, and no systemctl scope manipulation.
+- What this is: A Claude Code slash command that spawns a new terminal window running `claude /remote-control`, leaving the calling session completely untouched.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  Dev([Developer]) -->|"/dark-factory:build-factory"| CMD["commands/build-factory.md"]
-  CMD -->|"bash scripts/build-factory.sh 'dark factory'"| Script["scripts/build-factory.sh"]
-  Script --> OpenTerminal["open_terminal(): try gnome-terminal, x-terminal-emulator, xterm, konsole"]
-  OpenTerminal -->|"success, exit 0"| NewSession["New terminal: claude '/remote-control dark factory'"]
-  OpenTerminal -->|"failure, exit != 0"| Error["echo error to stderr, exit non-zero"]
-  CMD -.->|"calling terminal"| Untouched["Calling terminal: completely untouched"]
+  User[User] -->|runs /dark-factory:build-factory| Command[commands/build-factory.md]
+  Command -->|bash scripts/build-factory.sh NAME| Script[scripts/build-factory.sh]
+  Script -->|detects available terminal emulator| Detect{Terminal emulator?}
+  Detect -->|gnome-terminal| GnomeTerminal[gnome-terminal --working-directory]
+  Detect -->|x-terminal-emulator| XTE[x-terminal-emulator -e bash]
+  Detect -->|xterm| Xterm[xterm -e bash]
+  Detect -->|konsole| Konsole[konsole --workdir]
+  GnomeTerminal --> RC[claude '/remote-control NAME']
+  XTE --> RC
+  Xterm --> RC
+  Konsole --> RC
+  RC --> FactorySession[New factory session running in parallel]
 ```
 
 ## Flows
 
 ### Flow: `build-factory`
 
-- Test files: `tests/test_build_factory_no_destroy.py`
 - Core files: `commands/build-factory.md`, `scripts/build-factory.sh`
+- Test files: `tests/test_build_factory_no_destroy.py`
 
 #### Types
 
 ```txt
-BuildFactoryInput {
-  name: string (optional, default: "dark factory" — remote-control session name passed as $1)
+Input {
+  name: string (optional, default: "dark factory") — label passed to /remote-control
 }
 
-BuildFactoryOutput {
-  void (side effect: new terminal opened; calling terminal is left untouched)
-}
-
-StandardError {
-  message: string (written to stderr; e.g. "No terminal emulator found" or "Failed to open terminal")
+Output {
+  side-effect: new terminal window opened, running claude /remote-control <name>
 }
 ```
 
@@ -52,54 +49,36 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `build-factory.success` | `BuildFactoryInput` | `BuildFactoryOutput` | `happy path` | Terminal opens successfully; calling terminal is never closed or modified |
-| `build-factory.no-emulator` | `BuildFactoryInput` | `StandardError` | `error` | No supported terminal emulator found (gnome-terminal, x-terminal-emulator, xterm, konsole all absent); exits non-zero |
-| `build-factory.open-failed` | `BuildFactoryInput` | `StandardError` | `error` | Terminal emulator found but returned non-zero exit code; exits non-zero; calling terminal unaffected |
+| `build-factory.success` | `name` | new terminal window running remote-control | `happy path` | calling session is left untouched |
+| `build-factory.no-terminal` | `name` | error to stderr, exit 1 | `error` | no supported terminal emulator found |
 
 #### Pseudocode
 
 ```
-NAME = argv[1] ?? "dark factory"
-cmd  = "claude \"/remote-control $NAME\""
+NAME = args[1] or "dark factory"
+cmd  = "claude '/remote-control NAME'"
 cwd  = pwd
 
-open_terminal():
-  try gnome-terminal --working-directory=$cwd -- bash -c "$cmd"  → return
-  try x-terminal-emulator -e bash -c "$cmd"                      → return
-  try xterm -e bash -c "$cmd"                                     → return
-  try konsole --workdir $cwd -e bash -c "$cmd"                    → return
-  echo error; return 1
-
-TERMINAL_EXIT = open_terminal()
-
-if TERMINAL_EXIT != 0:
-    echo error; exit TERMINAL_EXIT
-# Calling terminal is NOT touched — no kill $PPID, no systemctl stop, no process-tree walk
+try gnome-terminal --working-directory=cwd -- bash -c cmd
+else try x-terminal-emulator -e bash -c cmd  (cd cwd first)
+else try xterm -e bash -c cmd                 (cd cwd first)
+else try konsole --workdir cwd -e bash -c cmd
+else error "No terminal emulator found"
 ```
-
-#### Key implementation details
-
-- `build-factory.sh` is intentionally open-only. It must NOT contain:
-  - `kill $PPID` (kills the calling terminal)
-  - `systemctl --user stop` on any vte-spawn scope (closes the calling terminal tab)
-  - `pid=$$` with a process-tree walk to find and kill a `claude` ancestor (destroys the calling factory session)
-- Contrast with `reopen-remote-control.sh` (used by `install`): that script closes the calling terminal after opening the new one. `build-factory` must never delegate to `reopen-remote-control.sh`.
-- Terminal fallback order: `gnome-terminal` → `x-terminal-emulator` → `xterm` → `konsole`.
-- The regression test (`tests/test_build_factory_no_destroy.py`) asserts all of the above constraints statically by inspecting the script source.
 
 ## Logs
 
 | Source | Location |
 |--------|----------|
-| script stderr | terminal session running the build-factory command |
+| terminal open failure | stderr of the calling claude session |
 
 ## Deployment
 
 - Mechanism: `local only`
 - Deploy command:
   ```bash
-  # Called automatically by the /dark-factory:build-factory slash command.
-  # Can also be invoked directly:
-  bash scripts/build-factory.sh "dark factory"
+  # No deployment needed; the command and script ship with the plugin.
+  # Install via:
+  /dark-factory:install
   ```
-- Notes: Linux only. Requires at least one of: gnome-terminal, x-terminal-emulator, xterm, or konsole. Must be run from the repo root or any directory where `pwd` resolves to the desired working directory for the new Claude session.
+- Notes: `scripts/build-factory.sh` is an open-only script. It has no self-close behavior. The "reopen" pattern (open new + close self) lives in `scripts/reopen-remote-control.sh` and must not be reused here — see `docs/bugs/2026-04-28-build-factory-destroys-existing-terminals.md`.
