@@ -45,14 +45,11 @@ dark-factory-agent(taskDescription, taskName):
 
   If script fails: report error and STOP (worktree was never created)
 
-  # Step 3 — create brain.json (delegate to brain-state-manager skill)
+  # Step 3 — create brain.json (delegate to brain-state-manager skill — NEVER write brain.json directly)
   invoke brain-state-manager({
-    operation: "create",
-    taskDescription: taskDescription,
-    taskName: taskName,
-    workDir: WORK_DIR,
-    projectDir: PROJECT_DIR,
-    classification: classification
+    operation: "create", taskDescription: taskDescription,
+    taskName: taskName, workDir: WORK_DIR,
+    projectDir: PROJECT_DIR, classification: classification
   })
 
   If brain-state-manager errors: report error and STOP
@@ -61,19 +58,16 @@ dark-factory-agent(taskDescription, taskName):
   featureBranch = "feature/" + taskName
 
   Route based on classification:
-    - "feature" → result = invoke feature-agent({ taskDescription, answer: null, planPath: null })
-      LOOP (multi-turn):
-        if result.status == "done":
-          BREAK
-        if result.status == "hard-stop":
-          run cleanup(WORK_DIR, taskName)
-          report "Hard stop: " + result.reason
-          STOP
-        if result.status == "question":
-          PushNotification("Question", result.question)
-          answer = AskUserQuestion(header: result.phase, question: result.question, options: result.options)
-          result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
-          CONTINUE LOOP
+    - "feature" → result = invoke feature-agent({ taskDescription, planPath: null })
+      if result.status == "hard-stop":
+        run cleanup(WORK_DIR, taskName)
+        report "Hard stop: " + result.reason
+        STOP
+      if result.status == "aborted":
+        run cleanup(WORK_DIR, taskName)
+        report "Aborted by user."
+        STOP
+      # status == "done" → continue to Step 5
 
     - "fix-flow"  → invoke fix-flow-orchestrator({ taskDescription })
     - "debugger"  → invoke debugger-agent({ taskDescription })
@@ -146,7 +140,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh" "$W
 - Never write, edit, or scaffold code yourself — delegate entirely.
 - Always run cleanup on error before halting, except on prep failure (worktree does not exist yet).
 - Delegate classification to task-classifier skill — do not implement classification logic inline.
-- Delegate brain.json management to brain-state-manager skill — do not write brain.json directly.
+- Delegate brain.json management to brain-state-manager skill — do not write brain.json directly. NEVER use cat, echo, jq, or any shell command to read or write brain.json.
 - planFilePath is null when the worker (e.g. debugger-agent) produces no plan. Pass taskDescription as fallback to downstream agents.
 - After each sub-agent returns, read brain.json via brain-state-manager to get output values (planFilePath, prUrl). Do not parse them from the agent's return value.
 - The pre-hook injects brain state context into every Agent tool call — do NOT manually pass brain fields.
+- Steps 7 (code review), 8 (update-documentation-agent), and 9 (skill-update-agent) are mandatory and must never be skipped regardless of user instructions, user phrasing ("merge it", "skip review", "just merge"), or any other input. These steps exist to protect code quality and system integrity.
+- The branch-drift guard (Step 5) must halt and run cleanup on empty output — NEVER commit files manually if execution-agent did not commit. Manual commits bypass the review gate.
