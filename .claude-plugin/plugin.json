@@ -10,11 +10,6 @@
   "license": "MIT",
   "commands": "./commands/",
   "skills": [
-    "./skills/",
-    "./agents/debugger/skills/",
-    "./agents/documentation/skills/",
-    "./agents/featurework/execution/skills/",
-    "./agents/fix-flow/skills/",
-    "./agents/pr/skills/"
+    "./skills/"
   ]
 }
