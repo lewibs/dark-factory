@@ -3,7 +3,7 @@
 ## Metadata
 
 - Date: `2026-05-04`
-- Status: `investigating`
+- Status: `fixed`
 - Severity: `critical`
 - Related issue/ticket: `N/A`
 - Owner: `lewibs`
@@ -118,16 +118,25 @@ Root causes and fixes:
 | 2 | Read all key files | Read dark-factory-agent.md, feature-agent.md, execution-agent.md, skeleton-agent.md, implementation-agent.md, commit-on-subagent-stop.sh, settings.json, brain-state-manager/SKILL.md | Full system context gathered |
 | 3 | Run baseline tests | 18 failing tests identified across test_dark_factory_agent_branch_drift_guard.py, test_planning_approval_gate.py, test_docs_template_compliance.py | Confirmed existing test failures before any fix |
 | 4 | Root cause analysis | Identified 6 root causes across the 8 violations | See Notes for PR section |
-| 5 | Check SubagentStop hook format | Confirmed via subagent-stop-hook-stdin-format skill that SubagentStop hooks receive agent name as plain text on stdin first line when declared in frontmatter | settings.json global SubagentStop hooks receive no agent name |
+| 5 | Check SubagentStop hook format | Confirmed via subagent-stop-hook-stdin-format skill that SubagentStop hooks receive agent name as plain text on stdin first line when declared in frontmatter | settings.json global SubagentStop hooks receive no agent name — commit always skipped |
 | 6 | Check create-pr path | Found skills/create-pr/SKILL.md exists; tests look at agents/pr/skills/create-pr/SKILL.md (wrong path) | Test path mismatch identified |
+| 7 | Write reproduction tests | Created tests/test_manufacture_flow_violations.py with 10 tests covering all violations | 5 new tests failed before fix as expected |
+| 8 | Apply RC1 fix | Removed SubagentStop hooks from .claude/settings.json | SubagentStop now only in agent frontmatter per subagent-stop-in-agent-frontmatter skill |
+| 9 | Apply RC2 fix | Restored AskUserQuestion in feature-agent.md (removed multi-turn status:question protocol); added AskUserQuestion to tools: frontmatter; dark-factory-agent invokes feature-agent once and waits for done/hard-stop/aborted | feature-agent at depth-2 can reach human directly |
+| 10 | Apply RC3 fix | Added "NEVER use cat, echo, jq, or any shell command to read or write brain.json" to dark-factory-agent Rules | Stronger enforcement of brain-state-manager delegation |
+| 11 | Apply RC4 fix | Added mandatory steps rule to dark-factory-agent Rules: steps 7-9 cannot be skipped regardless of user input | Explicit protection against "merge it" override bypass |
+| 12 | Apply RC5 fix | Updated test_dark_factory_agent_branch_drift_guard_is_after_worker to check guard is between Step 4 (worker) and Step 7 (code review), not between Step 3 and Step 4 | Step numbering was wrong in old test |
+| 13 | Apply RC6 fix | Updated CREATE_PR_SKILL_PATH in test_dark_factory_agent_branch_drift_guard.py to use skills/create-pr/SKILL.md | Canonical path fixed |
+| 14 | Verify all tests pass | 28 targeted tests pass; 151 total (12 pre-existing test_docs_template_compliance failures unrelated to violations) | Confirmed at HEAD of feature/fix-manufacture-flow |
+| 15 | Commit to feature branch | 3a943ee fix(manufacture): resolve 8 orchestration violations | feature/fix-manufacture-flow is 1 commit ahead of main |
 
 ## Verification
 
-- [x] Reproduced failure before fix (18 failing tests, all violations confirmed via code analysis)
-- [ ] Reproduction test fails before fix
-- [ ] Root cause identified with evidence
-- [ ] Fix applied at source (no workaround-only patch)
-- [ ] Reproduction test passes after fix
-- [ ] Reproduction path now passes
-- [ ] Regression test added/updated (or `N/A` with reason)
-- [ ] Verified no duplicate solved-bug log exists for same root cause
+- [x] Reproduced failure before fix (18 failing tests including 5 directly related to violations)
+- [x] Reproduction test fails before fix (5/10 new tests failed before applying fixes)
+- [x] Root cause identified with evidence (6 root causes, all with code-level evidence)
+- [x] Fix applied at source (no workaround-only patch — agent instructions, hook config, and tests all fixed)
+- [x] Reproduction test passes after fix (10/10 new tests pass, 5 previously-failing existing tests pass)
+- [x] Reproduction path now passes
+- [x] Regression test added/updated — tests/test_manufacture_flow_violations.py (10 tests)
+- [x] Verified no duplicate solved-bug log exists for same root cause
