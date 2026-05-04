@@ -12,6 +12,7 @@
 ██║     ██║  ██║╚██████╗   ██║   ╚██████╔╝██║  ██║   ██║
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
+Made by Benjamin Lewis CEO - [github](https://github.com/lewibs/dark-factory/tree/main)
 
 Dark Factory is a fully autonomous coding plugin for Claude Code. One command. No hand-holding. Done.
 
@@ -23,7 +24,7 @@ Dark Factory is a fully autonomous coding plugin for Claude Code. One command. N
 
 All three run 100% autonomously — Dark Factory handles planning, implementation, code review, PR, and cleanup from start to finish.
 
-For a deeper look at how it works, see the [command docs](https://github.com/lewibs/dark-factory/blob/main/docs/docs/).
+For a deeper look at how it works, see the [system documentation](https://github.com/lewibs/dark-factory/blob/main/docs/docs/README.md).
 
 ## Install
 
