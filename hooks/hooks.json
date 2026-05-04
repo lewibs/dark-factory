@@ -1,5 +1,5 @@
 {
-  "description": "dark-factory plugin hooks \u2014 brain state management for agent orchestration",
+  "description": "dark-factory plugin hooks — brain state management for agent orchestration",
   "hooks": {
     "SubagentStop": [
       {
@@ -36,10 +36,6 @@
       {
         "matcher": "Agent",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/phase-order-enforcement-hook.sh\""
-          },
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\""
