@@ -46,6 +46,19 @@ claude plugin install dark-factory
 claude plugin list
 ```
 
+## How does it work?
+
+Dark Factory requires your input exactly twice: once to describe the task, and once to approve the result. Everything in between is autonomous.
+
+Execution is enforced by two complementary primitives:
+
+- **[Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks)** — PreToolUse/PostToolUse scripts fire around every tool call, injecting shared state, enforcing phase order, and blocking agents from drifting outside their lane. Determinism isn't hoped for — it's mechanically enforced.
+- **Structured templates** — every task is grounded in one of two blueprints before a single line of code is written:
+  - **[Plan template](https://github.com/lewibs/dark-factory/blob/main/agents/featurework/planning/templates/plan-template.md)** — drives feature work. The plan captures system intent, a Mermaid architecture diagram, and an explicit flow checklist. Agents cannot advance past a phase until the previous one is checked off.
+  - **[Bug template](https://github.com/lewibs/dark-factory/blob/main/skills/debug/templates/bug-audit-log-template.md)** — drives debugging. Before touching any code, agents fill out a structured audit log: reproduction steps, system boundary, root cause, and fix hypothesis. No guessing, no thrashing.
+
+These two templates are the source of truth that every downstream agent — planner, implementer, reviewer, PR opener — reads from. They keep the factory on rails from the first commit to the final green CI check.
+
 ## Commands
 
 | Command | Input | Description |
