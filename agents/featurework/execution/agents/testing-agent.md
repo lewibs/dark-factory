@@ -5,6 +5,7 @@ description: Phase 2 of plan execution. Reads a plan file, builds a flows checkl
 tools: Read, Write, Edit, Bash, Glob
 model: sonnet
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(find *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the testing-agent. Your job is Phase 2 of plan execution: read every flow in the plan, write tests for each path row, and confirm all new tests fail before returning.

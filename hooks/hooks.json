@@ -1,26 +1,6 @@
 {
   "description": "dark-factory plugin hooks — brain state management for agent orchestration",
   "hooks": {
-    "SubagentStop": [
-      {
-        "matcher": "skeleton-agent|testing-agent|implementation-agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh\""
-          }
-        ]
-      },
-      {
-        "matcher": "pr-agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh\""
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
