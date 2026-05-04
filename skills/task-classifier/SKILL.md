@@ -41,29 +41,33 @@ Returns a JSON object with one of two structures:
 }
 ```
 
-## Classification Rules
+## Classification Guidelines
 
-Match signals in the order listed below — first match wins.
+Use judgment to route based on the *intent and scope* of the task, not keyword matching.
 
-| Signal in taskDescription | Route to | Examples |
-|---|---|---|
-| "small change", "tweak", "rename", "minor update", "quick fix", "adjust", "alter" | `repair` | "tweak the login button color", "rename AuthProvider to AuthService", "quick fix for typo" |
-| "major refactor", "refactor", "redesign", "overhaul", "restructure", "rewrite", "new feature", "new command", "new skill", "new agent", "add", "build", "create", "implement", "make", "design", "write" | `feature` | "add OAuth support", "create new dashboard widget", "implement dark mode", "make a gen-hooks command", "major refactor of the auth system", "design a new skill" |
-| "broken flow", "integration failing", "end-to-end", "pipeline" | `fix-flow` | "authentication flow is broken", "payment pipeline failing", "end-to-end test broken" |
-| "bug", "crash", "error", "fix", "broken", "not working", "debug" | `debugger` | "login button crashes", "fix null pointer error", "database query broken" |
-| Ambiguous | Query user | Any task without clear keywords |
+### feature
+Route here if a reasonable engineer would want to design this before building it. This includes:
+- Any new artifact (command, skill, agent, script, system)
+- Significant behavior changes or additions
+- Refactors that touch multiple files or systems
+- Anything where getting it wrong would waste a lot of time
 
-## Matching Algorithm
+When in doubt between `feature` and `repair`, route to `feature`. Planning is cheap; rework is not.
 
-1. Split `taskDescription` into lowercase words
-2. For each rule in order:
-   - Check if ANY signal phrase appears in the description (substring match, case-insensitive)
-   - If match found: return `classification` result with that route
-3. If no signals match: return `ambiguous` result with clarification question
+### repair
+Route here only if the task is small, targeted, and self-contained — the kind of thing you'd do without a design doc. Single-file changes, renames, typo fixes, minor tweaks.
+
+### debugger
+Route here if the task is about diagnosing and fixing a bug, crash, or unexpected behavior. The symptom is clear but the root cause isn't.
+
+### fix-flow
+Route here if an end-to-end integration flow or pipeline is broken and needs to be debugged and repaired systematically.
+
+### ambiguous
+If you genuinely cannot tell — e.g. "fix the auth stuff" could be a bug or a refactor — return the ambiguous structure and ask the user to clarify.
 
 ## Rules
 
-- Signal phrases are matched as case-insensitive substrings (e.g., "Add" matches "add", "ADD", "Adding")
-- First match wins — order matters
-- If multiple signals match, use the first rule encountered (e.g., "add" comes before "fix", so "add a fix" routes to feature, not debugger)
-- When ambiguous, return the question structure so dark-factory-agent can ask the user and re-classify
+- Use intent and scope, not keywords
+- Prefer `feature` over `repair` when scope is uncertain
+- Only use `ambiguous` when you truly cannot determine intent — do not use it as a default
