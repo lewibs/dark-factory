@@ -18,7 +18,24 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 - Or `taskDescription` (string) — Plain description of the work if no plan exists
 - If neither: uses git diff
 
-## Orchestration Flow (5 Steps)
+## Orchestration Flow (6 Steps)
+
+### Step 0: Check for Existing PR
+
+Before doing anything else, pr-agent checks whether the current branch already has an open PR.
+
+1. **Runs** `gh pr view --json url --jq '.url'` in `$WORK_DIR`
+2. **If an existing PR is found** (non-empty output):
+   - Stages all changes: `git -C "$WORK_DIR" add --all`
+   - Commits with a descriptive message: `git -C "$WORK_DIR" commit -m "<summary>"`
+   - If commit fails (nothing to commit): skips commit, proceeds to push skip
+   - Pushes to the existing branch: `git -C "$WORK_DIR" push origin HEAD`
+   - If push fails: STOPS with error "Failed to push changes to existing PR"
+   - Writes brain-patch.json: `{ "prUrl": existingPr }`
+   - **Returns early**: `{ prUrl: existingPr, status: "ready" }` — skips Steps 1–5
+3. **If no existing PR**: continues to Step 1
+
+This prevents duplicate PRs when pr-agent is invoked on a branch that was already submitted for review.
 
 ### Step 1: Build PR Body
 
@@ -122,14 +139,15 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 
 ## Key Design Rules
 
-1. **Code is already implemented** — Assume fix is complete; don't re-apply
-2. **Always use git -C "$WORK_DIR"** — WORK_DIR is injected by pre-hook
-3. **Write body to /tmp/pr-body.md** — Use standard gh cli pattern
-4. **Delegate CI watching** — Use ci-watch-runner, don't implement watch loop inline
-5. **Delegate comment resolution** — Use comment-resolution-runner, don't implement loop inline
-6. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
-7. **Write brain-patch after PR opens** — Captures prUrl for downstream use
-8. **Skip brain-patch silently if DARK_FACTORY_WORK_DIR unset** — No error
+1. **Check for existing PR first (Step 0)** — If the current branch already has an open PR, commit and push directly to it; do not open a duplicate PR
+2. **Code is already implemented** — Assume fix is complete; don't re-apply
+3. **Always use git -C "$WORK_DIR"** — WORK_DIR is injected by pre-hook
+4. **Write body to /tmp/pr-body.md** — Use standard gh cli pattern
+5. **Delegate CI watching** — Use ci-watch-runner, don't implement watch loop inline
+6. **Delegate comment resolution** — Use comment-resolution-runner, don't implement loop inline
+7. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
+8. **Write brain-patch after PR opens or after Step 0 commit** — Captures prUrl for downstream use
+9. **Skip brain-patch silently if DARK_FACTORY_WORK_DIR unset** — No error
 
 ## Dependencies
 
@@ -181,6 +199,7 @@ The pr-agent intentionally stops at "ready" (CI green, reviews resolved) and doe
 
 ## Error Handling
 
+- If existing PR branch push fails (Step 0): surfaces "Failed to push changes to existing PR" and STOPS
 - If PR creation fails: surfaces error and STOPS
 - If CI never stabilizes (yellow for all iterations): returns failure
 - If review comments can't be resolved (pending after 5 iterations): returns failure
