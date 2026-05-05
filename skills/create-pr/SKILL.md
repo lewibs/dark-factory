@@ -15,7 +15,34 @@ new branch — committing from the main worktree CWD on a new `fix/` branch woul
 to land on `main` instead of `feature/<taskName>`. All git commands must use `-C "$WORK_DIR"`
 to operate on the feature worktree.
 
-1. Confirm the current branch in the worktree:
+### Step 0 — Check for an existing PR (idempotency guard)
+
+Before doing anything else, check whether the branch already has an open PR:
+
+```bash
+existingPr=$(cd "$WORK_DIR" && gh pr view --json url --jq '.url' 2>/dev/null)
+```
+
+If `existingPr` is non-empty, the branch already has an open PR. Do NOT call `gh pr create`.
+Instead:
+
+1. Stage and commit any new changes:
+   ```bash
+   git -C "$WORK_DIR" add --all
+   git -C "$WORK_DIR" commit -m "<descriptive commit message>"
+   # If nothing to commit, skip silently
+   ```
+2. Push to the existing PR branch:
+   ```bash
+   git -C "$WORK_DIR" push origin HEAD
+   ```
+3. Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with `{ "prUrl": "<existingPr>" }` (skip if env var unset).
+4. Return `{ prUrl: existingPr, status: "ready" }` — do not proceed to PR creation steps.
+
+This guard prevents duplicate PRs when a manufacture run or repair loop re-invokes pr-agent on
+a branch that was already promoted to a PR.
+
+### Step 1 — Confirm the current branch in the worktree:
    ```bash
    git -C "$WORK_DIR" branch --show-current
    # Expected output: feature/<taskName>
