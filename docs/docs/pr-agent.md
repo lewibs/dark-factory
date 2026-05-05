@@ -18,7 +18,16 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 - Or `taskDescription` (string) — Plain description of the work if no plan exists
 - If neither: uses git diff
 
-## Orchestration Flow (5 Steps)
+## Orchestration Flow (6 Steps)
+
+### Step 0: Check for Existing PR
+
+1. **Runs `gh pr view`** to check if a PR already exists for the current branch
+2. **If a PR exists**:
+   - Commits all staged changes with a short description (`git -C "$WORK_DIR" add --all && git -C "$WORK_DIR" commit && git -C "$WORK_DIR" push`)
+   - Sets `pr_url` to the existing PR URL
+   - Does **not** return early — continues to Step 1
+3. **If no PR exists**: `pr_url` is left unset; will be set in Step 2
 
 ### Step 1: Build PR Body
 
@@ -34,55 +43,58 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
    - Omits "Test Plan" section if no test suite found
 4. **Writes body** to `/tmp/pr-body.md` (ready for gh cli)
 
-### Step 2: Open PR
+### Step 2: Open PR (conditional)
 
-1. **Delegates to create-pr skill** with `bodyFile: "/tmp/pr-body.md"`
-2. Receives `prUrl` back from skill
-3. **Writes brain-patch.json** in DARK_FACTORY_WORK_DIR:
+1. **Only runs if no existing PR was found in Step 0** (`pr_url` is unset)
+2. **Delegates to create-pr skill** with `bodyFile: "/tmp/pr-body.md"`
+3. Receives `prUrl` back from skill
+4. **Writes brain-patch.json** in DARK_FACTORY_WORK_DIR regardless of path (new or existing PR):
    ```json
    { "prUrl": "<github PR URL>" }
    ```
    (Skip silently if DARK_FACTORY_WORK_DIR is unset)
 
-### Step 3: Watch CI
+### Step 3: Watch CI (always runs)
 
-1. **Delegates to ci-watch-runner command** with:
+1. **Always runs** — whether the PR was newly created (Step 2) or already existed (Step 0)
+2. **Delegates to ci-watch-runner command** with:
    - `prUrl: <the PR URL>`
    - `maxIterations: 5`
 
-2. Command polls PR CI status repeatedly:
+3. Command polls PR CI status repeatedly:
    - Checks status at regular intervals
    - Reports when CI is green, yellow (pending), or red (failed)
    - Stops after maxIterations or when status stabilizes
 
-3. **If ciResult.status == "fail"**: returns error, STOPS
+4. **If ciResult.status == "fail"**: returns error, STOPS
    - CI failed; human review of failures required
    - PR remains open for investigation
 
-4. **If ciResult.status == "pass"**: proceeds to Step 4
+5. **If ciResult.status == "pass"**: proceeds to Step 4
 
-### Step 4: Resolve Review Comments
+### Step 4: Resolve Review Comments (always runs)
 
-1. **Gets PR node ID**:
+1. **Always runs** — whether the PR was newly created (Step 2) or already existed (Step 0)
+2. **Gets PR node ID**:
    - Uses `gh api graphql` to fetch `pr.id` from prUrl
 
-2. **Delegates to comment-resolution-runner command** with:
+3. **Delegates to comment-resolution-runner command** with:
    - `prUrl: <the PR URL>`
    - `prNodeId: <the PR node ID>`
    - `maxIterations: 5`
 
-3. Command iterates through review comments:
+4. Command iterates through review comments:
    - Reads each comment thread
    - Attempts to resolve by responding (if automated resolution applies)
    - Or requests human clarification
    - Marks threads resolved when addressed
    - Stops after maxIterations or when all threads are resolved
 
-4. **If commentResult.status == "failed"**: returns error, STOPS
+5. **If commentResult.status == "failed"**: returns error, STOPS
    - Review comments could not be resolved
    - PR remains open with pending threads
 
-5. **If commentResult.status == "success"**: all threads resolved, proceeds to Step 5
+6. **If commentResult.status == "success"**: all threads resolved, proceeds to Step 5
 
 ### Step 5: Return Success
 
@@ -130,6 +142,8 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 6. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
 7. **Write brain-patch after PR opens** — Captures prUrl for downstream use
 8. **Skip brain-patch silently if DARK_FACTORY_WORK_DIR unset** — No error
+9. **Step 0 does NOT return early** — When an existing PR is found, commit+push and set pr_url, then continue; CI watching and comment resolution always run on both the new-PR and existing-PR paths
+10. **gh pr create is conditional** — Only called when no existing PR was found in Step 0
 
 ## Dependencies
 
