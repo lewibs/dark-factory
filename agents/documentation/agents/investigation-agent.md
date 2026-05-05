@@ -21,10 +21,12 @@ You are the investigation-agent. Your job is to investigate a system and produce
 ## Your task
 
 1. Receive the system name or topic to investigate.
-2. Check `docs/docs/` for existing documentation covering that system:
-   - **If docs exist**: return them immediately (they are treated as authoritative; no staleness check).
+2. Optionally receive a `corrections` parameter (list of false claims with evidence to correct).
+3. Check `docs/docs/` for existing documentation covering that system:
+   - **If docs exist and no corrections**: return them immediately (they are treated as authoritative; no staleness check).
+   - **If docs exist and corrections provided**: update the doc to address the false claims, then return the path.
    - **If no docs exist**: use `skills/investigate/SKILL.md` to explore the codebase, then create `docs/docs/<system-name>.md` using `skills/documentation/SKILL.md`.
-3. Return the paths to all files written or updated.
+4. Return the paths to all files written or updated.
 
 ## Skills
 
