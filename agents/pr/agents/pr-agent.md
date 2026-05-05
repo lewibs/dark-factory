@@ -21,6 +21,16 @@ A file path or description string for the PR body. If neither provided, use the 
 ```
 pr-agent(planFilePath or description):
 
+  # Step 0 — Check if a PR already exists for the current branch
+  existingPr = run: gh pr view --json url --jq '.url' 2>/dev/null
+  if existingPr is non-empty (branch already has an open PR):
+    # Commit the changes with a descriptive message instead of opening a new PR
+    run: git -C "$WORK_DIR" add --all
+    build a commit message summarising what was changed (use planFilePath or description as context)
+    run: git -C "$WORK_DIR" commit -m "<descriptive commit message explaining the fix>"
+    run: git -C "$WORK_DIR" push
+    RETURN { prUrl: existingPr, status: "ready" }
+
   # Step 1 — Build PR body
   Read agents/pr/templates/pr-template.md for structure.
   Populate Description from planFilePath (or description string).
