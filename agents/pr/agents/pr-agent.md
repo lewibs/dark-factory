@@ -21,14 +21,24 @@ A file path or description string for the PR body. If neither provided, use the 
 ```
 pr-agent(planFilePath or description):
 
+  # Step 0 — Check for existing PR on current branch
+  existingPr = gh pr view --json url --jq '.url' 2>/dev/null || null
+  if existingPr is not null:
+    git -C "$WORK_DIR" add --all
+    git -C "$WORK_DIR" commit -m "<short description of fix>"
+    git -C "$WORK_DIR" push
+    pr_url = existingPr
+  # (if no existing PR, pr_url will be set in Step 2 below)
+
   # Step 1 — Build PR body
   Read agents/pr/templates/pr-template.md for structure.
   Populate Description from planFilePath (or description string).
   Run tests if a test suite exists; include output in Test Plan, or omit section if none.
   Write body to /tmp/pr-body.md.
 
-  # Step 2 — Open PR (delegate to create-pr skill)
-  pr_url = invoke create-pr({ bodyFile: "/tmp/pr-body.md" })
+  # Step 2 — Open PR (delegate to create-pr skill) if no existing PR
+  if existingPr is null:
+    pr_url = invoke create-pr({ bodyFile: "/tmp/pr-body.md" })
   write $DARK_FACTORY_WORK_DIR/brain-patch.json: { "prUrl": pr_url }
 
   # Step 3 — Watch CI (delegate to ci-watch-runner command)
