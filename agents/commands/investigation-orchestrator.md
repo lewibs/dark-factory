@@ -4,7 +4,7 @@ user-invocable: false
 description: Orchestrator for the investigation command. Invokes investigation-agent, then loops calling claim-validator-agent until all claims verified. Commits verified doc via SubagentStop hook.
 tools: Read, Write, Bash, Agent
 model: sonnet
-SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
 ---
 
 You are the investigation-orchestrator. Your job is to orchestrate the investigation flow: invoke investigation-agent to generate documentation, validate all factual claims through iterative claim-validator-agent loops, and commit the verified documentation.

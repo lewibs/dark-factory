@@ -1,7 +1,7 @@
 ---
 name: investigation
 description: Generates system documentation using investigation-agent, validates all claims via claim-validator-agent loops, commits verified doc via SubagentStop hook
-SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
 ---
 
 # investigation
