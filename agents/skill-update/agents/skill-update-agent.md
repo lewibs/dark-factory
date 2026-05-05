@@ -106,16 +106,22 @@ user-invocable: false
 
 After Step 5 (return), before returning to the caller:
 
-Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
-```json
-{
-  "skillsWritten": ["<relative path within workDir for each skill file written or updated>"]
-}
+Resolve WORK_DIR:
 ```
-
-If `skillsWritten` is empty (no skills were written), omit writing the patch entirely.
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip writing the patch silently
+else:
+  Write `$WORK_DIR/brain-patch.json` with:
+  ```json
+  {
+    "skillsWritten": ["<relative path within workDir for each skill file written or updated>"]
+  }
+  ```
+  (If `skillsWritten` is empty, omit writing the patch entirely.)
+```
 
 Rules:
 - Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
 - Do NOT write `brain.json` directly — only write `brain-patch.json`.
-- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.
+- Use pointer file fallback (`/tmp/dark-factory-work-dir`) if DARK_FACTORY_WORK_DIR is unset.
