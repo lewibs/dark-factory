@@ -48,11 +48,11 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 1. **Only runs if no existing PR was found in Step 0** (`pr_url` is unset)
 2. **Delegates to create-pr skill** with `bodyFile: "/tmp/pr-body.md"`
 3. Receives `prUrl` back from skill
-4. **Writes brain-patch.json** in DARK_FACTORY_WORK_DIR regardless of path (new or existing PR):
+4. **Writes brain-patch.json** regardless of path (new or existing PR), resolving work dir via pointer file fallback:
    ```json
    { "prUrl": "<github PR URL>" }
    ```
-   (Skip silently if DARK_FACTORY_WORK_DIR is unset)
+   Work dir resolution: use `$DARK_FACTORY_WORK_DIR` if set; else read `/tmp/dark-factory-work-dir`; skip silently if both empty.
 
 ### Step 3: Watch CI (always runs)
 
@@ -141,7 +141,7 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 5. **Delegate comment resolution** — Use comment-resolution-runner, don't implement loop inline
 6. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
 7. **Write brain-patch after PR opens** — Captures prUrl for downstream use
-8. **Skip brain-patch silently if DARK_FACTORY_WORK_DIR unset** — No error
+8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR` first; if unset, read `/tmp/dark-factory-work-dir`; skip silently if both empty
 9. **Step 0 does NOT return early** — When an existing PR is found, commit+push and set pr_url, then continue; CI watching and comment resolution always run on both the new-PR and existing-PR paths
 10. **gh pr create is conditional** — Only called when no existing PR was found in Step 0
 

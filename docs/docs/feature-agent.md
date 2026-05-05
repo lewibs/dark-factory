@@ -83,7 +83,7 @@ Iterates through all flows in the plan, one per turn:
 2. If execution-agent returns `hardStop: true`:
    - **Returns** `status: "hard-stop"` with reason; does NOT re-invoke execution-agent
 3. If execution-agent succeeds:
-   - Writes `brain-patch.json` in DARK_FACTORY_WORK_DIR: `{ "planFilePath": planPath }`
+   - Writes `brain-patch.json` resolving work dir via pointer file fallback: `{ "planFilePath": planPath }`
    - **Returns** `status: "done"` with planPath
 
 ## Resume Logic via Stage Gate Tracker
@@ -144,7 +144,7 @@ Execution paused; user must review and resume.
 3. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
-6. **Write brain-patch.json only after execution succeeds** — Skip silently if DARK_FACTORY_WORK_DIR is unset
+6. **Write brain-patch.json only after execution succeeds** — Resolve WORK_DIR from `$DARK_FACTORY_WORK_DIR`, then fall back to contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
 
 ## Dependencies
 
