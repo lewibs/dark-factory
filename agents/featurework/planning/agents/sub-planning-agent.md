@@ -29,7 +29,11 @@ SubPlanningAgentInput {
 When `phase == "draft_plan"`:
 
 1. Treat `feedback` as the feature description from the feature-agent.
-2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. If deep investigation is needed, spawn the `investigation-agent` with the system/topic name. If `investigation-agent` returns an error, log the error as a comment in the plan's `## System Intent` section and continue without it — do not halt.
+2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. Then:
+   a. Identify every system or component the feature will interact with (derived from the task description and your codebase research).
+   b. For each identified system, always invoke `investigation-agent` with the system/topic name to retrieve or auto-generate reference documentation. This step is mandatory — do not skip it.
+   c. Use the returned documentation to inform the plan content (especially `## System Intent` and the flow sections).
+   d. If `investigation-agent` returns an error for a given system, log the error as a comment in the plan's `## System Intent` section and continue with the remaining systems — do not halt.
 3. Read the plan template at `agents/featurework/planning/templates/plan-template.md`.
 4. Create a new plan file at `docs/plans/<YYYY-MM-DD>-<slug>.md` (use today's date, derive slug from the feature description).
 5. Fill in at minimum: `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
