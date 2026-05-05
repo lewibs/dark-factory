@@ -22,13 +22,17 @@ A file path or description string for the PR body. If neither provided, use the 
 pr-agent(planFilePath or description):
 
   # Step 0 — Check if a PR already exists for the current branch
-  existingPr = run: gh pr view --json url --jq '.url' 2>/dev/null
+  existingPr = run: cd "$WORK_DIR" && gh pr view --json url --jq '.url' 2>/dev/null
   if existingPr is non-empty (branch already has an open PR):
     # Commit the changes with a descriptive message instead of opening a new PR
     run: git -C "$WORK_DIR" add --all
-    build a commit message summarising what was changed (use planFilePath or description as context)
-    run: git -C "$WORK_DIR" commit -m "<descriptive commit message explaining the fix>"
-    run: git -C "$WORK_DIR" push
+    result = run: git -C "$WORK_DIR" commit -m "<descriptive commit message summarizing the changes>"
+    if commit fails (e.g., nothing to commit): 
+      write $DARK_FACTORY_WORK_DIR/brain-patch.json: { "prUrl": existingPr } (skip silently if unset)
+      RETURN { prUrl: existingPr, status: "ready" }
+    result = run: git -C "$WORK_DIR" push origin HEAD
+    if push fails: STOP with error "Failed to push changes to existing PR"
+    write $DARK_FACTORY_WORK_DIR/brain-patch.json: { "prUrl": existingPr } (skip silently if unset)
     RETURN { prUrl: existingPr, status: "ready" }
 
   # Step 1 — Build PR body
