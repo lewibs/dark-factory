@@ -49,11 +49,14 @@ When adding a new sub-agent to the dark-factory pipeline, or when modifying how 
 
 - Do NOT read brain.json directly — brain state is already injected into the prompt by the pre-hook.
 - Do NOT write brain.json directly.
-- After producing output, write ONLY your specific output fields to `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
-  ```json
-  { "planFilePath": "/absolute/path/to/plan.md" }
+- After producing output, resolve the work directory first (the env var is never propagated to sub-agents — see the `subagent-brain-patch-pointer-fallback` skill for the exact pattern):
   ```
-- If `DARK_FACTORY_WORK_DIR` is not set or the sub-agent has no output to record, skip writing the patch entirely.
+  WORK_DIR = $DARK_FACTORY_WORK_DIR
+  if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+  if WORK_DIR is still empty: skip silently
+  else: write $WORK_DIR/brain-patch.json with ONLY your specific output fields:
+    { "planFilePath": "/absolute/path/to/plan.md" }
+  ```
 - The patch file is deleted by the post-hook after it is merged; sub-agents must not re-read it.
 
 ### Registering hooks via hooks/hooks.json
