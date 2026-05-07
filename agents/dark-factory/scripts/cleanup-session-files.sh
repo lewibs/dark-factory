@@ -31,6 +31,23 @@ if [ -z "$WORK_DIR" ]; then
   exit 0
 fi
 
+BRAIN_PATH="$WORK_DIR/brain.json"
+
+# Before deleting brain.json, flush metrics to metrics.csv (if metrics exist)
+if [ -f "$BRAIN_PATH" ]; then
+  PROJECT_DIR=$(jq -r '.projectDir // empty' "$BRAIN_PATH" 2>/dev/null || true)
+  if [ -n "$PROJECT_DIR" ]; then
+    METRICS_CSV="$PROJECT_DIR/metrics.csv"
+    CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+    if [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py" ]; then
+      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py" \
+        --csv "$METRICS_CSV" \
+        --brain "$BRAIN_PATH" || true
+      echo "cleanup-session-files | metrics-flushed | csv=$METRICS_CSV" >&2
+    fi
+  fi
+fi
+
 # Array of session files to clean up (relative to WORK_DIR or absolute paths)
 SESSION_FILES=(
   "$WORK_DIR/brain.json"
