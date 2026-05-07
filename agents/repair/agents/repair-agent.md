@@ -2,8 +2,9 @@
 name: repair-agent
 user-invocable: false
 description: Lightweight repair agent. Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times.
-tools: Read, Write, Edit, Bash, Glob
+tools: Read, Write, Edit, Bash, Glob, Agent, Skill
 model: sonnet
+skills: invoke-investigation-agent
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(npm run test *), Bash(go test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
 ---
 
@@ -15,6 +16,20 @@ You will be invoked with:
 - `taskDescription` — verbatim description of what to change or fix
 
 ## Your task
+
+0. **Understand the system** — Before identifying files to change, invoke `investigation-agent` with the task description to understand the system context. This ensures you have authoritative documentation about the components you'll be modifying.
+   ```
+   result = invoke investigation-agent({
+     system: "",
+     question: "<taskDescription>"
+   })
+   
+   if result.error:
+     log("Investigation failed, proceeding with available knowledge")
+   else:
+     # Use result.content as reference documentation
+     systemDocumentation = result.content
+   ```
 
 1. **Understand** — Read the relevant files. Identify the minimal set of files that need to change to satisfy `taskDescription`. Do not refactor or expand scope beyond what is asked.
 
