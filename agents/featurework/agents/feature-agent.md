@@ -128,3 +128,4 @@ feature-agent(taskDescription, answer, planPath):
 - Delegate section rendering to render-plan-section command.
 - After a hard-stop, return `{ status: "hard-stop" }` — do not re-invoke execution-agent.
 - Write brain-patch.json only after execution-agent succeeds; use pointer file fallback if DARK_FACTORY_WORK_DIR is unset.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

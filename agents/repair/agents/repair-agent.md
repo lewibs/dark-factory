@@ -54,3 +54,4 @@ You will be invoked with:
 - Do not introduce new abstractions, helpers, or patterns not required by the task.
 - Never mark success until all tests that were passing before your change continue to pass (or no test suite exists).
 - Pre-existing failures (recorded in the baseline run from step 2) are noted in output but are not counted as failures caused by the repair.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

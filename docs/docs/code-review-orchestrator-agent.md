@@ -125,6 +125,7 @@ Returns:
 3. **Loop guard at 10 iterations** — Prevent infinite loops on unresolvable issues
 4. **Always delete issues.md on success** — Clean up before returning to caller
 5. **Surface all errors** — Never suppress reviewer or resolver errors
+6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

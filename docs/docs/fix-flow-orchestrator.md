@@ -74,6 +74,7 @@ When ralph-fix-and-push returns `all-green: true`:
 3. **Verify Phase 2 scripts exist** — Before invoking ralph-fix-and-push, confirm all generated scripts are present
 4. **Persist documentation** — system-diagram.md and bug audit logs remain in the repository after fixes complete
 5. **Single PR output** — ralph-fix-and-push produces one PR with all accumulated fixes across multiple debug loops
+6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

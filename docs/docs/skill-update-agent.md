@@ -154,6 +154,7 @@ Examples:
 3. **Merge when updating** — Preserve existing skill content and add new knowledge; don't overwrite
 4. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block dark-factory-agent
 5. **Always output structured JSON** — Even if no skills written, return JSON with summary
+6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Brain Patch Output
 

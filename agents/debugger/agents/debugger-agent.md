@@ -60,3 +60,4 @@ Rules:
 - Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
 - Do NOT write `brain.json` directly — only write `brain-patch.json`.
 - Use pointer file fallback (`/tmp/dark-factory-work-dir`) if DARK_FACTORY_WORK_DIR is unset.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

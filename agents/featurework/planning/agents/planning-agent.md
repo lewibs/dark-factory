@@ -53,3 +53,4 @@ Return the structured output received from sub-planning-agent directly to featur
 - Pass sub-planning-agent output back to feature-agent unchanged.
 - One phase per invocation — feature-agent calls you once per phase.
 - Remind sub-planning-agent to use narrow, specific glob patterns when searching the codebase to minimize token usage (e.g., search `agents/**/*.md` instead of `**/*.md`, limit documentation searches to `docs/` directory).
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.
