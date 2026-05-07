@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: Three Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, and `commit-on-subagent-stop.sh` — manage brain state and produce ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when skeleton-agent, testing-agent, or implementation-agent finishes, producing an ordered proof-of-execution commit sequence.
+- What this is: Four Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, `commit-on-subagent-stop.sh`, and `cleanup-session-files.sh` — manage brain state, metrics persistence, and ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when skeleton-agent, testing-agent, or implementation-agent finishes, producing an ordered proof-of-execution commit sequence. The Stop hook flushes accumulated metrics from brain.json to metrics.csv before deleting all transient session files.
 
 ## Mermaid Diagram
 
@@ -22,7 +22,8 @@ flowchart TD
 
   CC -->|fires before tool runs| PreHook
   CC -->|fires after tool returns| PostHook
-  CC -->|fires on SubagentStop| StopHook["commit-on-subagent-stop.sh"]
+  CC -->|fires on SubagentStop| SubStopHook["commit-on-subagent-stop.sh"]
+  CC -->|fires on Stop| SessionCleanupHook["cleanup-session-files.sh"]
 
   PreHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
   PreHook -->|"2. record start_ms"| Brain
@@ -34,9 +35,14 @@ flowchart TD
   PostHook -->|"3. accumulate elapsed_ms,\ntokens, runs"| Brain
   PostHook -->|"4. mark phase complete"| Brain
 
-  StopHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
-  StopHook -->|"2. read agent_type from stdin"| AgentType["agent_type\n(skeleton|testing|implementation)"]
-  StopHook -->|"3. git add --all\ngit commit -m <msg>"| GitCommit["Feature worktree commit"]
+  SubStopHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
+  SubStopHook -->|"2. read agent_type from stdin"| AgentType["agent_type\n(skeleton|testing|implementation)"]
+  SubStopHook -->|"3. git add --all\ngit commit -m <msg>"| GitCommit["Feature worktree commit"]
+
+  SessionCleanupHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
+  SessionCleanupHook -->|"2. flush metrics"| Brain
+  Brain -->|update-metrics.py| MetricsCSV["PROJECT_DIR/metrics.csv"]
+  SessionCleanupHook -->|"3. delete session files"| Brain
 ```
 
 ## Flows
@@ -162,6 +168,33 @@ CommitMessage {
 | `hooks.subagent-stop.no-work-dir` | DARK_FACTORY_WORK_DIR unset and pointer file absent | exits 0, logs "DARK_FACTORY_WORK_DIR not set, skipping commit" | no-op | not a dark-factory session or cleanup already ran |
 | `hooks.subagent-stop.git-failure` | git add or git commit fails | exits 0, logs error to stderr | error | non-blocking |
 
+---
+
+### Flow: `hooks.session-cleanup`
+
+- Core files: `agents/dark-factory/scripts/cleanup-session-files.sh`
+- Test files: `tests/test_cleanup_session_files.py`
+
+Fires on the Claude Code `Stop` event (registered in `hooks/hooks.json`). Runs after every session ends — whether or not a manufacture task was in progress. Always exits 0.
+
+Steps:
+
+1. Resolve `DARK_FACTORY_WORK_DIR` using the same two-step fallback as other hooks (env var → pointer file). If neither is set, exit immediately with no-op.
+2. If `brain.json` exists and contains a `projectDir` field, and `CLAUDE_PLUGIN_ROOT` is set and `scripts/update-metrics.py` exists: call `python3 update-metrics.py --csv <projectDir>/metrics.csv --brain brain.json` to flush accumulated session metrics to the CSV. Errors from this step are non-fatal (`|| true`).
+3. Delete all transient session files: `brain.json`, `brain.json.lock`, `brain-patch.json`, `flows-state.json`, and `/tmp/dark-factory-work-dir`.
+
+This step is the only place where metrics stored in `brain.json` during a session are written durably to `metrics.csv`. Without this flush, all per-agent elapsed time, token counts, and run counts accumulated by the post-hook would be lost when `brain.json` is deleted.
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `hooks.session-cleanup.no-work-dir` | env var unset, pointer file absent | exits 0, logs to stderr | no-op | not a dark-factory session |
+| `hooks.session-cleanup.metrics-flush` | brain.json present with projectDir, update-metrics.py accessible | metrics written to `<projectDir>/metrics.csv`, logs `metrics-flushed` to stderr | happy path | |
+| `hooks.session-cleanup.no-metrics-script` | CLAUDE_PLUGIN_ROOT unset or update-metrics.py missing | metrics flush skipped silently | degraded | session files still deleted |
+| `hooks.session-cleanup.no-project-dir` | brain.json present but projectDir empty or missing | metrics flush skipped silently | degraded | session files still deleted |
+| `hooks.session-cleanup.delete-files` | session files exist | each file deleted; per-file success/failure logged to stderr | happy path | failures are warnings; exit is always 0 |
+
 ## Logs
 
 | Source | Location |
@@ -177,4 +210,4 @@ CommitMessage {
   ```bash
   /dark-factory:install
   ```
-- Notes: Hooks are registered in `.claude/settings.json` as `PreToolUse`, `PostToolUse`, and `SubagentStop` entries. `PreToolUse` and `PostToolUse` match the Agent tool; `SubagentStop` fires whenever any subagent stops. All three hooks resolve the work directory using the same two-step fallback: `DARK_FACTORY_WORK_DIR` env var first, then the `/tmp/dark-factory-work-dir` pointer file. The pointer file is necessary because env vars exported inside a Bash tool call do not propagate to the Claude Code parent process or to hook subprocesses.
+- Notes: Hooks are registered in `hooks/hooks.json` (merged into `.claude/settings.json` at install time) as `PreToolUse`, `PostToolUse`, `SubagentStop`, and `Stop` entries. `PreToolUse` and `PostToolUse` match the Agent tool; `SubagentStop` fires whenever any subagent stops; `Stop` fires once when the Claude Code session ends. All four hooks resolve the work directory using the same two-step fallback: `DARK_FACTORY_WORK_DIR` env var first, then the `/tmp/dark-factory-work-dir` pointer file. The pointer file is necessary because env vars exported inside a Bash tool call do not propagate to the Claude Code parent process or to hook subprocesses. The `Stop` hook (`cleanup-session-files.sh`) is the authoritative flush point for metrics — it writes brain.json metrics to `metrics.csv` before deleting all session files.
