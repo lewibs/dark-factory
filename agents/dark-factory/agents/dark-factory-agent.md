@@ -67,7 +67,7 @@ batchMode = get_config("DARK_FACTORY_BATCH_MODE", "sync")
 
 if batchMode == "sync" (DEFAULT):
   # Queue batch job, block until completion
-  docJobId = queue_batch_job("update-documentation-agent", {planFilePath})
+  docJobId = queue_batch_job("update-documentation-agent", {planFilePath, workDir: WORK_DIR})
   docResult = poll_batch_job(docJobId, timeout=120)
   
   # Merge results into brain.json
@@ -82,7 +82,7 @@ if batchMode == "sync" (DEFAULT):
 
 elif batchMode == "async":
   # Queue and continue
-  docJobId = queue_batch_job("update-documentation-agent", {planFilePath})
+  docJobId = queue_batch_job("update-documentation-agent", {planFilePath, workDir: WORK_DIR})
   invoke brain-state-manager({
     operation: "patch",
     workDir: WORK_DIR,
@@ -94,7 +94,7 @@ elif batchMode == "async":
 
 elif batchMode == "poll":
   # Try quick poll (10s)
-  docJobId = queue_batch_job("update-documentation-agent", {planFilePath})
+  docJobId = queue_batch_job("update-documentation-agent", {planFilePath, workDir: WORK_DIR})
   docResult = poll_batch_job(docJobId, timeout=10)
   
   if docResult.status == "completed":
