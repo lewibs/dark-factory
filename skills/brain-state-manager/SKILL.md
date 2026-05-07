@@ -63,7 +63,8 @@ Creates a new brain.json in the work directory and sets up environment integrati
     "pr-complete": false,
     "cleanup-running": false,
     "cleanup-complete": false
-  }
+  },
+  "notes": []
 }
 ```
 
