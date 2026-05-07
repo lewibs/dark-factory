@@ -83,6 +83,7 @@ When creating a new skill file, use this format:
 name: <slug>
 description: "<one sentence: what this skill does and when to use it>"
 user-invocable: false
+learned-skill: true
 ---
 ## When to use
 <condition that triggers this skill>
