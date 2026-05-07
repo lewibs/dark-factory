@@ -17,6 +17,6 @@ code-review-orchestrator-agent,,148107.5,446.5,2,296215.0,893.0
 update-documentation-agent,,172217.0,525.0,2,344434.0,1050.0
 skill-update-agent,,75275.0,308.5,2,150550.0,617.0
 pr-agent,,66241.0,113.0,2,132482.0,226.0
-dark-factory:debugger:agents:debugger-agent,,0.0,0.0,3,0.0,0.0
+dark-factory:debugger:agents:debugger-agent,,0.0,0.0,4,0.0,0.0
 dark-factory:featurework:execution:agents:skeleton-agent,,0.0,0.0,1,0.0,0.0
 debugger-agent,,418539.0,728.0,1,418539.0,728.0
