@@ -97,10 +97,10 @@ For each candidate pattern, asks:
 For each pattern passing the recurrence filter:
 
 1. **Create kebab-case slug** (e.g., "handle-git-conflicts", "debug-cloudbuild-logs")
-2. **Determine path**: `skills/<slug>/SKILL.md` (relative to workDir)
+2. **Determine path**: `workDir + "/skills/<slug>/SKILL.md"` — always an absolute path rooted in `workDir`, never a bare relative path
 3. **Check if exists**:
-   - **If already exists**: read existing skill, merge new knowledge, write updated file
-   - **If new**: write new SKILL.md using template below
+   - **If already exists**: read existing skill at the absolute path, merge new knowledge, write updated file to the same absolute path
+   - **If new**: write new SKILL.md to the absolute path using template below
 
 ### Step 5: Build Summary and Return
 
@@ -152,9 +152,10 @@ Examples:
 1. **Only write for non-obvious, recurring patterns** — Filter aggressively; prefer empty list over noise
 2. **Don't modify files outside skills/** — Leave agent files, plans, and code untouched
 3. **Merge when updating** — Preserve existing skill content and add new knowledge; don't overwrite
-4. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block dark-factory-agent
-5. **Always output structured JSON** — Even if no skills written, return JSON with summary
-6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+4. **Always write to workDir** — Skill paths are always absolute: `workDir + "/skills/<slug>/SKILL.md"`. Never write to bare relative paths, which would land in CWD (typically the main repo) instead of the isolated worktree.
+5. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block dark-factory-agent
+6. **Always output structured JSON** — Even if no skills written, return JSON with summary
+7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Brain Patch Output
 
