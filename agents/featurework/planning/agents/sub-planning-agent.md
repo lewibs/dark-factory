@@ -29,7 +29,14 @@ SubPlanningAgentInput {
 When `phase == "draft_plan"`:
 
 1. Treat `feedback` as the feature description from the feature-agent.
-2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. Then:
+2. Research the codebase: read relevant files, use Grep/Glob to understand existing systems the feature will interact with. **Use narrow, specific glob patterns to minimize token usage:**
+   - When searching for agent-related documentation, use patterns like `agents/**/*.md` instead of `**/*.md`
+   - When looking for system documentation, search only `docs/docs/` directory
+   - When investigating a specific component (e.g., "repair-agent"), search `agents/*/repair*` instead of the entire tree
+   - When looking for tests, use `tests/**/*test*.py` instead of a broad pattern
+   - Always prefer scoping searches by file type and directory before using wildcard patterns
+   
+   Then:
    a. Identify every system or component the feature will interact with (derived from the task description and your codebase research).
    b. For each identified system, always invoke `investigation-agent` with the system/topic name to retrieve or auto-generate reference documentation. This step is mandatory — do not skip it.
    c. Use the returned documentation to inform the plan content (especially `## System Intent` and the flow sections).
@@ -107,3 +114,9 @@ If you cannot complete the phase for any reason, return:
 - For `draft_plan`: date format is `YYYY-MM-DD`, slug uses hyphens, all lowercase.
 - For `mermaid`: if feedback is "none", only run the script and return the url without changing the diagram.
 - For `flows`: only edit the specific `### Flow: <flowName>` section, leave all other sections untouched.
+- **When searching the codebase, always use narrow, specific glob patterns:**
+  - For agent files: `agents/**/*.md` instead of `**/*.md`
+  - For documentation: limit to `docs/docs/` directory for system docs
+  - For component investigation: use `agents/*/component-name*` instead of broad wildcards
+  - For tests: use `tests/**/*` with specific file patterns
+  - Prefer directory-scoped searches over tree-wide patterns to reduce context window usage
