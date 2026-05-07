@@ -88,6 +88,7 @@ When adding new agents or doing a cost-reduction pass, audit all agents in the s
 3. Build a classification table in the plan with columns: Agent | File | Current Model | Classification | Justification | Action.
 4. For agents where Current Model does not match Classification, change only the `model:` field in YAML front-matter.
 5. No logic, instruction, or tooling changes are needed — model is purely a front-matter field.
+6. After changing an agent's `model:` field, also update any companion documentation files (e.g. `docs/docs/<agent-name>.md`) that mention the model by name. These narrative docs get out of sync and mislead future agents about actual behavior.
 
 ## Notes
 

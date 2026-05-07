@@ -2,7 +2,7 @@
 
 **Role**: PR lifecycle manager for completed work.
 
-**Model**: Sonnet (heavy reasoning for PR body composition and comment resolution).
+**Model**: Haiku (lightweight model for PR body composition and comment resolution).
 
 **User-Invocable**: No (invoked by dark-factory-agent after all work is complete).
 

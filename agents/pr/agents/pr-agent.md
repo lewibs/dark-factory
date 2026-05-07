@@ -6,7 +6,7 @@ tools: Read, Bash, Write, Edit, Command
 skills: create-pr
 commands: ci-watch-runner, comment-resolution-runner
 allowed-tools: Bash(gh pr create *), Bash(gh pr view *), Bash(gh api graphql *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * status *), Bash(git -C * log *), Bash(cat > /tmp/pr-body.md *)
-model: sonnet
+model: haiku
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh"
 ---
 

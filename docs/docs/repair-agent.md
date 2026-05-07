@@ -2,7 +2,7 @@
 
 **Role**: Lightweight, targeted change agent for simple fixes and updates.
 
-**Model**: Sonnet (heavy reasoning for targeted problem-solving).
+**Model**: Haiku (lightweight model; sufficient for targeted, minimal changes).
 
 **User-Invocable**: No (invoked by dark-factory-agent).
 
