@@ -4,6 +4,7 @@ user-invocable: false
 description: Updates docs/ based on an implemented plan. Given a plan path, identifies affected flows and docs, then deletes stale content, updates modified sections, and adds new information.
 tools: Read, Bash, Write, Edit, PushNotification, AskUserQuestion, Command
 model: sonnet
+cache-control: ephemeral
 skills: documentation
 commands: find-affected-docs
 allowed-tools: Bash(find *), Bash(ls *)

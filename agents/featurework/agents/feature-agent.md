@@ -4,6 +4,7 @@ user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent for each phase (draft, mermaid, flows), gates on human approval between phases via return-question protocol, then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
 tools: Read, Agent, PushNotification, Skill, Command
 model: haiku
+cache-control: ephemeral
 skills: flow-state-manager
 commands: render-plan-section
 ---

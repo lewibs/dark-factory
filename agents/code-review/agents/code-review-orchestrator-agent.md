@@ -4,6 +4,7 @@ user-invocable: false
 description: Orchestrates automated code review by spawning high-level and low-level reviewers in parallel, then running the resolver in a loop until all issues are resolved.
 tools: Read, Write, Edit, Bash, Agent, Command
 model: haiku
+cache-control: ephemeral
 allowed-tools: []
 ---
 
