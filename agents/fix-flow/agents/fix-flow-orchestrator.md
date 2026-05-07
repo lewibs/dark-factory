@@ -2,7 +2,7 @@
 name: fix-flow-orchestrator
 user-invocable: false
 description: "Autonomously drives a failing integration flow to green. Generates test/log/deploy scripts, then loops: trigger, debug, PR, deploy until the flow passes."
-tools: Read, Bash, PushNotification, AskUserQuestion
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 allowed-tools: "Bash(find *), Bash(grep -r *)"
 ---
@@ -28,6 +28,8 @@ Pass it:
 
 Wait for it to return the path to the `docs/docs/` file it wrote. Then write `docs/plans/system-diagram.md` from that documentation as the working plan for this session. Do not proceed to Phase 2 until `docs/plans/system-diagram.md` exists.
 
+If investigation-agent returns an error or `docs/plans/system-diagram.md` does not exist after it completes, report failure immediately: "Phase 1 failed: investigation-agent did not produce system documentation. Cannot proceed without system understanding." Do not continue to Phase 2.
+
 ## Phase 2 — Setup
 
 Spawn a sub-agent using setup-wizard.
@@ -36,6 +38,8 @@ Pass it:
 - Path to `docs/plans/system-diagram.md`
 
 Wait for it to return paths to the generated scripts. Do not proceed to Phase 3 until all required scripts exist.
+
+If setup-wizard returns an error or any required script path is missing or the script file does not exist on disk, report failure immediately: "Phase 2 failed: setup-wizard did not produce all required scripts. Cannot proceed without trigger, wait, and fetch-logs scripts." Do not continue to Phase 3.
 
 ## Phase 3 — Fix, Implement, and Submit PR
 
