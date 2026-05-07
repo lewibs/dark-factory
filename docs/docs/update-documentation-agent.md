@@ -4,9 +4,11 @@
 
 **Model**: Sonnet (heavy reasoning for documentation analysis and writing).
 
-**Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
+**Prompt Caching**: Yes — set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs.
 
 **User-Invocable**: No (invoked by dark-factory-agent after code review).
+
+**Output Style**: Terse JSON — no progress prose.
 
 ## Overview
 
@@ -14,10 +16,27 @@ The update-documentation-agent automatically updates project documentation after
 
 The agent is a critical part of keeping documentation in sync with code — it ensures that every implemented flow/service has current, accurate documentation.
 
+Returns minimal structured output listing files written and a one-line summary (e.g., "Updated 2 docs for auth-flow and caching; created 1 new doc for metrics").
+
 ## Input
 
 - `planFilePath` (string, nullable) — Absolute path to the implemented and approved plan file
 - If not provided: sends PushNotification ("Input Required"), awaits AskUserQuestion for path or skip option
+
+## Output Format
+
+Returns terse structured output as the final message:
+
+```json
+{
+  "docsWritten": ["<absolute-path-1>", "<absolute-path-2>"],
+  "summary": "<one-line description of work>"
+}
+```
+
+**Example**: `{ "docsWritten": ["/path/docs/auth-flow.md"], "summary": "Updated auth-flow docs, created new integration example" }`
+
+**Key behavior**: Executes silently (no progress messages, phase descriptions, or narrative prose) and returns only this minimal JSON summary.
 
 ## Orchestration Flow (3 Phases)
 
@@ -25,26 +44,13 @@ The agent is a critical part of keeping documentation in sync with code — it e
 
 1. Reads the plan file at `planFilePath`
 2. Extracts every flow, service, or component that was created or modified
-3. Builds `tmp/update-docs-flows.md` checklist:
-   ```markdown
-   # Flows Checklist
-   - [ ] <flow-name> — created/modified
-   - [ ] <service-name> — created/modified
-   - [ ] <component-name> — created/modified
-   ```
+3. Builds `tmp/update-docs-flows.md` checklist (internal only — not output)
 
 ### Phase 2: Identify Affected Docs
 
 1. Invokes `find-affected-docs` command with flow names from Phase 1
 2. Command searches `docs/docs/` for existing files that mention the flows
-3. Appends to `tmp/update-docs-flows.md`:
-   ```markdown
-   # Affected Docs Checklist
-   - [ ] docs/docs/existing-flow.md — touches <flow-name>
-   - [ ] docs/docs/service-integration.md — touches <flow-name>
-   - [ ] NEW — <new-flow-name> has no existing doc
-   - [ ] NEW — <new-service-name> has no existing doc
-   ```
+3. Appends to `tmp/update-docs-flows.md` (internal only — not output)
 
 ### Phase 3: Update Docs
 
@@ -56,24 +62,23 @@ For each item in Phase 2 checklist:
 3. **Deletes removed behavior** — Removes descriptions of features that were deleted or refactored out
 4. **Updates modified** — Changes sections to reflect implementation details that changed
 5. **Adds new** — Inserts descriptions of new flows, endpoints, methods, or behaviors added by the implementation
-6. Marks checklist item `[x]` when complete
 
-**For new flows** (marked as "NEW"):
+**For new flows**:
 1. Creates `docs/docs/<flow-name>.md` as a new file
 2. Uses the `documentation` skill to generate comprehensive documentation
 3. Includes: purpose, inputs, outputs, workflow, error handling, dependencies
-4. Marks checklist item `[x]` when complete
+
+Collects absolute paths of all files written/updated.
 
 ## Completion
 
-After all docs are updated or created, resolves WORK_DIR and writes `$WORK_DIR/brain-patch.json`:
+Returns terse JSON with files updated and one-line summary.
+
+Writes `$WORK_DIR/brain-patch.json`:
 ```json
 {
-  "docsWritten": [
-    "/absolute/path/to/docs/docs/flow-1.md",
-    "/absolute/path/to/docs/docs/flow-2.md",
-    "/absolute/path/to/docs/docs/service.md"
-  ]
+  "docsWritten": ["<absolute-path-1>", "<absolute-path-2>"],
+  "summary": "<one-liner>"
 }
 ```
 
@@ -87,7 +92,8 @@ After all docs are updated or created, resolves WORK_DIR and writes `$WORK_DIR/b
 4. **Create new docs for new flows** — Don't assume documentation exists for new flows
 5. **Use documentation skill** — Delegate doc generation for new flows to the skill
 6. **Track all changes** — Write brain-patch.json with paths to every file touched
-7. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR`; if unset, read `/tmp/dark-factory-work-dir`; skip brain-patch silently if both empty
+7. **Work silently** — Execute all phases without output prose; return only final JSON summary
+8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR`; if unset, read `/tmp/dark-factory-work-dir`; skip brain-patch silently if both empty
 
 ## Dependencies
 
@@ -100,10 +106,10 @@ After all docs are updated or created, resolves WORK_DIR and writes `$WORK_DIR/b
 
 ## Artifacts Produced
 
-- `tmp/update-docs-flows.md` — Checklist of flows and affected docs
+- `tmp/update-docs-flows.md` — Checklist of flows and affected docs (internal; not output)
 - `docs/docs/<flow-name>.md` — New doc files created for flows without docs
 - Modified existing doc files in `docs/docs/`
-- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Metadata of all files written/updated
+- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Paths of all files written/updated and one-line summary
 
 ## Integration with dark-factory-agent
 

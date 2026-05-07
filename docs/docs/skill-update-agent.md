@@ -4,9 +4,11 @@
 
 **Model**: Sonnet (heavy reasoning for pattern detection and generalization).
 
-**Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
+**Prompt Caching**: Yes — set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs.
 
 **User-Invocable**: No (invoked by dark-factory-agent as non-fatal step).
+
+**Output Style**: Terse JSON — no progress prose or reasoning output.
 
 ## Overview
 
@@ -14,11 +16,28 @@ The skill-update-agent reviews completed work and harvests non-obvious, recurrin
 
 Unlike other agents, skill-update-agent is **non-fatal**: if it fails, dark-factory-agent logs a warning and continues to the PR step. This allows manufacturing to complete even if skill extraction fails.
 
+Returns minimal structured output listing skills created/updated and a one-line summary (e.g., "Extracted 2 new patterns: git conflict resolution and config merge strategy").
+
 ## Input
 
 - `planFilePath` (string, nullable) — Path to the approved and implemented plan file; may be null (e.g., for repair or debugger routes)
 - `workDir` (string) — Absolute path to the isolated work directory
 - `taskSummary` (string) — Brief human-readable description of what was accomplished
+
+## Output Format
+
+Returns terse structured output as the final message:
+
+```json
+{
+  "skillsWritten": ["<relative-path-1>", "<relative-path-2>"],
+  "summary": "<one-line description of patterns extracted>"
+}
+```
+
+**Example**: `{ "skillsWritten": ["skills/handle-git-conflicts/SKILL.md"], "summary": "Extracted git conflict resolution pattern for future feature runs" }`
+
+**Key behavior**: Executes silently (no step-by-step output, no reasoning prose) and returns only this minimal JSON summary.
 
 ## Orchestration Flow (5 Steps)
 
@@ -80,22 +99,16 @@ For each pattern passing the recurrence filter:
 1. **Create kebab-case slug** (e.g., "handle-git-conflicts", "debug-cloudbuild-logs")
 2. **Determine path**: `skills/<slug>/SKILL.md` (relative to workDir)
 3. **Check if exists**:
-   - **If already exists**: read existing skill, merge new knowledge, write updated file; record `action: "updated"`
-   - **If new**: write new SKILL.md using template below; record `action: "created"`
+   - **If already exists**: read existing skill, merge new knowledge, write updated file
+   - **If new**: write new SKILL.md using template below
 
-### Step 5: Return Result
+### Step 5: Build Summary and Return
 
-Returns:
-```json
-{
-  "skillsWritten": [
-    { "path": "skills/handle-git-conflicts/SKILL.md", "action": "created" },
-    { "path": "skills/debug-cloudbuild/SKILL.md", "action": "updated" }
-  ]
-}
-```
+Returns terse JSON:
+- List of skill file paths (relative to workDir)
+- One-line summary of patterns extracted (e.g., "Extracted 2 new patterns: git conflict resolution and config merge strategy")
 
-**If no patterns qualified**: returns `{ skillsWritten: [] }` (empty list).
+**If no patterns qualified**: returns `{ "skillsWritten": [], "summary": "No generalizable patterns found" }` (empty list with summary).
 
 ## Skill Template
 
@@ -106,7 +119,6 @@ When creating a new skill file, use this format:
 name: <kebab-case-slug>
 description: "<one sentence: what this skill does and when to use it>"
 user-invocable: false
-learned-skill: true
 ---
 
 ## When to use
@@ -141,7 +153,7 @@ Examples:
 2. **Don't modify files outside skills/** — Leave agent files, plans, and code untouched
 3. **Merge when updating** — Preserve existing skill content and add new knowledge; don't overwrite
 4. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block dark-factory-agent
-5. **Write brain-patch only if skills written** — If `skillsWritten` is empty, omit brain-patch entirely
+5. **Always output structured JSON** — Even if no skills written, return JSON with summary
 
 ## Brain Patch Output
 
@@ -151,12 +163,13 @@ If any skills were written or updated, write `$WORK_DIR/brain-patch.json`:
   "skillsWritten": [
     "skills/handle-git-conflicts/SKILL.md",
     "skills/debug-cloudbuild/SKILL.md"
-  ]
+  ],
+  "summary": "<one-liner>"
 }
 ```
 
 **Rules**:
-- Only write brain-patch if `skillsWritten` is non-empty
+- Always include summary in brain-patch
 - Resolve WORK_DIR: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
 - Do not read brain.json directly (context is injected by pre-hook)
 - Do not write brain.json (only write brain-patch.json)
