@@ -43,7 +43,7 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
     if [ "$METRICS_KEY" = "null" ] || [ "$METRICS_KEY" = "unknown" ]; then
       # Fallback: try to extract agent name from prompt path reference (agents/<name>.md)
       METRICS_KEY=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // ""' \
-        | grep -oP '(?<=agents/)[^/]+(?=\.md)' | head -1 || true)
+        | grep -oP '(?<=agents/)[^/]+(?=\.md)' | tail -1 || true)
       METRICS_KEY="${METRICS_KEY:-unknown}"
     fi
   else
