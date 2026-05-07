@@ -1,6 +1,6 @@
 # debugger-agent
 
-**Role**: Systematic debugger for non-obvious, state-dependent, or intermittent bugs.
+**Role**: Systematic debugger and action-taker for non-obvious, state-dependent, or intermittent bugs. Diagnoses AND implements the fix.
 
 **Model**: Sonnet (heavy reasoning for bug investigation and analysis).
 
@@ -8,13 +8,13 @@
 
 ## Overview
 
-The debugger-agent runs systematic debugging following a rigorous checklist-based methodology. It is designed for bugs that are non-obvious, state-dependent, intermittent, or of unknown cause — not simple syntax errors or obvious logic bugs. The agent follows the debug skill checklist step-by-step without skipping, producing a bug audit log and a verified fix.
+The debugger-agent runs systematic debugging following a rigorous checklist-based methodology. It is designed for bugs that are non-obvious, state-dependent, intermittent, or of unknown cause — not simple syntax errors or obvious logic bugs. The agent follows the debug skill checklist step-by-step without skipping, producing a bug audit log and a verified fix. Critically, the agent does NOT stop at diagnosis — it implements the fix in the working tree and returns exit_code=0 when done. Committing is the responsibility of the calling agent (debug-flow-agent).
 
 ## Input
 
 - `taskDescription` (string) — Description of the bug to debug (what is failing, expected behavior, actual behavior)
 
-## Debugging Workflow (6 Steps)
+## Debugging Workflow (7 Steps)
 
 ### Step 1: Confirm Bug Warrants Systematic Debugging
 
@@ -40,6 +40,10 @@ If the bug is obviously simple, report it and STOP (use repair-agent instead for
 2. Examines reproduction steps and failure conditions
 3. Identifies all test runs that exhibit the failure
 4. Gathers system state snapshots if applicable
+5. For live production issues:
+   - Checks live logs (CloudWatch, application logs, or equivalent) for the specific user's recent requests
+   - Queries the database directly to confirm data exists, is missing, or is corrupted
+   - Traces the data pipeline to find the exact failure point where data is lost or corrupted
 
 ### Step 4: Fill Bug Audit Log
 
@@ -96,6 +100,20 @@ Update bug file with:
 - **Fix Summary**: What was changed and why (reference commit or diff)
 - **Verification**: Test name and results confirming the fix
 
+### Step 7: Implement the Fix in Code (Action Step)
+
+After verification is complete:
+
+1. Applies the fix to the production code (if not already applied during Step 5)
+2. Runs the full test suite to confirm the fix does not break anything
+3. Does NOT commit — all changes are left in the working tree; committing is the responsibility of debug-flow-agent
+4. Returns `exit_code=0` to indicate successful fix implementation
+
+For bugs requiring re-triggering a failed processing step (data re-ingestion, retry, etc.):
+- Executes the re-trigger command or script
+- Verifies that data was successfully processed
+- Writes any supporting scripts or documentation to disk but does NOT commit them
+
 ## Brain Patch Output
 
 After all bug files are written and debugging checklist is complete:
@@ -106,7 +124,8 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
   "bugFiles": [
     "/absolute/path/to/bug-file-1.md",
     "/absolute/path/to/bug-file-2.md"
-  ]
+  ],
+  "notes": ["debugger-agent: root cause was <summary>, fixed in <key files>"]
 }
 ```
 
@@ -128,7 +147,8 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 
 ## Tools
 
-- Read, Write, Edit, Bash, Glob, Agent
+- Read, Write, Edit, Bash, Glob, Agent, Skill
+- Allowed Bash commands: `bash *`, `pytest *`, `python *`, `npm test *`, `grep -r *`, `find *`, `git *`
 
 ## Error Handling
 
@@ -140,4 +160,5 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 ## Artifacts Produced
 
 - `docs/bugs/<yyyy-mm-dd>-<bug-slug>.md` — Bug audit log (persisted in repository)
-- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Metadata linking to bug files
+- Working tree changes with the fix applied (NOT committed — debug-flow-agent commits)
+- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Metadata linking to bug files and fix notes

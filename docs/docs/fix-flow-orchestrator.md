@@ -8,7 +8,7 @@
 
 ## Overview
 
-The fix-flow-orchestrator is a specialized orchestrator for fixing broken integration flows. It systematically investigates the flow, generates debugging and test scripts, and loops through fix-and-push cycles until the flow passes. The flow name is required and must be provided as an argument.
+The fix-flow-orchestrator is a specialized orchestrator for fixing broken integration flows. It systematically investigates the flow, generates debugging and test scripts, and drives the complete fix cycle from diagnosis through PR submission. The orchestrator does NOT accept partial completion — ralph-fix-and-push must return a valid PR URL with all fixes implemented. The flow name is required and must be provided as an argument.
 
 ## Input
 
@@ -34,6 +34,8 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
 
 5. **Does NOT proceed to Phase 2 until** `docs/plans/system-diagram.md` exists
 
+**Error handling**: If investigation-agent returns an error or `docs/plans/system-diagram.md` does not exist after it completes, reports failure immediately and does NOT continue to Phase 2.
+
 ### Phase 2: Setup
 
 **Objective**: Generate test trigger, log fetching, and deployment scripts.
@@ -48,9 +50,11 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
 
 3. **Does NOT proceed to Phase 3 until** all required scripts are verified to exist
 
-### Phase 3: Fix and Push
+**Error handling**: If setup-wizard returns an error or any required script is missing, reports failure immediately and does NOT continue to Phase 3.
 
-**Objective**: Loop through fix attempts until flow passes; create single PR with all fixes.
+### Phase 3: Fix, Implement, and Submit PR
+
+**Objective**: Drive the complete fix cycle — diagnosis, implementation, and PR submission.
 
 1. Spawns `ralph-fix-and-push` sub-agent with:
    - Paths to all generated scripts from Phase 2
@@ -58,14 +62,22 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
 
 2. Waits for ralph-fix-and-push to complete
 
-3. ralph-fix-and-push returns `all-green: true` when flow passes
+3. ralph-fix-and-push must return `all-green: true` WITH a valid PR URL
+
+**Completion criteria** — the PR must contain:
+- Code fixes for all bugs discovered
+- Bug audit logs in `docs/bugs/` linked in the PR description
+- All commits on the current branch
+
+**Error handling**: The orchestrator does NOT accept partial completion. If ralph-fix-and-push returns any status other than `all-green: true` with a valid PR URL, the orchestrator reports failure and provides diagnostic information. If `all-green: true` is returned but NO PR URL is included, this is treated as a FAILURE state.
 
 ## Completion
 
-When ralph-fix-and-push returns `all-green: true`:
+When ralph-fix-and-push returns `all-green: true` with a valid PR URL:
 
-1. Reports success to developer with PR URL
-2. Notes that `docs/plans/system-diagram.md` and any `docs/bugs/*.md` files are kept as persistent project documentation (not deleted)
+1. Reports success to developer with the PR URL — this is the final deliverable
+2. The PR must be open on GitHub with all fixes implemented and committed
+3. Notes that `docs/plans/system-diagram.md` and any `docs/bugs/*.md` files are kept as persistent project documentation (not deleted)
 
 ## Key Design Rules
 
@@ -83,7 +95,7 @@ When ralph-fix-and-push returns `all-green: true`:
 
 ## Tools
 
-- Read, Bash, PushNotification, AskUserQuestion
+- Read, Bash, Agent, PushNotification, AskUserQuestion
 
 ## Return Value
 
