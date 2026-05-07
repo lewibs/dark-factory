@@ -34,25 +34,28 @@ HOOK_INPUT=$(cat)
 if [ -f "$PATCH_PATH" ]; then
   PATCH_CONTENTS=$(jq -c '.' "$PATCH_PATH")
   echo "post-tool-use-hook | merge-patch | patch=${PATCH_CONTENTS}" >&2
-  if jq -e '.notes' "$PATCH_PATH" > /dev/null 2>&1; then
-    (
-      flock -x 200
-      NOTES_TMP=$(mktemp /tmp/brain-notes-XXXXXX.json)
+  (
+    flock -x 200
+    POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
+    # Check if the patch contains notes or artifacts fields that require array-concat merge
+    HAS_ARRAY_FIELDS=$(jq 'has("notes") or has("artifacts")' "$PATCH_PATH")
+    if [ "$HAS_ARRAY_FIELDS" = "true" ]; then
       jq -s '
-        (.[0].notes // []) + (.[1].notes // []) as $merged_notes |
-        .[0] * .[1] | .notes = $merged_notes
-      ' "$BRAIN_PATH" "$PATCH_PATH" > "$NOTES_TMP" && mv "$NOTES_TMP" "$BRAIN_PATH"
-      rm -f "$PATCH_PATH"
-    ) 200>"$BRAIN_LOCK"
-  else
-    (
-      flock -x 200
-      POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
+        (.[0].notes // []) + (.[1].notes // []) as $notes |
+        ((.[0].artifacts.created // []) + (.[1].artifacts.created // [])) as $art_created |
+        ((.[0].artifacts.modified // []) + (.[1].artifacts.modified // [])) as $art_modified |
+        .[0] * .[1] |
+        .notes = $notes |
+        .artifacts.created = $art_created |
+        .artifacts.modified = $art_modified
+      ' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
+        && mv "$POST_TMP" "$BRAIN_PATH"
+    else
       jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
         && mv "$POST_TMP" "$BRAIN_PATH"
-      rm -f "$PATCH_PATH"
-    ) 200>"$BRAIN_LOCK"
-  fi
+    fi
+    rm -f "$PATCH_PATH"
+  ) 200>"$BRAIN_LOCK"
 else
   echo "post-tool-use-hook | no-patch | brain-patch.json not found, skipping merge" >&2
 fi

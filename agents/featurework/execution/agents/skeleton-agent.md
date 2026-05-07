@@ -39,3 +39,22 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
 - If the plan file is unreadable or missing, stop immediately and return an error to the caller.
 - Do not implement any logic. Stubs only.
 - Do not proceed to the next file until the current one is written and checked off.
+
+## brain-patch.json
+
+After all skeleton files are created, resolve WORK_DIR:
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip writing the patch silently
+else: Write `$WORK_DIR/brain-patch.json`:
+  ```json
+  {
+    "artifacts": {
+      "created": ["<absolute path to each skeleton file created>"]
+    }
+  }
+  ```
+```
+
+The `created` list must contain the absolute path of every file written during this run.
