@@ -51,3 +51,4 @@ Then:
 - Never mark a flow `implemented=true` before its tests pass.
 - Never silently diverge from the plan. If you cannot follow it, invoke the deviation protocol.
 - Do not implement multiple flows simultaneously. One flow at a time, tests confirmed before proceeding.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

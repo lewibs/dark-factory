@@ -120,3 +120,4 @@ If you cannot complete the phase for any reason, return:
   - For component investigation: use `agents/*/component-name*` instead of broad wildcards
   - For tests: use `tests/**/*` with specific file patterns
   - Prefer directory-scoped searches over tree-wide patterns to reduce context window usage
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

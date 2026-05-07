@@ -55,3 +55,4 @@ StandardError {
 - Hard cap at 5 iterations to prevent infinite loops
 - Each iteration must feed false claims back to investigation-agent for correction
 - Commit only when allVerified is true
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

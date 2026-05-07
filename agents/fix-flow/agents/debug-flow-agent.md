@@ -30,3 +30,4 @@ Scripts are passed to you by ralph-fix-and-push. Use them exactly as given.
 - Always run wait-for-completion.sh before reading logs. Never read logs from a run that hasn't finished.
 - Never skip the wait step even if trigger.sh appears to have finished.
 - Do not create PRs, push branches, or run deploy.sh.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

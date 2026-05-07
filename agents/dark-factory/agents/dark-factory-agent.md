@@ -286,4 +286,5 @@ python3 -m pytest tests/test_batch_results_merged.py
 - **Graceful Degradation**: If Batch API is unavailable, fall back to synchronous invocation
 - **Non-Fatal**: skill-update-agent failures must not block PR opening (existing behavior preserved)
 - **Idempotency**: Batch jobs can be safely retried; system handles duplicate submissions
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.
 

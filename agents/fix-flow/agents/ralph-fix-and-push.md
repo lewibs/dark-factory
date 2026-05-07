@@ -77,6 +77,7 @@ Return `{ pr_url: "...", merged: true, bugFiles: [...], allGreen: true }` to the
 - Track all bug doc file paths across iterations and include them all in the final PR body.
 - If debugger-agent returns exit_code 0, commit the fix, then create the single PR and return immediately.
 - If deploy.sh does not exist, skip the deploy step.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.
 
 ## Bug explanation files
 

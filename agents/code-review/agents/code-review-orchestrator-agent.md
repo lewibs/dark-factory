@@ -64,3 +64,4 @@ StandardError {
 - Never start the resolver if either reviewer returned an error.
 - If the resolver loop runs more than 10 iterations without clearing all items, halt with a `StandardError` describing the stuck items.
 - Always delete `issues.md` on successful completion using the `manage-issues-file` command.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.

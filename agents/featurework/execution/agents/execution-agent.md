@@ -48,3 +48,4 @@ When a hard-stop is returned from `implementation-agent`:
 
 - Never spawn the next agent until the current one returns successfully.
 - Do not write code. Your job is sequencing and gate-checking.
+- Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.
