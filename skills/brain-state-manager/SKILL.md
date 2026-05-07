@@ -48,6 +48,10 @@ Creates a new brain.json in the work directory and sets up environment integrati
   "prUrl": null,
   "docsWritten": null,
   "skillsWritten": null,
+  "artifacts": {
+    "created": [],
+    "modified": []
+  },
   "phases": {
     "prep-running": false,
     "prep-complete": true,

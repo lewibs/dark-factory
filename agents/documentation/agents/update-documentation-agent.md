@@ -94,10 +94,15 @@ else: Write `$WORK_DIR/brain-patch.json`:
   ```json
   { 
     "docsWritten": ["<absolute path 1>", "<absolute path 2>"],
-    "summary": "<one-liner>"
+    "summary": "<one-liner>",
+    "artifacts": {
+      "modified": ["<absolute path 1>", "<absolute path 2>"]
+    }
   }
   ```
 ```
+
+The `artifacts.modified` list must contain the same paths as `docsWritten`.
 
 Return the final output structure to the caller as your only message:
 ```json

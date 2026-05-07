@@ -73,3 +73,23 @@ Rules:
 - Never spawn the next agent until the current one returns successfully.
 - Do not write code. Your job is sequencing and gate-checking.
 - Never invoke the built-in `Explore` subagent_type directly. Always route codebase research through `investigation-agent` — it checks existing docs first (cheap) before scanning the codebase.
+
+## brain-patch.json
+
+After all agents complete successfully, resolve WORK_DIR:
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip writing the patch silently
+else: Write `$WORK_DIR/brain-patch.json`:
+  ```json
+  {
+    "artifacts": {
+      "created": ["<absolute path to each new file created>"],
+      "modified": ["<absolute path to each existing file modified>"]
+    }
+  }
+  ```
+```
+
+Collect the list of created files from `skeleton-agent`'s `filesCreated` return value, and the list of modified files from any files edited by `implementation-agent`.
