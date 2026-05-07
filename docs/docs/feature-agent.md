@@ -161,7 +161,7 @@ Execution paused; user must review and resume.
 
 ## Tools
 
-- Read, Agent, PushNotification, Skill, Command
+- Read, Write, Agent, PushNotification, Skill, Command
 
 ## State Persistence
 
