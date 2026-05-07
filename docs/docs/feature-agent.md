@@ -14,6 +14,8 @@ The feature-agent orchestrates feature work end-to-end using a five-phase planni
 
 The agent manages a multi-turn dialogue: users review each planning section (System Intent, Mermaid Diagram, Flows) and either approve or request changes. Once all sections are approved, it delegates to execution-agent.
 
+**Return Protocol**: This agent ALWAYS returns structured JSON with a `status` field. It never returns raw text, conversational responses, or any output that does not parse as JSON. dark-factory-agent depends on this contract to route the multi-turn loop correctly; any non-JSON output causes dark-factory-agent to halt with an error.
+
 ## Input
 
 - `taskDescription` (string, nullable) — User's request; null on re-invocation
@@ -148,6 +150,8 @@ Execution paused; user must review and resume.
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
 6. **Write brain-patch.json only after execution succeeds** — Resolve WORK_DIR from `$DARK_FACTORY_WORK_DIR`, then fall back to contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
 7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+8. **ALWAYS return structured JSON** — Every return path must produce `{ status: "..." }`. Valid statuses: `done`, `hard-stop`, `aborted`, `question`. Never return free text or intermediate analysis.
+9. **status: "question" must be complete** — Always include `question` (string), `options` (array), `planPath` (string or null), and `phase` (string) when returning this status.
 
 ## Dependencies
 

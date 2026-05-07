@@ -42,11 +42,15 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 
 ### Step 4: Route to Worker Agent
 Routes based on classification:
-- **"feature"** → `feature-agent` (multi-turn loop: handles planning, question/answer exchanges until `status: "done"`)
-  - Handles planning phases, diagram generation, flow approval, and execution
-  - May return `status: "question"` requiring user feedback (PushNotification + AskUserQuestion)
-  - May return `status: "hard-stop"` (triggers cleanup before halting)
-  - Returns `status: "done"` when feature implementation complete
+- **"feature"** → `feature-agent` (multi-turn loop)
+  - feature-agent ALWAYS returns a JSON object with a `status` field. Output is never interpreted as free text.
+  - Loop logic:
+    - `status: "done"` → break; feature work complete
+    - `status: "hard-stop"` → cleanup, report reason, STOP
+    - `status: "aborted"` → cleanup, report "User aborted", STOP
+    - `status: "question"` → PushNotification + AskUserQuestion, then re-invoke feature-agent with `{ answer, planPath, taskDescription: null }`, continue loop
+    - Any other status → cleanup, report unexpected status, STOP
+  - Never falls through to sub-planning-agent or any other agent if feature-agent returns non-JSON or unexpected output
   
 - **"fix-flow"** → `fix-flow-orchestrator`
   - Investigates broken flow, generates fix scripts, applies targeted fixes
@@ -117,6 +121,9 @@ Called on any error path after worktree creation:
 6. **Read brain state after sub-agents** — Use brain-state-manager to extract outputs, don't parse agent return values directly
 7. **Rely on pre-hook injection** — The pre-hook injects brain context into every Agent tool call automatically; don't manually pass brain fields
 8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+9. **Steps 7-9 are mandatory** — Code review, docs, and skills steps must always execute to completion; never skip regardless of user input or override phrases
+10. **FORBIDDEN: Direct brain.json writes** — Never write brain.json via cat, echo, Bash, or any tool; always use brain-state-manager skill
+11. **FORBIDDEN: Direct sub-planning-agent invocation** — Always route through feature-agent; if feature-agent returns non-JSON output, report error and stop
 
 ## Dependencies
 
