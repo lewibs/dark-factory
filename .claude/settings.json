@@ -56,15 +56,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
             "command": "bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
           }
         ]

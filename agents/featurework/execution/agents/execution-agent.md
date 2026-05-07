@@ -6,6 +6,7 @@ tools: Read, Write, Edit, Bash, Agent, PushNotification, AskUserQuestion
 allowed-tools: Bash(rm tmp/files-checklist.md), Bash(rm tmp/flows-checklist.md)
 model: haiku
 cache-control: ephemeral
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the execution-agent. Your job is to take an approved plan file and execute it end-to-end by spawning three agents in strict sequence. You do not write code yourself.

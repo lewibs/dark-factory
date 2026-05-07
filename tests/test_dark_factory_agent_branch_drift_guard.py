@@ -31,7 +31,7 @@ DARK_FACTORY_AGENT_PATH = os.path.join(
     PROJECT_ROOT, "agents", "dark-factory", "agents", "dark-factory-agent.md"
 )
 CREATE_PR_SKILL_PATH = os.path.join(
-    PROJECT_ROOT, "agents", "pr", "skills", "create-pr", "SKILL.md"
+    PROJECT_ROOT, "skills", "create-pr", "SKILL.md"
 )
 PR_AGENT_PATH = os.path.join(
     PROJECT_ROOT, "agents", "pr", "agents", "pr-agent.md"
@@ -81,8 +81,8 @@ class TestBranchDriftGuard:
 
     def test_dark_factory_agent_branch_drift_guard_is_after_worker(self):
         """
-        branchDriftGuard.guard-position: the branch-drift guard must appear after Step 3
-        (worker invocation) and before Step 4 (code review) in dark-factory-agent.md.
+        branchDriftGuard.guard-position: the branch-drift guard must appear at Step 5,
+        after Step 4 (worker invocation) and before Step 6 (read planFilePath) in dark-factory-agent.md.
 
         If this test fails: the guard exists but is in the wrong position — it may run before
         the worker has committed, making it ineffective.
@@ -90,14 +90,16 @@ class TestBranchDriftGuard:
         """
         body = _body(DARK_FACTORY_AGENT_PATH)
 
-        # Find positions of Step 3 header, the guard, and Step 4 header.
+        # Find positions of Step 4 header, Step 5 header, the guard, and Step 6 header.
         # Use line-start anchors (via re.MULTILINE) to match the actual section headers,
-        # not inline references like "# proceed to Step 4 (code review)".
-        step3_match = re.search(r"(?im)^\s*#\s*Step\s+3\b", body)
+        # not inline references like "# proceed to Step 6".
         step4_match = re.search(r"(?im)^\s*#\s*Step\s+4\b", body)
+        step5_match = re.search(r"(?im)^\s*#\s*Step\s+5\b", body)
+        step6_match = re.search(r"(?im)^\s*#\s*Step\s+6\b", body)
 
-        assert step3_match, "dark-factory-agent.md must contain a '# Step 3' section header"
         assert step4_match, "dark-factory-agent.md must contain a '# Step 4' section header"
+        assert step5_match, "dark-factory-agent.md must contain a '# Step 5' section header"
+        assert step6_match, "dark-factory-agent.md must contain a '# Step 6' section header"
 
         guard_match = re.search(
             r"(?i)(branch.drift|drift.guard|log.*main\.\.|feature.*ahead|commits.*feature|worker.*commit.*wrong)",
@@ -107,14 +109,15 @@ class TestBranchDriftGuard:
             "dark-factory-agent.md must contain a branch-drift guard expression"
         )
 
-        step3_pos = step3_match.start()
         step4_pos = step4_match.start()
+        step5_pos = step5_match.start()
+        step6_pos = step6_match.start()
         guard_pos = guard_match.start()
 
-        assert step3_pos < guard_pos < step4_pos, (
-            f"Branch-drift guard (pos {guard_pos}) must appear after Step 3 (pos {step3_pos}) "
-            f"and before Step 4 (pos {step4_pos}) in dark-factory-agent.md. "
-            f"The guard must run after the worker commits and before code review begins."
+        assert step5_pos < guard_pos < step6_pos, (
+            f"Branch-drift guard (pos {guard_pos}) must appear after Step 5 (pos {step5_pos}) "
+            f"and before Step 6 (pos {step6_pos}) in dark-factory-agent.md. "
+            f"The guard must run after the worker commits and before reading plan file path."
         )
 
     def test_dark_factory_agent_branch_drift_halt_on_empty(self):
