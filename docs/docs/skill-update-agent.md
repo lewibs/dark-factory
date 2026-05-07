@@ -142,7 +142,7 @@ Examples:
 
 ## Brain Patch Output
 
-If any skills were written or updated, write `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
+If any skills were written or updated, write `$WORK_DIR/brain-patch.json`:
 ```json
 {
   "skillsWritten": [
@@ -154,7 +154,7 @@ If any skills were written or updated, write `$DARK_FACTORY_WORK_DIR/brain-patch
 
 **Rules**:
 - Only write brain-patch if `skillsWritten` is non-empty
-- Skip writing silently if `DARK_FACTORY_WORK_DIR` is unset
+- Resolve WORK_DIR: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
 - Do not read brain.json directly (context is injected by pre-hook)
 - Do not write brain.json (only write brain-patch.json)
 

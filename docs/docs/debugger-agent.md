@@ -100,7 +100,7 @@ Update bug file with:
 
 After all bug files are written and debugging checklist is complete:
 
-Writes `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
+Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 ```json
 {
   "bugFiles": [
@@ -118,7 +118,7 @@ Writes `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
 4. **Verify fix is necessary** — Remove fix and confirm test fails again (except when unsafe)
 5. **Do NOT read brain.json** — Context is already injected by pre-hook
 6. **Do NOT write brain.json directly** — Only write brain-patch.json
-7. **Skip brain-patch silently if DARK_FACTORY_WORK_DIR unset** — No error if environment variable missing
+7. **Resolve WORK_DIR via pointer file fallback** — Use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip brain-patch silently if both are empty
 
 ## Dependencies
 

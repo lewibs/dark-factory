@@ -49,8 +49,13 @@ Mark each checklist item `[x]` when done.
 
 ## Completion
 
-Write `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
-```json
-{ "docsWritten": ["<absolute path to each file written or updated>"] }
+Resolve WORK_DIR:
 ```
-Skip silently if DARK_FACTORY_WORK_DIR is unset.
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip silently
+else: Write `$WORK_DIR/brain-patch.json`:
+  ```json
+  { "docsWritten": ["<absolute path to each file written or updated>"] }
+  ```
+```

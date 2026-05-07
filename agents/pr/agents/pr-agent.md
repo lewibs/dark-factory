@@ -39,7 +39,11 @@ pr-agent(planFilePath or description):
   # Step 2 — Open PR (delegate to create-pr skill) if no existing PR
   if existingPr is null:
     pr_url = invoke create-pr({ bodyFile: "/tmp/pr-body.md" })
-  write $DARK_FACTORY_WORK_DIR/brain-patch.json: { "prUrl": pr_url }
+  
+  WORK_DIR = $DARK_FACTORY_WORK_DIR
+  if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+  if WORK_DIR is still empty: skip silently
+  else: write $WORK_DIR/brain-patch.json: { "prUrl": pr_url }
 
   # Step 3 — Watch CI (delegate to ci-watch-runner command)
   ciResult = invoke ci-watch-runner({ prUrl: pr_url, maxIterations: 5 })
@@ -62,4 +66,4 @@ pr-agent(planFilePath or description):
 - Delegate CI watching to ci-watch-runner — do not implement watch loop inline.
 - Delegate comment resolution to comment-resolution-runner — do not implement comment loop inline.
 - Do not merge.
-- Write brain-patch.json after PR is opened; skip silently if DARK_FACTORY_WORK_DIR is unset.
+- Write brain-patch.json after PR is opened; use pointer file fallback if DARK_FACTORY_WORK_DIR is unset.

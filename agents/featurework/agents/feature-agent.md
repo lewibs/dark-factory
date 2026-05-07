@@ -111,7 +111,10 @@ feature-agent(taskDescription, answer, planPath):
   if execution-agent returns hardStop:
     RETURN { status: "hard-stop", reason: execution-agent reason }
 
-  write $DARK_FACTORY_WORK_DIR/brain-patch.json: { "planFilePath": planPath }
+  WORK_DIR = $DARK_FACTORY_WORK_DIR
+  if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+  if WORK_DIR is still empty: skip silently
+  else: write $WORK_DIR/brain-patch.json: { "planFilePath": planPath }
 
   RETURN { status: "done", planPath }
 ```
@@ -123,4 +126,4 @@ feature-agent(taskDescription, answer, planPath):
 - Delegate flow state reads/writes to flow-state-manager skill.
 - Delegate section rendering to render-plan-section command.
 - After a hard-stop, return `{ status: "hard-stop" }` — do not re-invoke execution-agent.
-- Write brain-patch.json only after execution-agent succeeds; skip silently if DARK_FACTORY_WORK_DIR is unset.
+- Write brain-patch.json only after execution-agent succeeds; use pointer file fallback if DARK_FACTORY_WORK_DIR is unset.

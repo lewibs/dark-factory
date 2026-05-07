@@ -64,7 +64,7 @@ For each item in Phase 2 checklist:
 
 ## Completion
 
-After all docs are updated or created, writes `$DARK_FACTORY_WORK_DIR/brain-patch.json`:
+After all docs are updated or created, resolves WORK_DIR and writes `$WORK_DIR/brain-patch.json`:
 ```json
 {
   "docsWritten": [
@@ -75,7 +75,7 @@ After all docs are updated or created, writes `$DARK_FACTORY_WORK_DIR/brain-patc
 }
 ```
 
-**Note**: Skip writing brain-patch.json silently if `DARK_FACTORY_WORK_DIR` is unset.
+**WORK_DIR resolution**: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir` (if file exists); skip silently if both are empty.
 
 ## Key Design Rules
 
@@ -85,7 +85,7 @@ After all docs are updated or created, writes `$DARK_FACTORY_WORK_DIR/brain-patc
 4. **Create new docs for new flows** — Don't assume documentation exists for new flows
 5. **Use documentation skill** — Delegate doc generation for new flows to the skill
 6. **Track all changes** — Write brain-patch.json with paths to every file touched
-7. **Skip brain-patch silently** — If DARK_FACTORY_WORK_DIR is unset, don't error
+7. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR`; if unset, read `/tmp/dark-factory-work-dir`; skip brain-patch silently if both empty
 
 ## Dependencies
 

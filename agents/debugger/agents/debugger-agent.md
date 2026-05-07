@@ -29,14 +29,20 @@ You are a systematic debugger. Your only job is to follow the steps in `flows/de
 
 After the bug file(s) have been written and the debugging checklist is complete:
 
-Write `$DARK_FACTORY_WORK_DIR/brain-patch.json` with:
-```json
-{
-  "bugFiles": ["<absolute path to each bug audit log file written>"]
-}
+Resolve WORK_DIR:
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip writing the patch silently
+else: Write `$WORK_DIR/brain-patch.json` with:
+  ```json
+  {
+    "bugFiles": ["<absolute path to each bug audit log file written>"]
+  }
+  ```
 ```
 
 Rules:
 - Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
 - Do NOT write `brain.json` directly — only write `brain-patch.json`.
-- If `DARK_FACTORY_WORK_DIR` is not set or empty, skip writing the patch silently.
+- Use pointer file fallback (`/tmp/dark-factory-work-dir`) if DARK_FACTORY_WORK_DIR is unset.
