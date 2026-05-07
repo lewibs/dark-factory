@@ -16,9 +16,8 @@ The agent manages a multi-turn dialogue: users review each planning section (Sys
 
 ## Input
 
-- `taskDescription` (string, nullable) — User's request; null on re-invocation
-- `answer` (string, nullable) — User's response to a previous question; null on first invocation
-- `planPath` (string, nullable) — Path to existing plan file; null on first invocation, provided on re-invocation
+- `taskDescription` (string) — User's request
+- `planPath` (string, nullable) — Path to existing plan file; null on first invocation, provided on resume
 
 ## Orchestration Flow (5 Phases)
 
@@ -31,46 +30,49 @@ The agent manages a multi-turn dialogue: users review each planning section (Sys
 3. If error or no planPath: reports error and STOPS
 4. Renders "## System Intent" section via `render-plan-section` command
 5. Sends PushNotification: "Draft Plan Ready"
-6. **Returns** `status: "question"` with System Intent content and options:
+6. Calls `AskUserQuestion` with System Intent content and options:
    - "Looks good — continue to Mermaid diagram"
    - "Request Changes"
+7. If "Request Changes": asks follow-up for feedback, re-invokes planning-agent, then continues to Phase 2.
 
 ### Phase 2: Mermaid Diagram
 
-**Condition**: Resuming with "Stage 1 Mermaid approved" unchecked; user selected "Looks good — continue to Mermaid diagram"
+**Condition**: Entering after Phase 1 or resuming with "Stage 1 Mermaid approved" unchecked.
 
-1. Invokes `planning-agent` with `phase: "mermaid"`, `planPath`, `feedback: answer ?? "none"`
+1. Invokes `planning-agent` with `phase: "mermaid"`, `planPath`, `feedback: "none"`
 2. Receives `{ planPath, url, summary }`
 3. If URL is present: sends PushNotification with diagram link
 4. Renders "## Mermaid Diagram" section via `render-plan-section`
-5. **Returns** `status: "question"` with Mermaid diagram and options:
+5. Calls `AskUserQuestion` with Mermaid diagram and options:
    - "Approve — continue to flows"
    - "Request Changes"
+6. If "Request Changes": asks follow-up for feedback, re-invokes planning-agent with feedback.
 
 ### Phase 3: Flows (Iterative, One at a Time)
 
-**Condition**: Resuming with "Stage 2 Flows approved" unchecked; user selected "Approve — continue to flows"
+**Condition**: Entering after Phase 2 or resuming with "Stage 2 Flows approved" unchecked.
 
-Iterates through all flows in the plan, one per turn:
+Loops through all flows in the plan until all are approved:
 
 1. Parses all flow names from plan file
-2. Loads current flow state via `flow-state-manager` skill
-3. If user answered "Approve — continue to next flow": marks current flow as approved in state manager
-4. If user requested changes: invokes `planning-agent` with `phase: "flows"` and the change request
-5. Finds next unapproved flow via flow-state-manager
-6. If all flows approved: **GOTO Phase 4**
-7. Sets current flow in state manager
-8. Renders next flow section via `render-plan-section`
-9. **Returns** `status: "question"` with flow content and options:
-   - "Approve — continue to next flow"
-   - "Request Changes"
+2. Loads flow state via `flow-state-manager` skill
+3. For each unapproved flow:
+   a. Sets current flow in state manager
+   b. Renders the flow section via `render-plan-section`
+   c. Calls `AskUserQuestion` with flow content and options:
+      - "Approve — continue to next flow"
+      - "Request Changes"
+   d. If "Approve": marks flow approved in state manager
+   e. If "Request Changes": asks follow-up for feedback, re-invokes planning-agent, re-asks
+4. When all flows approved: **GOTO Phase 4**
 
 ### Phase 4: Final Approval Gate
 
-**Condition**: All flows approved (entering execution phase) AND user hasn't yet selected "Approve and Execute"
+**Condition**: All flows approved (entering execution phase).
 
 1. Reads full plan file content
-2. **Returns** `status: "question"` with complete plan and options:
+2. Sends PushNotification: "Plan Approval Required"
+3. Calls `AskUserQuestion` with complete plan and options:
    - "Approve and Execute"
    - "Abort"
 
@@ -99,18 +101,6 @@ Feature-agent determines current phase by reading checkboxes in plan's Stage Gat
 This allows users to re-invoke feature-agent mid-workflow if interrupted.
 
 ## Return Values
-
-### status: "question"
-```json
-{
-  "status": "question",
-  "question": "<rendered section or full plan>",
-  "options": ["option1", "option2"],
-  "planPath": "<path to plan file>",
-  "phase": "<phase name>"
-}
-```
-Indicates dark-factory-agent should send PushNotification and await AskUserQuestion response.
 
 ### status: "done"
 ```json
@@ -141,7 +131,7 @@ Execution paused; user must review and resume.
 
 ## Key Design Rules
 
-1. **Never call AskUserQuestion directly** — Return `status: "question"` instead; dark-factory-agent asks at depth-2
+1. **Call AskUserQuestion directly** — feature-agent runs at depth 2 (manufacture command inline → Agent tool call), so its AskUserQuestion calls reach the human. Never return `status: "question"` — that protocol has been replaced.
 2. **Never invoke pr-agent** — Caller (dark-factory-agent) handles the PR
 3. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
