@@ -104,6 +104,7 @@ When creating a new skill file, use this format:
 name: <kebab-case-slug>
 description: "<one sentence: what this skill does and when to use it>"
 user-invocable: false
+learned-skill: true
 ---
 
 ## When to use
