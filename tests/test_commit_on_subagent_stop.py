@@ -193,17 +193,69 @@ class TestHookFiredWorkDirNotSet:
 
     def test_hook_fired_work_dir_not_set(self):
         # Plan path: hook-fired.dark-factory-work-dir-not-set
-        # Arrange: run hook without setting DARK_FACTORY_WORK_DIR
-        result = run_hook("skeleton-agent", work_dir=None)
+        # Arrange: run hook without setting DARK_FACTORY_WORK_DIR and without pointer file
+        # Remove the pointer file temporarily to test the true "not set" case
+        pointer_file = "/tmp/dark-factory-work-dir"
+        pointer_backup = None
+        if os.path.exists(pointer_file):
+            with open(pointer_file, "r") as f:
+                pointer_backup = f.read()
+            os.remove(pointer_file)
 
-        # Assert: exits 0 (non-blocking) and logs that env var is not set
-        assert result.returncode == 0, (
-            f"Expected exit 0 when DARK_FACTORY_WORK_DIR not set, got {result.returncode}. stderr: {result.stderr}"
-        )
-        # stderr should contain a message about the env var not being set
-        assert "DARK_FACTORY_WORK_DIR" in result.stderr, (
-            "Expected mention of DARK_FACTORY_WORK_DIR in stderr"
-        )
+        try:
+            result = run_hook("skeleton-agent", work_dir=None)
+
+            # Assert: exits 0 (non-blocking) and logs that env var is not set
+            assert result.returncode == 0, (
+                f"Expected exit 0 when DARK_FACTORY_WORK_DIR not set, got {result.returncode}. stderr: {result.stderr}"
+            )
+            # stderr should contain a message about the env var not being set or work_dir being empty
+            assert ("DARK_FACTORY_WORK_DIR" in result.stderr or "skipping commit" in result.stderr), (
+                "Expected skip message in stderr when work_dir is not available"
+            )
+        finally:
+            # Restore the pointer file
+            if pointer_backup is not None:
+                with open(pointer_file, "w") as f:
+                    f.write(pointer_backup)
+
+
+class TestHookFiredWorkDirFromPointerFile:
+    """Flow: hook-fired — path: hook-fired.dark-factory-work-dir-from-pointer-file"""
+
+    def test_hook_fired_work_dir_from_pointer_file(self):
+        # Plan path: hook-fired.dark-factory-work-dir-from-pointer-file
+        # Arrange: create a temp git repo and set up the pointer file, then run hook without DARK_FACTORY_WORK_DIR env var
+        repo = init_temp_git_repo()
+        stage_file(repo)
+
+        pointer_file = "/tmp/dark-factory-work-dir"
+        pointer_backup = None
+        if os.path.exists(pointer_file):
+            with open(pointer_file, "r") as f:
+                pointer_backup = f.read()
+
+        try:
+            # Write the repo path to the pointer file
+            with open(pointer_file, "w") as f:
+                f.write(repo)
+
+            # Act: run the hook without setting DARK_FACTORY_WORK_DIR (it should read from pointer file)
+            result = run_hook("skeleton-agent", work_dir=None)
+
+            # Assert: exits 0 and a commit was created using the pointer file path
+            assert result.returncode == 0, f"Expected exit 0, got {result.returncode}. stderr: {result.stderr}"
+            assert get_commit_count(repo) == 1, "Expected exactly one commit to be created from pointer file fallback"
+            assert get_last_commit_message(repo) == "skeleton", (
+                f"Expected commit message 'skeleton', got '{get_last_commit_message(repo)}'"
+            )
+        finally:
+            # Restore the pointer file
+            if pointer_backup is not None:
+                with open(pointer_file, "w") as f:
+                    f.write(pointer_backup)
+            elif os.path.exists(pointer_file):
+                os.remove(pointer_file)
 
 
 class TestHookFiredGitCommandFailure:

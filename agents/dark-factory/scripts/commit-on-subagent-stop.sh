@@ -24,7 +24,7 @@ case "$agent_type" in
     ;;
 esac
 
-work_dir="${DARK_FACTORY_WORK_DIR:-}"
+work_dir="${DARK_FACTORY_WORK_DIR:-$(cat /tmp/dark-factory-work-dir 2>/dev/null)}"
 if [ -z "$work_dir" ]; then
   echo "DARK_FACTORY_WORK_DIR not set, skipping commit" >&2
   exit 0
