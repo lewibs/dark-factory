@@ -108,7 +108,7 @@ dark-factory-agent(taskDescription, taskName):
     report error and STOP
 
   # Step 8 — update docs (must complete before PR)
-  invoke update-documentation-agent({ planFilePath })
+  invoke update-documentation-agent({ planFilePath, workDir: WORK_DIR })
 
   # Step 9 — skill update (non-fatal)
   try:

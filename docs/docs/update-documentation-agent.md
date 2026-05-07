@@ -40,31 +40,43 @@ Returns terse structured output as the final message:
 
 ## Orchestration Flow (3 Phases)
 
+### WORK_DIR Resolution
+
+Before any file write, the agent resolves its working directory:
+
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: WORK_DIR = "." (fallback — logs warning: "WORK_DIR not set, writing to CWD")
+```
+
+All file paths produced by the agent are prefixed with `$WORK_DIR/`. This ensures writes always land in the isolated worktree rather than the main repo or whatever directory the agent happens to be running in.
+
 ### Phase 1: Identify Flows
 
 1. Reads the plan file at `planFilePath`
 2. Extracts every flow, service, or component that was created or modified
-3. Builds `tmp/update-docs-flows.md` checklist (internal only — not output)
+3. Builds `$WORK_DIR/tmp/update-docs-flows.md` checklist (internal only — not output)
 
 ### Phase 2: Identify Affected Docs
 
 1. Invokes `find-affected-docs` command with flow names from Phase 1
 2. Command searches `docs/docs/` for existing files that mention the flows
-3. Appends to `tmp/update-docs-flows.md` (internal only — not output)
+3. Appends to `$WORK_DIR/tmp/update-docs-flows.md` (internal only — not output); entries use absolute paths (`$WORK_DIR/docs/docs/<file>.md`)
 
 ### Phase 3: Update Docs
 
 For each item in Phase 2 checklist:
 
 **For existing doc files**:
-1. Opens the doc file
+1. Opens the doc file (at its absolute `$WORK_DIR`-prefixed path)
 2. Identifies sections affected by implementation changes
 3. **Deletes removed behavior** — Removes descriptions of features that were deleted or refactored out
 4. **Updates modified** — Changes sections to reflect implementation details that changed
 5. **Adds new** — Inserts descriptions of new flows, endpoints, methods, or behaviors added by the implementation
 
 **For new flows**:
-1. Creates `docs/docs/<flow-name>.md` as a new file
+1. Creates `$WORK_DIR/docs/docs/<flow-name>.md` as a new file
 2. Uses the `documentation` skill to generate comprehensive documentation
 3. Includes: purpose, inputs, outputs, workflow, error handling, dependencies
 
@@ -82,7 +94,7 @@ Writes `$WORK_DIR/brain-patch.json`:
 }
 ```
 
-**WORK_DIR resolution**: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir` (if file exists); skip silently if both are empty.
+**WORK_DIR resolution**: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir` (if file exists); if both are empty, fall back to `.` with a warning logged. The same resolution applies to all file writes throughout the agent, not just brain-patch.json.
 
 ## Key Design Rules
 
@@ -93,7 +105,7 @@ Writes `$WORK_DIR/brain-patch.json`:
 5. **Use documentation skill** — Delegate doc generation for new flows to the skill
 6. **Track all changes** — Write brain-patch.json with paths to every file touched
 7. **Work silently** — Execute all phases without output prose; return only final JSON summary
-8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR`; if unset, read `/tmp/dark-factory-work-dir`; skip brain-patch silently if both empty
+8. **Always resolve WORK_DIR before writing** — All file paths (tmp checklist, docs/docs/, brain-patch.json) must be prefixed with `$WORK_DIR/`. Resolve WORK_DIR at the start via `$DARK_FACTORY_WORK_DIR`, then `/tmp/dark-factory-work-dir`, then fallback to `.` with a warning. Never write to bare relative paths.
 
 ## Dependencies
 
@@ -106,10 +118,10 @@ Writes `$WORK_DIR/brain-patch.json`:
 
 ## Artifacts Produced
 
-- `tmp/update-docs-flows.md` — Checklist of flows and affected docs (internal; not output)
-- `docs/docs/<flow-name>.md` — New doc files created for flows without docs
-- Modified existing doc files in `docs/docs/`
-- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Paths of all files written/updated and one-line summary
+- `$WORK_DIR/tmp/update-docs-flows.md` — Checklist of flows and affected docs (internal; not output)
+- `$WORK_DIR/docs/docs/<flow-name>.md` — New doc files created for flows without docs
+- Modified existing doc files in `$WORK_DIR/docs/docs/`
+- `$WORK_DIR/brain-patch.json` — Paths of all files written/updated and one-line summary
 
 ## Integration with dark-factory-agent
 
