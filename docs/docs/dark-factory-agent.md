@@ -76,7 +76,8 @@ If non-feature worker returns error or hard-stop: runs cleanup, reports error, S
 - Halts with cleanup if review fails
 
 ### Step 8: Update Documentation
-- Invokes `update-documentation-agent` with `planFilePath`
+- Invokes `update-documentation-agent` with `planFilePath` and `workDir: WORK_DIR`
+- Passing `workDir` ensures the agent writes doc files into the isolated worktree, not the main repo
 - Updates or creates doc files to reflect implemented changes
 - Must complete before PR is opened
 

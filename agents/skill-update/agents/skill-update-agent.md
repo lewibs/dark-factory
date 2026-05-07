@@ -59,13 +59,13 @@ skill-update-agent(planFilePath, workDir, taskSummary):
   # Step 4 — write/update skill files
   For each pattern in filteredPatterns:
     slug = kebab-case name for the pattern (e.g. "handle-git-conflicts")
-    skillPath = "skills/<slug>/SKILL.md"
+    skillPath = workDir + "/skills/<slug>/SKILL.md"
 
-    if skillPath already exists in workDir:
-      read existing skill, merge new knowledge, write updated file
+    if skillPath already exists:
+      read existing skill, merge new knowledge, write updated file to skillPath
       record { path: skillPath, action: "updated" }
     else:
-      write new SKILL.md using the skill template below
+      write new SKILL.md to skillPath using the skill template below
       record { path: skillPath, action: "created" }
 
   # Step 5 — build summary and return

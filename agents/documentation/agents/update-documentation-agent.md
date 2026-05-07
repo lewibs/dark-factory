@@ -32,11 +32,22 @@ Example: `{ "docsWritten": ["/path/docs/auth-flow.md"], "summary": "Updated auth
 
 If no plan path is provided: PushNotification("Input Required", "update-documentation-agent needs a plan path."), then AskUserQuestion for the path or skip option.
 
+## Resolve WORK_DIR
+
+Before any file write, resolve the working directory:
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: WORK_DIR = "." (fallback — log a warning: "WORK_DIR not set, writing to CWD")
+```
+
+All file paths below must be prefixed with `$WORK_DIR/`.
+
 ## Phase 1 — Identify Flows
 
 Read the plan at `<plan-path>`. Extract every flow, service, or component that was created or modified.
 
-Build `tmp/update-docs-flows.md`:
+Build `$WORK_DIR/tmp/update-docs-flows.md`:
 ```markdown
 # Flows Checklist
 - [ ] <flow-name> — created/modified
@@ -48,10 +59,10 @@ Build `tmp/update-docs-flows.md`:
 
 Invoke find-affected-docs command with the flow names from Phase 1.
 
-Append to `tmp/update-docs-flows.md`:
+Append to `$WORK_DIR/tmp/update-docs-flows.md`:
 ```markdown
 # Affected Docs Checklist
-- [ ] docs/docs/<file>.md — touches <flow-name>
+- [ ] $WORK_DIR/docs/docs/<file>.md — touches <flow-name>
 - [ ] NEW — <flow-name> has no existing doc
 ```
 
@@ -62,7 +73,7 @@ Append to `tmp/update-docs-flows.md`:
 For each item in the Phase 2 checklist:
 
 - **Existing doc**: edit to reflect plan changes — delete removed behavior, update modified, add new.
-- **New flow**: create `docs/docs/<flow-name>.md` using the documentation skill.
+- **New flow**: create `$WORK_DIR/docs/docs/<flow-name>.md` using the documentation skill.
 
 Mark each checklist item `[x]` when done. Collect absolute paths of all files written/updated into a `docsWritten` list.
 

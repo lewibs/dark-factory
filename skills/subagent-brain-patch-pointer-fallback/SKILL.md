@@ -44,3 +44,4 @@ fi
 - The pointer file is created by dark-factory-agent immediately after `brain.json` is written (see `brain-hook-driven-state` skill, Step 2) and deleted during cleanup.
 - Hook scripts (pre/post tool-use) use the same pointer-file fallback on the bash side — see `claude-code-hook-env-isolation` skill for the hook-specific pattern.
 - Never silently skip the write without first checking the pointer file — silent skips mean brain.json fields (`planFilePath`, `prUrl`, `docsWritten`, `skillsWritten`, `bugFiles`) are never populated and the orchestrator cannot hand values between pipeline phases.
+- This skill covers `brain-patch.json` writes only. All other file writes (docs, skills, tmp scratch files) must also be anchored to WORK_DIR — see skill `subagent-workdir-file-isolation`.
