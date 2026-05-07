@@ -8,7 +8,7 @@ dark-factory:pr:agents:pr-agent,,58958.92857142857,140.07142857142858,14,825425.
 dark-factory:repair:agents:repair-agent,,13170.157894736842,179.89473684210526,19,250233.0,3418.0
 testing-agent,,0.0,0.0,13,0.0,0.0
 planning-agent,,0.0,0.0,19,0.0,0.0
-dark-factory:featurework:agents:feature-agent,,101365.9,605.4,20,2027318.0,12108.0
+dark-factory:featurework:agents:feature-agent,,96538.95238095238,576.5714285714286,21,2027318.0,12108.0
 Explore,,68061.0,1786.0,3,204183.0,5358.0
 dark-factory:featurework:planning:agents:sub-planning-agent,,0.0,355.0,1,0.0,355.0
 dark-factory:documentation:agents:investigation-agent,,113399.0,1081.0,1,113399.0,1081.0
