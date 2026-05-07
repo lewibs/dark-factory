@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: Two Claude Code hooks — `pre-tool-use-hook.sh` and `post-tool-use-hook.sh` — intercept every Agent and Skill tool call during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete.
+- What this is: Three Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, and `commit-on-subagent-stop.sh` — manage brain state and produce ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when skeleton-agent, testing-agent, or implementation-agent finishes, producing an ordered proof-of-execution commit sequence.
 
 ## Mermaid Diagram
 
@@ -22,6 +22,7 @@ flowchart TD
 
   CC -->|fires before tool runs| PreHook
   CC -->|fires after tool returns| PostHook
+  CC -->|fires on SubagentStop| StopHook["commit-on-subagent-stop.sh"]
 
   PreHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
   PreHook -->|"2. record start_ms"| Brain
@@ -32,6 +33,10 @@ flowchart TD
   Patch -->|jq merge| Brain
   PostHook -->|"3. accumulate elapsed_ms,\ntokens, runs"| Brain
   PostHook -->|"4. mark phase complete"| Brain
+
+  StopHook -->|"1. resolve WORK_DIR\n(env var → pointer file)"| PF
+  StopHook -->|"2. read agent_type from stdin"| AgentType["agent_type\n(skeleton|testing|implementation)"]
+  StopHook -->|"3. git add --all\ngit commit -m <msg>"| GitCommit["Feature worktree commit"]
 ```
 
 ## Flows
@@ -124,6 +129,39 @@ Fires after every Agent or Skill tool call returns. Steps (all skipped on `no-br
 | `hooks.post-tool-use.metrics-accumulate` | Agent or Skill tool call | `brain.json` `.metrics[key]` updated with elapsed_ms, tokens, runs | side-effect | `start_ms` removed after accumulation |
 | `hooks.post-tool-use.set-phase-complete` | phase agent tool call | `brain.json` running phase set to complete | side-effect | |
 
+---
+
+### Flow: `hooks.subagent-stop`
+
+- Core files: `agents/dark-factory/scripts/commit-on-subagent-stop.sh`
+- Test files: `tests/test_commit_on_subagent_stop.py`
+
+Fires on every `SubagentStop` event. Reads `agent_type` from stdin (first line), maps it to a commit message, and commits all staged changes in the feature worktree. Always exits 0 — failures are non-blocking.
+
+Work-dir resolution uses the same two-step fallback as the other hooks: `DARK_FACTORY_WORK_DIR` env var first, then `/tmp/dark-factory-work-dir` pointer file. The env var is not reliably propagated to SubagentStop hook processes (they run as children of the Claude Code process after a subagent finishes, outside the bash subprocess where `export` was called), so the pointer file is the normal resolution path in production.
+
+#### Types
+
+```txt
+CommitMessage {
+  skeleton-agent:        "skeleton"
+  testing-agent:         "tests"
+  implementation-agent:  "implementation"
+}
+```
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `hooks.subagent-stop.skeleton-agent` | agent_type="skeleton-agent", staged changes exist | git commit "skeleton" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.testing-agent` | agent_type="testing-agent", staged changes exist | git commit "tests" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.implementation-agent` | agent_type="implementation-agent", staged changes exist | git commit "implementation" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.no-staged-changes` | recognized agent_type, no staged changes | exits 0, logs to stderr | edge case | git diff --cached shows nothing |
+| `hooks.subagent-stop.unknown-agent-type` | agent_type not in recognized set | exits 0, logs to stderr | no-op | script handles gracefully even if matcher allows it |
+| `hooks.subagent-stop.no-work-dir` | DARK_FACTORY_WORK_DIR unset and pointer file absent | exits 0, logs "DARK_FACTORY_WORK_DIR not set, skipping commit" | no-op | not a dark-factory session or cleanup already ran |
+| `hooks.subagent-stop.git-failure` | git add or git commit fails | exits 0, logs error to stderr | error | non-blocking |
+
 ## Logs
 
 | Source | Location |
@@ -139,4 +177,4 @@ Fires after every Agent or Skill tool call returns. Steps (all skipped on `no-br
   ```bash
   /dark-factory:install
   ```
-- Notes: Hooks are registered in `.claude/settings.json` as `PreToolUse` and `PostToolUse` entries for the Agent tool. They run as children of the Claude Code process and inherit Claude Code's environment. The pointer file at `/tmp/dark-factory-work-dir` is the mechanism that makes the work directory visible to hooks across the subprocess isolation boundary.
+- Notes: Hooks are registered in `.claude/settings.json` as `PreToolUse`, `PostToolUse`, and `SubagentStop` entries. `PreToolUse` and `PostToolUse` match the Agent tool; `SubagentStop` fires whenever any subagent stops. All three hooks resolve the work directory using the same two-step fallback: `DARK_FACTORY_WORK_DIR` env var first, then the `/tmp/dark-factory-work-dir` pointer file. The pointer file is necessary because env vars exported inside a Bash tool call do not propagate to the Claude Code parent process or to hook subprocesses.

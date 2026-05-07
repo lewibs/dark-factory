@@ -40,7 +40,15 @@ file is the authoritative fallback for the common in-process case.
 
 ### Hook script side
 
-Add this block near the top of every hook that needs `DARK_FACTORY_WORK_DIR`, before any reference to `$BRAIN_PATH` or similar:
+When assigning `DARK_FACTORY_WORK_DIR` in any hook script, always use the inline pointer-file fallback form:
+
+```bash
+work_dir="${DARK_FACTORY_WORK_DIR:-$(cat /tmp/dark-factory-work-dir 2>/dev/null)}"
+```
+
+Never use `${DARK_FACTORY_WORK_DIR:-}` (bare empty fallback) — this silently produces an empty string when the env var is not propagated to the hook process, which is the common case.
+
+For hooks that set the variable once at the top and reference it throughout, use the multi-line form before any reference to `$work_dir` or `$BRAIN_PATH`:
 
 ```bash
 DARK_FACTORY_POINTER_FILE="/tmp/dark-factory-work-dir"
@@ -50,7 +58,7 @@ if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] && [ -f "$DARK_FACTORY_POINTER_FILE" ]; t
 fi
 ```
 
-This must appear in both `pre-tool-use-hook.sh` and `post-tool-use-hook.sh`.
+This must appear in both `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, and any stop/subagent-stop hook scripts (e.g. `commit-on-subagent-stop.sh`).
 
 ## Why `/tmp/`
 
