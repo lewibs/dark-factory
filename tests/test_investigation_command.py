@@ -15,7 +15,7 @@ import re
 import pytest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INVESTIGATION_COMMAND = os.path.join(REPO_ROOT, "agents", "commands", "investigation")
+INVESTIGATION_COMMAND = os.path.join(REPO_ROOT, "commands", "investigation.md")
 INVESTIGATION_ORCHESTRATOR = os.path.join(
     REPO_ROOT, "agents", "commands", "investigation-orchestrator.md"
 )
@@ -47,17 +47,19 @@ class TestInvestigationCommandFile:
             f"investigation command file not found at {INVESTIGATION_COMMAND}"
         )
 
-    def test_investigation_command_has_name(self):
-        """Command file must declare a name in frontmatter."""
+    def test_investigation_command_has_description(self):
+        """Command file must declare a description in frontmatter."""
         content = read_file(INVESTIGATION_COMMAND)
         fm = parse_frontmatter(content)
-        assert fm.get("name") == "investigation"
+        assert fm.get("description"), (
+            "investigation command file must have a description in frontmatter"
+        )
 
-    def test_investigation_command_has_subagent_stop_hook(self):
-        """Command file must declare a SubagentStop hook for committing docs."""
-        content = read_file(INVESTIGATION_COMMAND)
+    def test_investigation_orchestrator_has_subagent_stop_hook(self):
+        """Orchestrator must declare a SubagentStop hook for committing docs."""
+        content = read_file(INVESTIGATION_ORCHESTRATOR)
         assert "SubagentStop" in content, (
-            "investigation command must declare a SubagentStop hook to commit docs"
+            "investigation-orchestrator must declare a SubagentStop hook to commit docs"
         )
 
     def test_investigation_orchestrator_exists(self):

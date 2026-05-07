@@ -12,7 +12,7 @@
 
 ```mermaid
 flowchart TD
-  CMD["investigation command\nagents/commands/investigation"]:::entry -->|"system, question"| ORC["investigation-orchestrator\nagents/commands/investigation-orchestrator.md"]
+  CMD["investigation command\ncommands/investigation.md"]:::entry -->|"system, question"| ORC["investigation-orchestrator\nagents/commands/investigation-orchestrator.md"]
   ORC -->|"system, question"| IA["investigation-agent\nagents/documentation/agents/investigation-agent.md"]
   IA -->|"writes docs/docs/<system>.md"| DOC["docs/docs/<system>.md"]
   ORC -->|"docPath"| CV["claim-validator-agent\nagents/documentation/agents/claim-validator-agent.md"]
@@ -29,7 +29,7 @@ classDef entry fill:#a8e6a3,stroke:#666,stroke-width:1px;
 
 - Test files: `tests/test_investigation_command.py`
 - Core files:
-  - `agents/commands/investigation`
+  - `commands/investigation.md`
   - `agents/commands/investigation-orchestrator.md`
   - `agents/documentation/agents/investigation-agent.md`
   - `agents/documentation/agents/claim-validator-agent.md`
@@ -109,4 +109,4 @@ investigationCommand(system, question):
   # Run gen-hooks to register the SubagentStop hook declared in the command YAML frontmatter:
   /dark-factory:install
   ```
-- Notes: The SubagentStop hook (`commit-investigation-docs.sh`) is declared in the YAML frontmatter of both `agents/commands/investigation` and `agents/commands/investigation-orchestrator.md`. It fires when investigation-orchestrator finishes and commits any new or updated files in `docs/docs/`. The hook resolves the working directory from `DARK_FACTORY_WORK_DIR` or falls back to `/tmp/dark-factory-work-dir`.
+- Notes: The SubagentStop hook (`commit-investigation-docs.sh`) is declared in the YAML frontmatter of `agents/commands/investigation-orchestrator.md`. It fires when investigation-orchestrator finishes and commits any new or updated files in `docs/docs/`. The hook resolves the working directory from `DARK_FACTORY_WORK_DIR` or falls back to `/tmp/dark-factory-work-dir`.
