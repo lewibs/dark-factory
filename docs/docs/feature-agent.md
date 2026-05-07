@@ -4,6 +4,8 @@
 
 **Model**: Haiku (lightweight orchestration, no heavy reasoning).
 
+**Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
+
 **User-Invocable**: No (invoked by dark-factory-agent).
 
 ## Overview
