@@ -48,6 +48,11 @@ Creates a new brain.json in the work directory and sets up environment integrati
   "prUrl": null,
   "docsWritten": null,
   "skillsWritten": null,
+  "notes": [],
+  "artifacts": {
+    "created": [],
+    "modified": []
+  },
   "phases": {
     "prep-running": false,
     "prep-complete": true,
@@ -66,6 +71,13 @@ Creates a new brain.json in the work directory and sets up environment integrati
   }
 }
 ```
+
+**Field descriptions for `notes` and `artifacts`**:
+- `notes` — array of short handoff strings appended by agents as they complete (e.g., `"execution-agent: implemented auth-flow; changed files: src/auth.py, tests/test_auth.py"`). Read by the pre-hook and prepended prominently to each sub-agent's prompt so downstream agents know what prior agents did.
+- `artifacts.created` — absolute paths of all new files created across this manufacture run. Populated by skeleton-agent, execution-agent, and update-documentation-agent.
+- `artifacts.modified` — absolute paths of all existing files modified across this manufacture run. Populated by execution-agent, debugger-agent, and update-documentation-agent.
+
+**Array merge behavior**: When agents write `notes`, `artifacts.created`, or `artifacts.modified` to `brain-patch.json`, the post-tool-use-hook concatenates these arrays rather than replacing them (unlike scalar fields which are overwritten). This ensures accumulation across multiple agent invocations.
 
 ### read(workDir, [path])
 
@@ -133,7 +145,8 @@ Merges new fields into brain.json (shallow merge at top level, deep merge for ne
 
 **Merge behavior**:
 - For nested objects like `phases`, new fields are merged into the existing object (e.g., setting `phases.worker-complete: true` does not clear other phase flags)
-- Uses `jq -s '.[0] * .[1]'` shallow merge semantics
+- For array fields `notes`, `artifacts.created`, and `artifacts.modified`, new items are concatenated (appended) rather than replacing the existing array
+- All other scalar/object fields use `jq -s '.[0] * .[1]'` shallow merge semantics (new value replaces old)
 
 ### delete(workDir)
 

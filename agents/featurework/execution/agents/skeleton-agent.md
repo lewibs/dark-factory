@@ -32,7 +32,25 @@ You will be invoked with a `planPath` — a path to a `docs/plans/*.md` file.
      - One `TODO` comment per stub referencing the flow name it belongs to.
      - No implementation logic whatsoever.
    - Mark the checklist row as done `[x]`.
-5. Return `{ checklistPath: "tmp/files-checklist.md", filesCreated: [...] }`.
+5. Write brain-patch.json to record skeleton files as created artifacts:
+
+   Resolve WORK_DIR:
+   ```
+   WORK_DIR = $DARK_FACTORY_WORK_DIR
+   if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+   if WORK_DIR is still empty: skip writing the patch silently
+   else: Write `$WORK_DIR/brain-patch.json` with:
+     ```json
+     {
+       "artifacts": {
+         "created": ["<absolute path to each skeleton file created>"],
+         "modified": []
+       }
+     }
+     ```
+   ```
+
+6. Return `{ checklistPath: "tmp/files-checklist.md", filesCreated: [...] }`.
 
 ## Rules
 

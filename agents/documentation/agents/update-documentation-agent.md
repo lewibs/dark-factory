@@ -83,9 +83,14 @@ else: Write `$WORK_DIR/brain-patch.json`:
   ```json
   { 
     "docsWritten": ["<absolute path 1>", "<absolute path 2>"],
-    "summary": "<one-liner>"
+    "summary": "<one-liner>",
+    "artifacts": {
+      "created": ["<absolute path to each newly created doc file>"],
+      "modified": ["<absolute path to each existing doc file updated>"]
+    }
   }
   ```
+  Separate new doc files (created) from updated existing doc files (modified) in the artifacts fields.
 ```
 
 Return the final output structure to the caller as your only message:

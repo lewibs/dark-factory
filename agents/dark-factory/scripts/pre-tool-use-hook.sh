@@ -97,7 +97,20 @@ fi
 # pre-hook.inject: inject brain context into the agent prompt
 BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
 CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
-NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
+
+# Build handoff notes prefix if notes array is non-empty
+NOTES_PREFIX=""
+NOTES_COUNT=$(jq '.notes | length // 0' "$BRAIN_PATH" 2>/dev/null || echo 0)
+if [ "$NOTES_COUNT" -gt 0 ]; then
+  NOTES_LIST=$(jq -r '.notes[] | "- " + .' "$BRAIN_PATH" 2>/dev/null || true)
+  NOTES_PREFIX="HANDOFF NOTES FROM PRIOR AGENTS:
+${NOTES_LIST}
+
+"
+  echo "pre-tool-use-hook | inject | handoff_notes_count=${NOTES_COUNT}" >&2
+fi
+
+NEW_PROMPT="${NOTES_PREFIX}BRAIN STATE (read-only context — do not modify brain.json directly):
 ${BRAIN_CONTEXT}
 
 ${CURRENT_PROMPT}"

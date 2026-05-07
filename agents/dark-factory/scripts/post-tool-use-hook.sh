@@ -37,7 +37,18 @@ if [ -f "$PATCH_PATH" ]; then
   (
     flock -x 200
     POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
-    jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
+    # Use custom merge: array fields (notes, artifacts.created, artifacts.modified) are
+    # concatenated rather than replaced; all other fields use standard object merge.
+    jq -s '
+      .[0] as $brain | .[1] as $patch |
+      $brain * $patch |
+      # Concatenate notes arrays
+      .notes = (($brain.notes // []) + ($patch.notes // [])) |
+      # Concatenate artifacts.created arrays
+      .artifacts.created = (($brain.artifacts.created // []) + ($patch.artifacts.created // [])) |
+      # Concatenate artifacts.modified arrays
+      .artifacts.modified = (($brain.artifacts.modified // []) + ($patch.artifacts.modified // []))
+    ' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
       && mv "$POST_TMP" "$BRAIN_PATH"
     rm -f "$PATCH_PATH"
   ) 200>"$BRAIN_LOCK"
