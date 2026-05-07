@@ -100,7 +100,9 @@ If non-feature worker returns error or hard-stop: runs cleanup, reports error, S
 - Extracts `prUrl` and `projectDir` from brain.json for final report
 
 ### Step 12: Metrics & Cleanup
-- Flushes metrics: `python3 update-metrics.py --csv metrics.csv --brain brain.json`
+- Flushes metrics into `$WORK_DIR/metrics.csv` (the feature branch worktree): `python3 update-metrics.py --csv $WORK_DIR/metrics.csv --brain brain.json`
+- Commits and pushes metrics.csv to the feature branch so it lands in the PR: `git -C $WORK_DIR add metrics.csv && git -C $WORK_DIR commit -m 'chore: update metrics.csv' && git -C $WORK_DIR push`
+- Copies metrics.csv back to `$projectDir/metrics.csv` so the local main copy stays current before the PR is merged
 - Deletes brain.json via brain-state-manager
 - Removes worktree via: `cleanup-worktree.sh WORK_DIR taskName`
 - Reports final success with PR URL
