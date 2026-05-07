@@ -147,6 +147,7 @@ Execution paused; user must review and resume.
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
 6. **Write brain-patch.json only after execution succeeds** — Resolve WORK_DIR from `$DARK_FACTORY_WORK_DIR`, then fall back to contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
+7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

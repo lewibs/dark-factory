@@ -107,6 +107,7 @@ Sets `significantChange` flag based on whether any modified file is:
 4. **Pre-existing failures are noted, not counted** — Only new failures caused by the change block success
 5. **5-attempt limit** — Stop iterating after 5 tries; return failure
 6. **No plan file required** — This is the lightweight alternative to feature-agent
+7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

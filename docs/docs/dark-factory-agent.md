@@ -115,6 +115,7 @@ Called on any error path after worktree creation:
 5. **Handle null planFilePath** — When worker produces no plan, pass taskDescription as fallback to downstream agents
 6. **Read brain state after sub-agents** — Use brain-state-manager to extract outputs, don't parse agent return values directly
 7. **Rely on pre-hook injection** — The pre-hook injects brain context into every Agent tool call automatically; don't manually pass brain fields
+8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

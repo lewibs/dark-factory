@@ -119,6 +119,7 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 5. **Do NOT read brain.json** — Context is already injected by pre-hook
 6. **Do NOT write brain.json directly** — Only write brain-patch.json
 7. **Resolve WORK_DIR via pointer file fallback** — Use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip brain-patch silently if both are empty
+8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

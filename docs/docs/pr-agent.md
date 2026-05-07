@@ -144,6 +144,7 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR` first; if unset, read `/tmp/dark-factory-work-dir`; skip silently if both empty
 9. **Step 0 does NOT return early** — When an existing PR is found, commit+push and set pr_url, then continue; CI watching and comment resolution always run on both the new-PR and existing-PR paths
 10. **gh pr create is conditional** — Only called when no existing PR was found in Step 0
+11. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 
