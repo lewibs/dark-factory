@@ -5,7 +5,7 @@ description: Top-level dark-factory orchestrator. Classifies tasks via task-clas
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
 model: haiku
 scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(git -C * log *), Bash(git rev-parse *)
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(git -C * log *), Bash(git -C * add *), Bash(git -C * diff *), Bash(git -C * commit *), Bash(git -C * push *), Bash(cp *), Bash(git rev-parse *)
 skills: task-classifier, brain-state-manager
 ---
 
@@ -144,7 +144,12 @@ dark-factory-agent(taskDescription, taskName):
   projectDir = brain.projectDir
 
   # Step 12 — flush metrics then cleanup
-  bash("python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py\" --csv \"$projectDir/metrics.csv\" --brain \"$WORK_DIR/brain.json\" || true")
+  # Write metrics into the worktree so they land on the feature branch in the PR
+  bash("python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py\" --csv \"$WORK_DIR/metrics.csv\" --brain \"$WORK_DIR/brain.json\" || true")
+  # Commit and push metrics.csv to the feature branch so it lands in the PR
+  bash("git -C \"$WORK_DIR\" add metrics.csv && git -C \"$WORK_DIR\" diff --cached --quiet || git -C \"$WORK_DIR\" commit -m 'chore: update metrics.csv' && git -C \"$WORK_DIR\" push || true")
+  # Copy metrics back to the project root so the local file stays current
+  bash("cp \"$WORK_DIR/metrics.csv\" \"$projectDir/metrics.csv\" || true")
   invoke brain-state-manager({ operation: "delete", workDir: WORK_DIR })
   bash("rm -f /tmp/dark-factory-work-dir")
   bash("${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh \"$WORK_DIR\" \"$taskName\"")
