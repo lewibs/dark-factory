@@ -44,6 +44,30 @@ When a hard-stop is returned from `implementation-agent`:
 - If "Resume": re-read the plan, confirm its status is `approved`, and resume from step 5 (re-spawn `implementation-agent`).
 - Do not spawn any agents until a resume response is received.
 
+## Brain Patch
+
+After step 5 succeeds (all flows green), before deleting checklists:
+
+Resolve WORK_DIR:
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: skip writing the patch silently
+else: Write `$WORK_DIR/brain-patch.json` with:
+  ```json
+  {
+    "notes": ["execution-agent: implemented <N> flows, modified files: <list key files>"]
+  }
+  ```
+```
+
+Replace `<N>` with the count of flows implemented and `<list key files>` with a comma-separated list of the key files modified by implementation-agent.
+
+Rules:
+- Do NOT read `brain.json` directly — your context is already injected by the pre-hook.
+- Do NOT write `brain.json` directly — only write `brain-patch.json`.
+- Use pointer file fallback (`/tmp/dark-factory-work-dir`) if DARK_FACTORY_WORK_DIR is unset.
+
 ## Rules
 
 - Never spawn the next agent until the current one returns successfully.

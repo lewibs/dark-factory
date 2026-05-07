@@ -43,7 +43,12 @@ pr-agent(planFilePath or description):
   WORK_DIR = $DARK_FACTORY_WORK_DIR
   if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
   if WORK_DIR is still empty: skip silently
-  else: write $WORK_DIR/brain-patch.json: { "prUrl": pr_url }
+  else: write $WORK_DIR/brain-patch.json:
+    {
+      "prUrl": pr_url,
+      "notes": ["pr-agent: opened PR at <prUrl>, CI <passed/failed>"]
+    }
+  Replace <prUrl> with the actual PR URL and <passed/failed> with the CI result from step 3.
 
   # Step 3 — Watch CI (delegate to ci-watch-runner command)
   ciResult = invoke ci-watch-runner({ prUrl: pr_url, maxIterations: 5 })

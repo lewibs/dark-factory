@@ -51,7 +51,8 @@ if WORK_DIR is still empty: skip writing the patch silently
 else: Write `$WORK_DIR/brain-patch.json` with:
   ```json
   {
-    "bugFiles": ["<absolute path to each bug audit log file written>"]
+    "bugFiles": ["<absolute path to each bug audit log file written>"],
+    "notes": ["debugger-agent: root cause was <summary>, fixed in <key files>"]
   }
   ```
 ```

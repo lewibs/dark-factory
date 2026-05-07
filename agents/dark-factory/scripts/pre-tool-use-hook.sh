@@ -97,7 +97,17 @@ fi
 # pre-hook.inject: inject brain context into the agent prompt
 BRAIN_CONTEXT=$(jq -c '.' "$BRAIN_PATH")
 CURRENT_PROMPT=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.prompt // .prompt // ""')
-NEW_PROMPT="BRAIN STATE (read-only context — do not modify brain.json directly):
+
+NOTES_JSON=$(jq -c '.notes // []' "$BRAIN_PATH")
+NOTES_COUNT=$(printf '%s' "$NOTES_JSON" | jq 'length')
+if [ "$NOTES_COUNT" -gt 0 ]; then
+  NOTES_BLOCK=$(printf '%s' "$NOTES_JSON" | jq -r '.[] | "- " + .')
+  NOTES_HEADER="HANDOFF NOTES FROM PRIOR AGENTS:\n${NOTES_BLOCK}\n\n"
+else
+  NOTES_HEADER=""
+fi
+
+NEW_PROMPT="${NOTES_HEADER}BRAIN STATE (read-only context — do not modify brain.json directly):
 ${BRAIN_CONTEXT}
 
 ${CURRENT_PROMPT}"

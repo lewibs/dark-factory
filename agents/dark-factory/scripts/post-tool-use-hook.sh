@@ -34,13 +34,25 @@ HOOK_INPUT=$(cat)
 if [ -f "$PATCH_PATH" ]; then
   PATCH_CONTENTS=$(jq -c '.' "$PATCH_PATH")
   echo "post-tool-use-hook | merge-patch | patch=${PATCH_CONTENTS}" >&2
-  (
-    flock -x 200
-    POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
-    jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
-      && mv "$POST_TMP" "$BRAIN_PATH"
-    rm -f "$PATCH_PATH"
-  ) 200>"$BRAIN_LOCK"
+  if jq -e '.notes' "$PATCH_PATH" > /dev/null 2>&1; then
+    (
+      flock -x 200
+      NOTES_TMP=$(mktemp /tmp/brain-notes-XXXXXX.json)
+      jq -s '
+        (.[0].notes // []) + (.[1].notes // []) as $merged_notes |
+        .[0] * .[1] | .notes = $merged_notes
+      ' "$BRAIN_PATH" "$PATCH_PATH" > "$NOTES_TMP" && mv "$NOTES_TMP" "$BRAIN_PATH"
+      rm -f "$PATCH_PATH"
+    ) 200>"$BRAIN_LOCK"
+  else
+    (
+      flock -x 200
+      POST_TMP=$(mktemp /tmp/brain-post-XXXXXX.json)
+      jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
+        && mv "$POST_TMP" "$BRAIN_PATH"
+      rm -f "$PATCH_PATH"
+    ) 200>"$BRAIN_LOCK"
+  fi
 else
   echo "post-tool-use-hook | no-patch | brain-patch.json not found, skipping merge" >&2
 fi
