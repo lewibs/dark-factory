@@ -131,6 +131,16 @@ Includes `aws`, `gh`, and `git` so the agent can inspect cloud state, query GitH
 - If target file doesn't exist: reports error and STOPS
 - If task description is ambiguous: returns error (repair requires clear, minimal scope)
 
+## SubagentStop Hook
+
+The agent declares a `SubagentStop` hook in its YAML frontmatter:
+
+```yaml
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+```
+
+When the agent finishes, this hook fires and commits all staged changes in the feature worktree with commit message `"fix: repair"`. This ensures repair changes are committed as a discrete step even when the agent is run in non-fatal mode.
+
 ## Lifecycle in dark-factory-agent
 
 1. Invoked by dark-factory-agent as non-fatal step

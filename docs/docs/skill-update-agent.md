@@ -185,6 +185,16 @@ If any skills were written or updated, write `$WORK_DIR/brain-patch.json`:
 
 - Read, Write, Edit, Bash (for git commands)
 
+## SubagentStop Hook
+
+The agent declares a `SubagentStop` hook in its YAML frontmatter:
+
+```yaml
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+```
+
+When the agent finishes, this hook fires and commits all staged changes in the feature worktree with commit message `"chore: update skills"`. This ensures harvested skill files are committed as a discrete step in the manufacture commit sequence.
+
 ## Integration with dark-factory-agent
 
 1. Invoked after update-documentation-agent completes

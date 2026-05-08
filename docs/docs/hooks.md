@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: Four Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, `commit-on-subagent-stop.sh`, and `cleanup-session-files.sh` — manage brain state, metrics persistence, and ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when skeleton-agent, testing-agent, or implementation-agent finishes, producing an ordered proof-of-execution commit sequence. The Stop hook flushes accumulated metrics from brain.json to metrics.csv before deleting all transient session files.
+- What this is: Four Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, `commit-on-subagent-stop.sh`, and `cleanup-session-files.sh` — manage brain state, metrics persistence, and ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when any file-generating agent finishes (skeleton-agent, testing-agent, implementation-agent, sub-planning-agent, update-documentation-agent, skill-update-agent, debugger-agent, repair-agent, detect-drift-agent, setup-wizard), producing an ordered proof-of-execution commit sequence. A separate `commit-investigation-docs.sh` hook commits verified documentation when investigation-agent or investigation-orchestrator finishes. The Stop hook flushes accumulated metrics from brain.json to metrics.csv before deleting all transient session files.
 
 ## Mermaid Diagram
 
@@ -150,9 +150,16 @@ Work-dir resolution uses the same two-step fallback as the other hooks: `DARK_FA
 
 ```txt
 CommitMessage {
-  skeleton-agent:        "skeleton"
-  testing-agent:         "tests"
-  implementation-agent:  "implementation"
+  skeleton-agent:             "skeleton"
+  testing-agent:              "tests"
+  implementation-agent:       "implementation"
+  sub-planning-agent:         "plan"
+  detect-drift-agent:         "docs: fix drift"
+  update-documentation-agent: "docs: update documentation"
+  skill-update-agent:         "chore: update skills"
+  setup-wizard:               "chore: add setup scripts"
+  debugger-agent:             "docs: add bug audit log"
+  repair-agent:               "fix: repair"
 }
 ```
 
@@ -163,10 +170,38 @@ CommitMessage {
 | `hooks.subagent-stop.skeleton-agent` | agent_type="skeleton-agent", staged changes exist | git commit "skeleton" in WORK_DIR | happy path | |
 | `hooks.subagent-stop.testing-agent` | agent_type="testing-agent", staged changes exist | git commit "tests" in WORK_DIR | happy path | |
 | `hooks.subagent-stop.implementation-agent` | agent_type="implementation-agent", staged changes exist | git commit "implementation" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.sub-planning-agent` | agent_type="sub-planning-agent", staged changes exist | git commit "plan" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.detect-drift-agent` | agent_type="detect-drift-agent", staged changes exist | git commit "docs: fix drift" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.update-documentation-agent` | agent_type="update-documentation-agent", staged changes exist | git commit "docs: update documentation" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.skill-update-agent` | agent_type="skill-update-agent", staged changes exist | git commit "chore: update skills" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.setup-wizard` | agent_type="setup-wizard", staged changes exist | git commit "chore: add setup scripts" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.debugger-agent` | agent_type="debugger-agent", staged changes exist | git commit "docs: add bug audit log" in WORK_DIR | happy path | |
+| `hooks.subagent-stop.repair-agent` | agent_type="repair-agent", staged changes exist | git commit "fix: repair" in WORK_DIR | happy path | |
 | `hooks.subagent-stop.no-staged-changes` | recognized agent_type, no staged changes | exits 0, logs to stderr | edge case | git diff --cached shows nothing |
 | `hooks.subagent-stop.unknown-agent-type` | agent_type not in recognized set | exits 0, logs to stderr | no-op | script handles gracefully even if matcher allows it |
 | `hooks.subagent-stop.no-work-dir` | DARK_FACTORY_WORK_DIR unset and pointer file absent | exits 0, logs "DARK_FACTORY_WORK_DIR not set, skipping commit" | no-op | not a dark-factory session or cleanup already ran |
 | `hooks.subagent-stop.git-failure` | git add or git commit fails | exits 0, logs error to stderr | error | non-blocking |
+
+---
+
+### Flow: `hooks.investigation-subagent-stop`
+
+- Core files: `agents/dark-factory/scripts/commit-investigation-docs.sh`
+
+Fires on every `SubagentStop` event for investigation-agent and investigation-orchestrator. Reads `agent_type` from stdin (first line). If the agent type is `investigation-orchestrator` or `investigation-agent`, stages all files under `docs/docs/` and commits them with the message "docs: add verified system documentation". Exits 0 for all other agent types without action. Always exits 0 — failures are non-blocking.
+
+Work-dir resolution uses the same two-step fallback as `commit-on-subagent-stop.sh`: `DARK_FACTORY_WORK_DIR` env var first, then `/tmp/dark-factory-work-dir` pointer file.
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `hooks.investigation-subagent-stop.investigation-orchestrator` | agent_type="investigation-orchestrator", docs/docs/ has staged changes | git commit "docs: add verified system documentation" in WORK_DIR | happy path | |
+| `hooks.investigation-subagent-stop.investigation-agent` | agent_type="investigation-agent", docs/docs/ has staged changes | git commit "docs: add verified system documentation" in WORK_DIR | happy path | |
+| `hooks.investigation-subagent-stop.no-staged-changes` | recognized agent_type, no staged changes in docs/docs/ | exits 0, logs to stderr | edge case | |
+| `hooks.investigation-subagent-stop.unknown-agent-type` | agent_type not in recognized set | exits 0 silently | no-op | |
+| `hooks.investigation-subagent-stop.no-work-dir` | DARK_FACTORY_WORK_DIR unset and pointer file absent | exits 0, logs "DARK_FACTORY_WORK_DIR not set, skipping commit" | no-op | |
+| `hooks.investigation-subagent-stop.git-failure` | git add or git commit fails | exits 0, logs error to stderr | error | non-blocking |
 
 ---
 
@@ -210,4 +245,4 @@ This step is the only place where metrics stored in `brain.json` during a sessio
   ```bash
   /dark-factory:install
   ```
-- Notes: Hooks are registered in `hooks/hooks.json` (merged into `.claude/settings.json` at install time) as `PreToolUse`, `PostToolUse`, `SubagentStop`, and `Stop` entries. `PreToolUse` and `PostToolUse` match the Agent tool; `SubagentStop` fires whenever any subagent stops; `Stop` fires once when the Claude Code session ends. All four hooks resolve the work directory using the same two-step fallback: `DARK_FACTORY_WORK_DIR` env var first, then the `/tmp/dark-factory-work-dir` pointer file. The pointer file is necessary because env vars exported inside a Bash tool call do not propagate to the Claude Code parent process or to hook subprocesses. The `Stop` hook (`cleanup-session-files.sh`) is the authoritative flush point for metrics — it writes brain.json metrics to `metrics.csv` before deleting all session files.
+- Notes: Hooks are registered in two ways: (1) globally in `hooks/hooks.json` (merged into `.claude/settings.json` at install time) as `PreToolUse`, `PostToolUse`, and `Stop` entries; and (2) per-agent as `SubagentStop` declarations in each agent's YAML frontmatter. `PreToolUse` and `PostToolUse` match the Agent tool globally; `SubagentStop` is declared directly in the agent's frontmatter so only that agent triggers the specified hook script. All hooks resolve the work directory using the same two-step fallback: `DARK_FACTORY_WORK_DIR` env var first, then the `/tmp/dark-factory-work-dir` pointer file. The pointer file is necessary because env vars exported inside a Bash tool call do not propagate to the Claude Code parent process or to hook subprocesses. Two SubagentStop scripts exist: `commit-on-subagent-stop.sh` handles all execution, planning, documentation, and utility agents; `commit-investigation-docs.sh` handles investigation agents and stages only `docs/docs/`. The `Stop` hook (`cleanup-session-files.sh`) is the authoritative flush point for metrics — it writes brain.json metrics to `metrics.csv` before deleting all session files.
