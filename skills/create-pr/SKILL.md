@@ -6,7 +6,7 @@ user-invocable: false
 
 # create-pr
 
-Open a pull request on GitHub and manage it through to merge.
+Opens a pull request on GitHub. Stops after the PR is opened — does not merge.
 
 ## Steps
 
@@ -77,3 +77,4 @@ Use `<type>(<scope>): <description>` — imperative mood, under 72 characters.
 - Only commit files that are part of the fix. Do not commit unrelated changes.
 - If there are no staged changes, stop and report the problem to the caller — do not open an empty PR.
 - After addressing review threads, resolve each one using the resolve script before re-checking CI.
+- Do not merge. Merging is out of scope for this skill — it is the developer's responsibility after pr-agent returns status: ready.

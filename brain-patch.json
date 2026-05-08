@@ -1,4 +1,0 @@
-{
-  "skillsWritten": ["skills/subagent-must-not-own-shared-resource-cleanup/SKILL.md"],
-  "summary": "Captured pattern: sub-agents must never own cleanup of shared resources the orchestrator still needs after they return"
-}

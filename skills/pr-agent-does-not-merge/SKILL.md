@@ -31,3 +31,4 @@ Any time you write or update an agent that calls `pr-agent`, or any time you des
 - Before this boundary was established, `pr-agent` included a squash-merge-and-delete step (step 6-8 in the old numbered list). That step was removed in the 2026-04-26 PR-agent CI comment loops refactor. Do not re-introduce it.
 - The `create-pr` skill's Scripts table also no longer contains the squash-merge row — it was removed at the same time. If you need that script, issue it from the caller, not from `create-pr`.
 - `resolve-pr-issue` is also unaffected by this boundary — it only fixes CI failures and review threads; it does not merge.
+- `dark-factory-agent.md` enforces this boundary with a FORBIDDEN rule: "Never merge a PR manually or instruct any sub-agent to merge." If you update dark-factory-agent.md, preserve this rule. If you create a new top-level orchestrator, add an equivalent rule.
