@@ -81,6 +81,12 @@ dark-factory-agent(taskDescription, taskName):
   # Invoke feature-agent once and wait for status: done/hard-stop/aborted.
   Route based on classification:
     - "feature" → result = invoke feature-agent({ taskDescription })
+        # Validate result is JSON with status field before inspecting status
+        if result is not a JSON object or result.status is undefined:
+          run cleanup(WORK_DIR, taskName)
+          report "feature-agent returned unstructured output — expected JSON with status field."
+          STOP
+
         if result.status == "done":
           # feature-agent finished all phases including execution — continue to Step 5
         if result.status == "hard-stop":
@@ -190,4 +196,5 @@ bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_D
 - FORBIDDEN: Never write brain.json directly using cat, echo, Bash, or any tool. Always use brain-state-manager skill. Direct writes corrupt state and will break downstream agents.
 - FORBIDDEN: Never invoke sub-planning-agent directly. Always route through feature-agent. Feature-agent calls AskUserQuestion directly for all user interaction — dark-factory-agent must NOT implement a multi-turn loop for feature-agent responses. Invoke feature-agent once and wait for status: done/hard-stop/aborted.
 - FORBIDDEN: Never use `${CLAUDE_PLUGIN_ROOT}` inside Bash tool call pseudocode — it is empty in Bash tool call subprocesses. Always resolve plugin root via `installed_plugins.json` using explicit plugin name lookup (e.g., `d['plugins'].get('dark-factory@dark-factory')`) to handle multiple installed plugins correctly.
+- FORBIDDEN: Never re-invoke feature-agent after it has been called once. If the user responds to an AskUserQuestion during the feature-agent session, that response is handled internally by feature-agent — do NOT spawn a new feature-agent or re-invoke the manufacture command in response to user answers during an active feature-agent session.
 - FORBIDDEN: Never merge a PR manually or instruct any sub-agent to merge. pr-agent returns status:ready but does not merge. Merging is the developer's responsibility after review.
