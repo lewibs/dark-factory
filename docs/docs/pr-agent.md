@@ -14,9 +14,11 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 
 ## Input
 
-- `planFilePath` (string, nullable) — Path to the plan file; if null, uses taskDescription
-- Or `taskDescription` (string) — Plain description of the work if no plan exists
-- If neither: uses git diff
+- `planFilePath` (string, nullable) — Path to the plan file; used by feature and repair/fix-flow routes; if null and route is repair/fix-flow, falls back to git summary
+- Or `taskDescription` (string) — Plain description of the work if no plan exists (fallback route only)
+- If neither: uses git diff (fallback route only)
+
+The description content sourced for the PR body depends on `brain.classification` (see Step 1).
 
 ## Orchestration Flow (6 Steps)
 
@@ -32,16 +34,18 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 ### Step 1: Build PR Body
 
 1. **Reads PR template** from `agents/pr/templates/pr-template.md` for structure
-2. **Populates Description section**:
-   - If planFilePath provided: extracts summary from plan
-   - If taskDescription provided: uses description directly
-   - If neither: builds from git diff
-3. **Runs tests** (if test suite exists):
+2. **Reads `classification`** from brain.json (injected via pre-hook) to determine description source
+3. **Populates Description section** based on work route:
+   - **`feature`**: reads planFilePath verbatim
+   - **`debugger`**: searches `$PROJECT_DIR/docs/bugs/` for a `.md` file matching `taskName` (exact or prefix match, or most recent by date); reads verbatim
+   - **`repair` / `fix-flow`**: reads planFilePath verbatim if provided; otherwise generates a summary from `git log main..HEAD --oneline` + `git diff main...HEAD --name-only`
+   - **Fallback (unknown classification)**: uses planFilePath if provided, else uses taskDescription string
+4. **Runs tests** (if test suite exists):
    - Detects test runner (pytest, npm test, go test, etc.)
    - Runs full test suite
    - Includes output in "Test Plan" section
    - Omits "Test Plan" section if no test suite found
-4. **Writes body** to `/tmp/pr-body.md` (ready for gh cli)
+5. **Writes body** to `/tmp/pr-body.md` (ready for gh cli)
 
 ### Step 2: Open PR (conditional)
 
@@ -133,7 +137,13 @@ The PR body is built from `agents/pr/templates/pr-template.md`, which has exactl
 🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)
 ```
 
-**Description source**: The `## Description` section is populated with the full, verbatim contents of the plan file or bug doc — not a summary. If neither exists, the git diff is used.
+**Description source**: The `## Description` section is populated based on the work route (read from `brain.classification`):
+- **feature**: full verbatim contents of planFilePath
+- **debugger**: full verbatim contents of the matching bug doc from `docs/bugs/`
+- **repair / fix-flow**: verbatim planFilePath if provided; otherwise a generated summary from `git log` + `git diff --name-only`
+- **fallback**: planFilePath, taskDescription, or git diff — in that priority order
+
+Content is never summarised; verbatim source text is always preferred.
 
 **Test Plan**: Only included when a test suite was actually run. If no tests exist, the section is omitted entirely.
 
