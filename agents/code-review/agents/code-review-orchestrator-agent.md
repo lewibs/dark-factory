@@ -36,16 +36,16 @@ StandardError {
 ## Your task
 
 1. Use `manage-issues-file` command with `operation: "create"` to initialize the issues file with an empty review points array.
-2. Spawn in parallel:
-   - `agents/code-review/agents/high-level-review-agent.md` with inputs `planFilePath` and `codePath`
-   - `agents/code-review/agents/low-level-review-agent.md` with input `codePath`
+2. Spawn in parallel using the Agent tool with subagent_type:
+   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:high-level-review-agent` with inputs `planFilePath` and `codePath`
+   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:low-level-review-agent` with input `codePath`
 3. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
 4. Enter the resolver loop (up to 10 iterations):
    - Initialize `noProgressCount = 0`.
    - For each iteration:
      - Read the current issues.md file and count the number of unresolved issues. Store this as `issueCountBefore`.
-     - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath` set to the absolute path of `<codePath>/issues.md`.
+     - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:resolver-agent` with `issuesFilePath` set to the absolute path of `<codePath>/issues.md`.
      - Wait for it to return.
      - If it returns an error: surface the error and halt.
      - Read the updated issues.md file and count the number of unresolved issues. Store this as `issueCountAfter`.
