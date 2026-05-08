@@ -47,9 +47,9 @@ def _body(path: str) -> str:
 
 class TestManufactureCmdPath:
     """
-    agentFlowDeviationNestedSession — commands/manufacture.md must reference
-    dark-factory-agent.md via ${CLAUDE_PLUGIN_ROOT} so the path resolves correctly
-    regardless of the caller's CWD.
+    agentFlowDeviationNestedSession — commands/manufacture.md must invoke
+    dark-factory-agent as a sub-agent via the Agent tool, not via file path reference.
+    This prevents CWD-dependent resolution failures in nested sessions.
     """
 
     def test_manufacture_cmd_does_not_use_bare_relative_path(self):
@@ -63,10 +63,11 @@ class TestManufactureCmdPath:
         plugin install directory. A bare relative path then fails to resolve, and the caller
         falls back to invoking the subagent type directly, bypassing the normal dispatch flow.
 
-        The reference must use ${CLAUDE_PLUGIN_ROOT} to anchor the path to the plugin root.
+        The proper solution is to invoke dark-factory-agent as a sub-agent using the Agent
+        tool with agent: "dark-factory-agent", which doesn't depend on CWD-relative paths.
 
         If this test fails: commands/manufacture.md still uses a bare relative path for
-        dark-factory-agent.md — replace it with a ${CLAUDE_PLUGIN_ROOT}-anchored path.
+        dark-factory-agent.md — replace it with an Agent tool invocation.
         # Plan path: agentFlowDeviationNestedSession.manufacture-no-bare-relative-path
         """
         content = _full(MANUFACTURE_CMD_PATH)
@@ -79,30 +80,32 @@ class TestManufactureCmdPath:
             "commands/manufacture.md must NOT reference dark-factory-agent.md with a bare "
             "relative path ('agents/dark-factory/agents/dark-factory-agent.md'). "
             "When invoked from a nested Claude session, this path fails to resolve because "
-            "CWD is not the plugin root. Use ${CLAUDE_PLUGIN_ROOT} to anchor the path: "
-            "`${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/agents/dark-factory-agent.md`."
+            "CWD is not the plugin root. Use the Agent tool to invoke dark-factory-agent by name: "
+            "`invoke Agent({ agent: \"dark-factory-agent\", prompt: ... })`"
         )
 
-    def test_manufacture_cmd_uses_plugin_root_anchor(self):
+    def test_manufacture_cmd_uses_agent_tool(self):
         """
-        agentFlowDeviationNestedSession.manufacture-uses-plugin-root:
-        commands/manufacture.md must reference dark-factory-agent.md using
-        ${CLAUDE_PLUGIN_ROOT} so the path resolves regardless of CWD.
+        agentFlowDeviationNestedSession.manufacture-uses-agent-tool:
+        commands/manufacture.md must invoke dark-factory-agent as a sub-agent using the
+        Agent tool, rather than using a file path reference (which breaks in nested sessions).
 
-        If this test fails: commands/manufacture.md does not reference the plugin root,
-        meaning the path is vulnerable to CWD-dependent resolution failures.
-        # Plan path: agentFlowDeviationNestedSession.manufacture-uses-plugin-root
+        Using the Agent tool with agent: "dark-factory-agent" resolves the agent by name,
+        which is CWD-independent and works correctly in nested sessions.
+
+        If this test fails: commands/manufacture.md does not use the Agent tool to invoke
+        dark-factory-agent — update it to use invoke Agent({ agent: "dark-factory-agent" ... }).
+        # Plan path: agentFlowDeviationNestedSession.manufacture-uses-agent-tool
         """
         content = _full(MANUFACTURE_CMD_PATH)
-        uses_plugin_root = re.search(
-            r'\$\{CLAUDE_PLUGIN_ROOT\}.*dark-factory-agent\.md|'
-            r'dark-factory-agent\.md.*\$\{CLAUDE_PLUGIN_ROOT\}',
+        uses_agent_tool = re.search(
+            r'invoke\s+Agent\s*\(\s*\{\s*agent\s*:\s*["\']dark-factory-agent["\']',
             content,
         )
-        assert uses_plugin_root is not None, (
-            "commands/manufacture.md must reference dark-factory-agent.md using "
-            "${CLAUDE_PLUGIN_ROOT} to anchor the path to the plugin install root. "
-            "Example: `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/agents/dark-factory-agent.md`."
+        assert uses_agent_tool is not None, (
+            "commands/manufacture.md must invoke dark-factory-agent as a sub-agent using "
+            "the Agent tool. This approach is CWD-independent and works in nested sessions. "
+            "Example: `invoke Agent({ agent: \"dark-factory-agent\", prompt: ... })`"
         )
 
 
