@@ -41,6 +41,11 @@ feature-agent(taskDescription):
       question: "System Intent:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
       options: ["Looks good — continue to Mermaid diagram", "Request Changes"]
     )
+    # Normalize free-text approval response
+    approvalKeywords = ["yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", "done"]
+    if answer not in ["Looks good — continue to Mermaid diagram", "Request Changes"]:
+      if any(kw in answer.lower() for kw in approvalKeywords):
+        answer = "Looks good — continue to Mermaid diagram"
     if answer == "Looks good — continue to Mermaid diagram": BREAK
     # Request Changes — re-run planning with feedback
     invoke planning-agent({ phase: "draft_plan", planPath, feedback: answer, flowName: null })
@@ -62,6 +67,11 @@ feature-agent(taskDescription):
       question: "Mermaid diagram:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
       options: ["Approve — continue to flows", "Request Changes"]
     )
+    # Normalize free-text approval response
+    approvalKeywords = ["yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", "done"]
+    if answer not in ["Approve — continue to flows", "Request Changes"]:
+      if any(kw in answer.lower() for kw in approvalKeywords):
+        answer = "Approve — continue to flows"
     if answer == "Approve — continue to flows": BREAK
     # Request Changes — re-run mermaid with feedback
     invoke planning-agent({ phase: "mermaid", planPath, feedback: answer, flowName: null })
@@ -84,6 +94,11 @@ feature-agent(taskDescription):
         question: "Flow `" + flow + "`:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
         options: ["Approve — continue to next flow", "Request Changes"]
       )
+      # Normalize free-text approval response
+      approvalKeywords = ["yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", "done"]
+      if answer not in ["Approve — continue to next flow", "Request Changes"]:
+        if any(kw in answer.lower() for kw in approvalKeywords):
+          answer = "Approve — continue to next flow"
       if answer == "Approve — continue to next flow":
         invoke flow-state-manager({ operation: "markApproved", workDir: WORK_DIR, flowName: flow })
         BREAK
@@ -98,6 +113,11 @@ feature-agent(taskDescription):
     question: "All flows approved. Complete plan:\n\n" + planContent + "\n\nProceed with execution?",
     options: ["Approve and Execute", "Abort"]
   )
+  # Normalize free-text approval response
+  approvalKeywords = ["yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", "done"]
+  if answer not in ["Approve and Execute", "Abort"]:
+    if any(kw in answer.lower() for kw in approvalKeywords):
+      answer = "Approve and Execute"
 
   if answer == "Abort":
     RETURN { status: "aborted", reason: "User aborted at final approval gate" }
@@ -116,6 +136,7 @@ feature-agent(taskDescription):
 
 ## Rules
 
+- Accept common affirmative free-text responses as approval — do not require exact option label matching. Keywords: "yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", "done".
 - Call AskUserQuestion directly for all user interaction — feature-agent runs at depth 2 and AskUserQuestion calls reach the human user directly. Do NOT return status:'question' to the caller.
 - Never invoke pr-agent — caller handles the PR.
 - Delegate flow state reads/writes to flow-state-manager skill.
