@@ -1,16 +1,10 @@
 """
-Regression test for bug: destroy-factories skips all gnome-terminal windows because
-all windows share a single gnome-terminal-server daemon PID.
+Regression test: ensure destroy-factories no longer attempts to kill other terminals.
 
-Root cause: find_claude_terminals() identified the calling terminal's ancestor as
-gnome-terminal-server (a shared daemon). all_terminal_emulator_pids() returned the same
-gnome-terminal-server PID. The exclusion check `terminal_pid == own_ancestor_pid` then
-skipped ALL terminal entries, so nothing got killed.
+The old implementation tried to enumerate all vte-spawn scopes and kill those with
+claude descendants (except its own). This was removed in favor of a self-close-only approach.
 
-Fix: use vte-spawn cgroup scopes (via systemctl --user list-units) to identify
-individual gnome-terminal windows. Each window has a unique vte-spawn-<uuid>.scope.
-The caller's own scope is read from /proc/$$/cgroup and excluded; all others with a
-claude descendant are stopped.
+This test file verifies that the old code patterns are completely removed.
 """
 
 import os
@@ -24,106 +18,151 @@ def _read_script():
         return f.read()
 
 
-def test_find_claude_terminals_enumerates_by_scope_not_daemon_pid():
+def test_script_does_not_enumerate_all_terminals():
     """
-    find_claude_scope_terminals must enumerate terminal windows by their vte-spawn
-    cgroup scopes via systemctl --user list-units, NOT by gnome-terminal-server daemon PID.
-
-    The bug: all gnome-terminal windows share ONE gnome-terminal-server PID.
-    find_terminal_ancestor($$) returned that shared daemon PID as the "own ancestor."
-    all_terminal_emulator_pids() returned the same daemon PID.
-    The exclusion check matched ALL entries → zero terminals found → nothing killed.
-
-    The fix: enumerate all active vte-spawn-*.scope units via
-    `systemctl --user list-units --type=scope 'vte-spawn-*'`, then exclude only the
-    scope matching /proc/$$/cgroup. Each window is individually addressable.
+    Script must not enumerate all vte-spawn scopes via systemctl list-units.
+    The old code called all_vte_scopes() to get every terminal window.
+    New self-close-only code does not do this.
     """
     content = _read_script()
 
-    # The script must use systemctl list-units to enumerate scopes
-    assert "list-units" in content, (
-        "find_claude_scope_terminals must enumerate terminal windows via "
-        "`systemctl --user list-units 'vte-spawn-*'`, NOT by gnome-terminal-server "
-        "daemon PID. All gnome-terminal windows share a single gnome-terminal-server PID, "
-        "so the own-ancestor exclusion silently skips ALL windows, causing zero kills."
+    assert "list-units" not in content, (
+        "Script should not use systemctl list-units to enumerate terminal windows. "
+        "Self-close-only approach should not enumerate other terminals."
+    )
+
+    assert "all_vte_scopes" not in content, (
+        "Script should not define or call all_vte_scopes(). "
+        "This function enumerated all terminal scopes — removed in self-close-only design."
     )
 
 
-def test_own_window_excluded_by_scope_not_by_daemon_pid():
+def test_script_does_not_loop_over_scopes():
     """
-    The script must exclude its own window by matching its OWN vte-spawn scope
-    (read from /proc/$$/cgroup), not by matching the shared gnome-terminal-server PID.
-
-    If the exclusion is PID-based (find_terminal_ancestor $$), every window gets
-    excluded because they all share the same daemon PID.
+    Script must not have a loop that iterates over multiple terminal scopes.
+    The old code had: for scope in $(find_claude_scope_terminals); do stop $scope; done
+    The new code directly closes its own scope without looping.
     """
     content = _read_script()
 
-    # Must read own scope from /proc/$$/cgroup (possibly with quoting like /proc/"$$"/cgroup)
+    # Should not have loop over found scopes
+    assert "for scope in" not in content, (
+        "Script should not loop over multiple scopes. "
+        "Self-close-only approach targets only the current terminal."
+    )
+
+    assert "find_claude_scope_terminals" not in content, (
+        "Script should not define or call find_claude_scope_terminals(). "
+        "This function enumerated all terminal windows with claude descendants — "
+        "removed in self-close-only design."
+    )
+
+
+def test_script_does_not_check_for_claude_descendants():
+    """
+    The old code checked whether each terminal had a claude descendant process.
+    New self-close-only code does not do this — it just closes itself.
+    """
+    content = _read_script()
+
+    assert "has_claude_descendant" not in content, (
+        "Script should not define or call has_claude_descendant(). "
+        "Self-close-only approach does not need to check other terminals for descendants."
+    )
+
+    assert "scope_main_pid" not in content, (
+        "Script should not define or call scope_main_pid(). "
+        "This function retrieved main PIDs to check for claude descendants in other terminals."
+    )
+
+
+def test_script_does_not_spawn_new_terminal():
+    """
+    Script must not open/spawn any new terminal.
+    The old code had open_terminal() which launched a new terminal before closing itself.
+    New code simply closes without spawning anything.
+    """
+    content = _read_script()
+
+    assert "open_terminal" not in content, (
+        "Script should not define or call open_terminal(). "
+        "Self-close-only approach does not spawn anything."
+    )
+
+    assert "gnome-terminal" not in content, (
+        "Script should not invoke gnome-terminal to spawn a new window."
+    )
+
+    assert "x-terminal-emulator" not in content, (
+        "Script should not invoke x-terminal-emulator to spawn a new window."
+    )
+
+    assert "xterm" not in content, (
+        "Script should not invoke xterm to spawn a new window."
+    )
+
+    assert "konsole" not in content, (
+        "Script should not invoke konsole to spawn a new window."
+    )
+
+
+def test_script_does_not_have_fallback_terminal_logic():
+    """
+    The old code had find_claude_terminals() as a fallback for non-GNOME systems.
+    New code does not need this fallback since it only self-closes.
+    """
+    content = _read_script()
+
+    assert "find_claude_terminals" not in content, (
+        "Script should not define or call find_claude_terminals(). "
+        "This fallback enumerated terminals by process name — no longer needed for self-close."
+    )
+
+    assert r"xterm\|konsole" not in content, (
+        "Script should not reference fallback terminal names like xterm or konsole."
+    )
+
+
+def test_script_reads_own_scope_only():
+    """
+    Script must read its own vte-spawn scope from /proc/$$/cgroup.
+    It should NOT enumerate other scopes.
+    """
+    content = _read_script()
+
+    # Must read /proc/$$/cgroup
     has_own_cgroup_read = (
         "/proc/$$/cgroup" in content
         or '/proc/"$$"/cgroup' in content
     )
     assert has_own_cgroup_read, (
-        "Script must read /proc/$$/cgroup to identify the calling terminal's own "
-        "vte-spawn scope. Excluding by gnome-terminal-server daemon PID incorrectly "
-        "excludes ALL windows since they share that daemon."
+        "Script must read /proc/$$/cgroup to identify its own vte-spawn scope."
     )
 
-    # The own scope should be stored in a named variable and used in exclusion
-    assert "SELF_SCOPE" in content, (
-        "Script must capture its own vte-spawn scope as SELF_SCOPE from "
-        "/proc/$$/cgroup and skip that scope when enumerating other terminal windows. "
-        "This replaces the buggy find_terminal_ancestor approach that matches all "
-        "windows to the same shared daemon PID."
+    # Must store in SCOPE (or similar) variable for the single self-close operation
+    assert "SCOPE" in content, (
+        "Script must extract its own scope into a SCOPE variable."
     )
 
 
-def test_kill_loop_uses_scope_stop():
+def test_script_stops_only_own_scope():
     """
-    The kill loop must stop other factory terminal scopes via
-    `systemctl --user stop <scope>`. This is the correct way to close individual
-    gnome-terminal windows identified by their vte-spawn scope.
+    Script must call systemctl --user stop exactly once on its own scope.
+    No loops, no enumeration of other scopes.
     """
     content = _read_script()
 
-    # The script must use systemctl --user stop for scopes in the kill loop
-    # (beyond just the self-close step at the end)
-    assert re.search(r'systemctl\s+--user\s+stop\s+"\$scope"', content) or \
-           re.search(r'systemctl\s+--user\s+stop\s+\$scope', content), (
-        "Script must stop other factory terminal scopes via "
-        "`systemctl --user stop \"$scope\"` in the kill loop. "
-        "This is the correct way to close individual gnome-terminal windows "
-        "when all share a single gnome-terminal-server daemon."
+    # Count systemctl stop calls
+    stop_calls = content.count("systemctl --user stop")
+    assert stop_calls == 1, (
+        f"Script should have exactly one 'systemctl --user stop' call (found {stop_calls}). "
+        "Self-close-only approach targets only the current terminal."
     )
 
-
-def test_find_claude_scope_terminals_function_exists():
-    """
-    The script must define a find_claude_scope_terminals function (or equivalent)
-    that enumerates scopes rather than daemon PIDs.
-    """
-    content = _read_script()
-
-    assert "find_claude_scope_terminals" in content, (
-        "Script must define find_claude_scope_terminals() to enumerate individual "
-        "terminal windows by their vte-spawn cgroup scopes. "
-        "This replaces the PID-based find_claude_terminals approach that fails "
-        "when all windows share a single gnome-terminal-server daemon PID."
-    )
-
-
-def test_scope_main_pid_function_exists():
-    """
-    The script must have a way to get the main PID for a scope (to check for
-    claude descendants). This can be done via `systemctl --user show <scope> --property=MainPID`.
-    """
-    content = _read_script()
-
-    assert "MainPID" in content or "scope_main_pid" in content, (
-        "Script must retrieve the main PID for a vte-spawn scope "
-        "(via `systemctl --user show <scope> --property=MainPID`) so it can "
-        "check whether that window has a claude descendant before killing it."
+    # Should reference SCOPE variable, not loop over scopes
+    assert "systemctl --user stop \"$SCOPE\"" in content or \
+           "systemctl --user stop $SCOPE" in content, (
+        "Script must stop $SCOPE (its own scope), not enumerate and kill others."
     )
 
 
@@ -133,28 +172,62 @@ def test_script_still_has_shebang():
     assert content.startswith("#!/bin/bash"), "Script must have #!/bin/bash shebang"
 
 
-def test_script_exits_cleanly_without_spawning():
-    """Script must exit cleanly with exit 0, without spawning a new terminal."""
+def test_script_exits_cleanly():
+    """
+    Script must exit cleanly with exit 0 after self-close.
+    No spawn logic, no complex error handling.
+    """
     content = _read_script()
-    assert "open_terminal" not in content, (
-        "Script must not call open_terminal (no spawn logic)"
-    )
+
     assert "exit 0" in content, (
-        "Script must exit cleanly with exit 0 after killing other windows."
+        "Script must exit cleanly with exit 0."
     )
 
 
-def test_script_does_not_self_close():
-    """Script must not self-close (no SELF_SCOPE stop in the main flow)."""
+def test_script_kills_ancestor_claude():
+    """
+    Script must walk up the process tree and kill the ancestor claude process.
+    This is the second part of self-close: after stopping the scope,
+    also kill the claude parent process.
+    """
     content = _read_script()
-    # The SELF_SCOPE variable may still be referenced in find_claude_scope_terminals,
-    # but it should not be used in the main kill flow to stop itself
-    # Check that systemctl stop is not used on SELF_SCOPE in the main section
-    main_section = content.split("find_claude_terminals")[0]  # Get main section before functions
-    if "find_claude_scope_terminals" in content:
-        # Check that the main section (after functions) doesn't have systemctl stop SELF_SCOPE
-        kill_section = content.split("# ── Kill all other Claude terminals")[1] if "# ── Kill all other Claude terminals" in content else ""
-        assert "systemctl --user stop \"$SELF_SCOPE\"" not in kill_section and \
-               "systemctl --user stop $SELF_SCOPE" not in kill_section, (
-            "Script must not self-close by stopping its own vte-spawn scope"
-        )
+
+    # Must walk process tree (not enumerate all terminals)
+    assert "while" in content or "for pid in" not in content, (
+        "Script should use while loop to walk process tree, not for loop over terminals."
+    )
+
+    # Must check for claude process name
+    assert '"claude"' in content or "'claude'" in content or '= "claude"' in content, (
+        "Script must check for 'claude' process name when walking up process tree."
+    )
+
+    # Must kill the ancestor
+    assert "kill " in content or "kill\t" in content, (
+        "Script must use kill to terminate ancestor claude process."
+    )
+
+    # Must break after finding and killing claude (not continue loop)
+    assert "break" in content, (
+        "Script should break after killing ancestor claude."
+    )
+
+
+def test_no_logging_or_complex_flow():
+    """
+    Script should be minimal: no logging, no multiple code paths, no complex branching.
+    Just read scope, stop it, kill ancestor, exit.
+    """
+    content = _read_script()
+
+    # Should not have logging functions
+    assert "_log" not in content, (
+        "Script should not have logging functions (_log)."
+    )
+
+    # Should not have flow path indicators in comments (success/none-found/kill-failed)
+    # These indicate complex multi-path logic
+    assert "# Plan path:" not in content, (
+        "Script should not have plan path flow documentation. "
+        "Self-close is straightforward with no branching logic."
+    )

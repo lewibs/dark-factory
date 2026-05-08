@@ -1,6 +1,6 @@
 # destroy-factories
 
-Terminates all other running Claude / dark-factory terminal sessions.
+Closes the current terminal/factory session. Only terminates the terminal this command is run from — no other terminals are affected.
 
 ## Usage
 
@@ -10,13 +10,11 @@ Terminates all other running Claude / dark-factory terminal sessions.
 
 ## Description
 
-Scans all running terminal emulator processes for those that have a `claude` descendant process. Kills each one (excluding the terminal running this command).
-
-Safe by design: only terminals whose process tree contains a `claude` descendant are targeted. Unrelated terminals are never touched.
+Cleanly closes the current Claude terminal session by stopping its own vte-spawn cgroup scope and terminating the ancestor `claude` process. Does not affect any other terminals or sessions.
 
 ## Platform
 
-Linux only. Requires at least one of: `gnome-terminal`, `x-terminal-emulator`, `xterm`, or `konsole`.
+Linux only. Designed for GNOME terminal and other systems using systemd cgroup scopes.
 
 ## Implementation
 
@@ -26,6 +24,4 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"
 
 ## Flows
 
-- `destroy-factories.success` — Claude terminals found and killed; command exits cleanly.
-- `destroy-factories.none-found` — No Claude terminals found; command exits cleanly (no kills needed).
-- `destroy-factories.kill-failed` — Kill fails for one or more PIDs; warns to stderr, continues.
+- `destroy-factories.success` — Terminal closed cleanly; command exits with code 0.

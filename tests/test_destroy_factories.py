@@ -9,99 +9,126 @@ import stat
 SCRIPT_PATH = "scripts/destroy-factories.sh"
 
 
-def test_destroy_factories_success():
+def test_destroy_factories_reads_own_cgroup_scope():
     """
-    # Plan path: destroy-factories.success
-    All Claude terminals found and killed; command exits cleanly.
-    Given: terminal PIDs with claude descendants exist (other than our own ancestor)
-    When: script is run
-    Then: those terminals are killed and script exits 0
+    Script must read its own vte-spawn scope from /proc/$$/cgroup
+    to identify which terminal to close.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
-    # The script must call find_claude_terminals and iterate over PIDs to kill them
-    assert "find_claude_terminals" in content, \
-        "Script should define or call find_claude_terminals"
+    # Must read /proc/$$/cgroup
+    assert "/proc/$$/cgroup" in content or '/proc/"$$"/cgroup' in content, \
+        "Script should read /proc/$$/cgroup to find own vte-spawn scope"
 
-    # The script must attempt to kill terminals found
+    # Must extract scope name
+    assert "vte-spawn" in content, \
+        "Script should extract vte-spawn scope from cgroup"
+
+
+def test_destroy_factories_stops_own_scope():
+    """
+    Script must use systemctl --user stop to close its own vte-spawn scope.
+    """
+    with open(SCRIPT_PATH, "r") as f:
+        content = f.read()
+
+    # Must use systemctl to stop the scope
+    assert "systemctl --user stop" in content, \
+        "Script should use systemctl --user stop to close own scope"
+
+    # Must reference SCOPE variable
+    assert "SCOPE" in content, \
+        "Script should store scope in SCOPE variable"
+
+
+def test_destroy_factories_kills_ancestor_claude():
+    """
+    Script must walk up the process tree and kill the ancestor claude process.
+    """
+    with open(SCRIPT_PATH, "r") as f:
+        content = f.read()
+
+    # Must walk process tree
+    assert "while" in content or "for" in content, \
+        "Script should walk process tree to find ancestor"
+
+    # Must check for claude process
+    assert "claude" in content, \
+        "Script should check for 'claude' process name"
+
+    # Must use kill
     assert "kill " in content or "kill\t" in content, \
-        "Script should kill terminals returned by find_claude_terminals"
-
-    # The script should exit cleanly with exit 0
-    assert "exit 0" in content, \
-        "Script should exit cleanly (exit 0) after killing terminals"
-
-
-def test_destroy_factories_none_found():
-    """
-    # Plan path: destroy-factories.none-found
-    No other Claude terminals found; command exits cleanly (no kills needed).
-    When find_claude_terminals yields no PIDs, script still exits cleanly.
-    """
-    with open(SCRIPT_PATH, "r") as f:
-        content = f.read()
-
-    # The script must not exit early when no terminals are found —
-    # it must continue to completion
-    assert "exit 0" in content, \
-        "Script should exit cleanly (exit 0) even when no Claude terminals are found"
-
-    # There should be a loop/iteration that simply does nothing if no PIDs yielded
-    assert "for " in content or "while " in content, \
-        "Script should use a loop to iterate over found terminal PIDs"
-
-
-def test_destroy_factories_kill_failed():
-    """
-    # Plan path: destroy-factories.kill-failed
-    One or more terminals could not be killed (permission error);
-    warns to stderr, continues to completion.
-    """
-    with open(SCRIPT_PATH, "r") as f:
-        content = f.read()
-
-    # Kill failure should warn (not abort)
-    assert "warn" in content.lower() or ">&2" in content or "2>/dev/null" in content, \
-        "Script should warn on kill failure (write to stderr or suppress gracefully)"
-
-    # Script must not use 'set -e' or 'exit' immediately after a kill failure
-    # — it must continue to completion. Check that there's a fallback/warn pattern
-    assert "||" in content, \
-        "Script should use || to handle kill failure gracefully without exiting"
+        "Script should use kill to terminate ancestor"
 
 
 def test_destroy_factories_exits_cleanly():
     """
-    # Plan path: destroy-factories.success
-    Script always exits cleanly with exit code 0, regardless of kill success/failure.
+    Script must exit with code 0 after closing its own session.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
-    # Should exit cleanly with exit 0
     assert "exit 0" in content, \
         "Script should exit cleanly with code 0"
 
-    # Should NOT have exit 1 (spawn failures no longer apply)
-    assert "exit 1" not in content, \
-        "Script should not exit with code 1 (no spawn logic)"
 
-
-def test_destroy_factories_excludes_own_ancestor():
+def test_destroy_factories_no_open_terminal():
     """
-    # Plan path: destroy-factories.success (safety constraint)
-    Script never kills its own ancestor terminal — only other terminals.
+    Script must not spawn or open any new terminal.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
-    # Must find its own ancestor and exclude it from the kill list
-    assert "$$" in content, \
-        "Script should use $$ to identify its own PID for ancestor exclusion"
+    assert "open_terminal" not in content, \
+        "Script should not call open_terminal function"
 
-    assert "own_ancestor" in content or "skip" in content or "continue" in content, \
-        "Script should skip/exclude its own ancestor terminal"
+    assert "gnome-terminal" not in content, \
+        "Script should not spawn gnome-terminal"
+
+    assert "x-terminal-emulator" not in content, \
+        "Script should not spawn x-terminal-emulator"
+
+
+def test_destroy_factories_removes_helper_functions():
+    """
+    Script must not contain the old helper functions that tried to kill other terminals.
+    """
+    with open(SCRIPT_PATH, "r") as f:
+        content = f.read()
+
+    # Old functions that should be removed
+    assert "find_claude_scope_terminals" not in content, \
+        "Script should not define find_claude_scope_terminals"
+
+    assert "find_claude_terminals" not in content, \
+        "Script should not define find_claude_terminals"
+
+    assert "has_claude_descendant" not in content, \
+        "Script should not define has_claude_descendant"
+
+    assert "open_terminal" not in content, \
+        "Script should not define open_terminal"
+
+    assert "all_vte_scopes" not in content, \
+        "Script should not define all_vte_scopes"
+
+    assert "scope_main_pid" not in content, \
+        "Script should not define scope_main_pid"
+
+
+def test_destroy_factories_no_name_parameter():
+    """
+    Script should not have a NAME parameter or accept arguments.
+    """
+    with open(SCRIPT_PATH, "r") as f:
+        content = f.read()
+
+    assert "NAME=" not in content, \
+        "Script should not have NAME parameter"
+
+    assert "$1" not in content, \
+        "Script should not reference command-line arguments"
 
 
 def test_destroy_factories_script_exists_and_executable():
@@ -117,29 +144,23 @@ def test_destroy_factories_has_shebang():
     assert first_line == "#!/bin/bash", "Script should have #!/bin/bash shebang"
 
 
-def test_destroy_factories_no_name_argument():
-    """Verify script no longer accepts a name argument"""
-    with open(SCRIPT_PATH, "r") as f:
-        content = f.read()
-
-    # Script should not reference $1 or $NAME at top level
-    # (the functions are removed, so NAME variable should not exist)
-    assert "NAME=" not in content, \
-        "Script should not use a NAME variable"
-
-
-def test_destroy_factories_only_kills_claude_terminals():
+def test_destroy_factories_self_close_only():
     """
-    Verify the script checks for claude descendants before killing,
-    not all terminals indiscriminately.
+    Script must only close itself, not kill other terminals.
+    The presence of loop functions like find_claude_scope_terminals or
+    all_vte_scopes that enumerate ALL terminals should be gone.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
-    # Must check for claude in the descendant tree
-    assert "claude" in content, \
-        "Script should check for 'claude' process in descendant tree before killing"
+    # Should NOT have kill loops that iterate over multiple scopes
+    assert "for scope in $(all_vte_scopes)" not in content, \
+        "Script should not iterate over all vte scopes"
 
-    # Must walk child/descendant tree — not just look at direct children
-    assert "ps " in content or "pgrep" in content, \
-        "Script should use ps or pgrep to inspect process tree"
+    assert "for scope in $(find_claude_scope_terminals)" not in content, \
+        "Script should not iterate over multiple claude terminals"
+
+    # Should only have one explicit self-close logic
+    scope_stops = content.count("systemctl --user stop")
+    assert scope_stops == 1, \
+        f"Script should have exactly one systemctl --user stop call (found {scope_stops})"
