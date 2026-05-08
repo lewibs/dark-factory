@@ -25,11 +25,16 @@ Two concrete instances of this bug, both fixed in 2026-05-06:
 
 **Step 1 — Resolve WORK_DIR at the top of the agent, before any file write.**
 
+Check each source in order and use the first non-empty value:
+
 ```
-WORK_DIR = $DARK_FACTORY_WORK_DIR
-if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
-if WORK_DIR is still empty: WORK_DIR = "." (fallback — log a warning: "WORK_DIR not set, writing to CWD")
+WORK_DIR = workDir argument (if provided in the invocation and non-empty)
+if WORK_DIR is still empty: WORK_DIR = $DARK_FACTORY_WORK_DIR (env var)
+if WORK_DIR is still empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: STOP — return error JSON: {"error": "WORK_DIR could not be resolved. Cannot write files without a target directory. Pass workDir explicitly."}
 ```
+
+Do NOT fall back to `"."` — writing to CWD contaminates the main project repo when the agent runs outside an isolated worktree. Silent CWD fallback is a bug, not a safe default.
 
 **Step 2 — Prefix every file path with WORK_DIR.**
 
@@ -64,4 +69,5 @@ Any match without a `$WORK_DIR` prefix is a bug.
 - The WORK_DIR resolution block in this skill is identical to the one in `subagent-brain-patch-pointer-fallback`. That skill covers `brain-patch.json` writes specifically; this skill covers all other file writes. Both resolution sequences must appear in the same agent.
 - For git operations (add/commit/push), use `git -C $WORK_DIR` — see skill `git-c-worktree-subagent`.
 - For files that must land in the permanent project root (not the worktree), see skill `capture-project-dir-before-worktree`.
-- The fallback `WORK_DIR = "."` prevents a hard crash but still produces wrong-location writes if neither env var nor pointer file is set. Always treat a missing WORK_DIR as a configuration error worth logging.
+- There is no safe fallback for a missing WORK_DIR — hard-stop with a structured error JSON. A crash that is visible beats silent corruption of the main branch.
+- The `workDir` argument takes priority over the env var and pointer file. The orchestrator (dark-factory-agent) must always pass `workDir` explicitly when invoking file-writing sub-agents.
