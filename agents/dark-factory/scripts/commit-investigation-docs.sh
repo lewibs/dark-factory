@@ -8,9 +8,13 @@
 
 agent_type=$(head -n1)
 
-if [ "$agent_type" != "investigation-orchestrator" ]; then
-  exit 0
-fi
+case "$agent_type" in
+  investigation-orchestrator|investigation-agent)
+    ;;
+  *)
+    exit 0
+    ;;
+esac
 
 work_dir="${DARK_FACTORY_WORK_DIR:-}"
 if [ -z "$work_dir" ]; then

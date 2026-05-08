@@ -143,6 +143,16 @@ Includes cloud-native tooling (`aws`, `gh`, `docker`, `curl`) so the agent can f
 - If root cause cannot be identified after evidence review: document findings in bug file and report inconclusive
 - If fix cannot be applied: document blocker and STOP
 
+## SubagentStop Hook
+
+The agent declares a `SubagentStop` hook in its YAML frontmatter:
+
+```yaml
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+```
+
+When the agent finishes, this hook fires and commits all staged changes in the feature worktree with commit message `"docs: add bug audit log"`. This ensures bug audit log files are committed as a discrete step in the manufacture commit sequence.
+
 ## Artifacts Produced
 
 - `docs/bugs/<yyyy-mm-dd>-<bug-slug>.md` — Bug audit log (persisted in repository)

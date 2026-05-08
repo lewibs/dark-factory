@@ -123,6 +123,16 @@ Writes `$WORK_DIR/brain-patch.json`:
 - Modified existing doc files in `$WORK_DIR/docs/docs/`
 - `$WORK_DIR/brain-patch.json` — Paths of all files written/updated and one-line summary
 
+## SubagentStop Hook
+
+The agent declares a `SubagentStop` hook in its YAML frontmatter:
+
+```yaml
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+```
+
+When the agent finishes, this hook fires and commits all staged changes in the feature worktree with commit message `"docs: update documentation"`. This ensures documentation updates are committed as a discrete, ordered step in the manufacture commit sequence.
+
 ## Integration with dark-factory-agent
 
 1. Called after code-review-orchestrator-agent completes
