@@ -57,7 +57,7 @@ Routes based on classification:
 - **"fix-flow"** → `fix-flow-orchestrator`
   - Investigates broken flow, generates fix scripts, applies targeted fixes
   
-- **"debugger"** → `debugger-agent`
+- **"debugger"** → `debugger-orchestrator` (3-agent pattern: orchestrator, reproduce-test-agent, debugger-fix-agent)
   - Systematic debugging for non-obvious bugs
   
 - **"repair"** → `repair-agent`
@@ -137,7 +137,7 @@ Called on any error path after worktree creation:
 ## Dependencies
 
 - **Skills**: task-classifier, brain-state-manager
-- **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-agent, repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
+- **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-orchestrator (+ reproduce-test-agent, debugger-fix-agent), repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
 - **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh
 
 ## Tools
