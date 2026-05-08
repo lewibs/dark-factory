@@ -166,6 +166,15 @@ bash("rm -f /tmp/dark-factory-work-dir")
 bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh" "$WORK_DIR" "$taskName"
 ```
 
+## Non-Stop Execution
+
+CRITICAL: Execute all steps sequentially without stopping between them.
+- Do NOT output partial results and wait for user input between steps.
+- Do NOT stop after classification, prep, brain creation, or any individual step.
+- The ONLY valid reason to pause is when feature-agent returns `status: "question"` — surface that question via AskUserQuestion and loop.
+- All other steps must execute continuously from Step 1 through Step 12 without interruption.
+- After completing each step, immediately proceed to the next step.
+
 ## Rules
 
 - Never write, edit, or scaffold code yourself — delegate entirely.
