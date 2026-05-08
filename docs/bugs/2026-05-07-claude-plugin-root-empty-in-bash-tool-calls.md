@@ -74,7 +74,16 @@ bash "$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh" <taskName>
 
 However, to avoid hardcoding the username, a more robust approach is to read the install path from `installed_plugins.json` using jq or python3.
 
-The cleanest fix: update the dark-factory-agent instruction body to resolve `PLUGIN_ROOT` inline before each Bash call, using `installed_plugins.json`.
+The cleanest fix: update the dark-factory-agent instruction body to resolve `PLUGIN_ROOT` inline before each Bash call, using `installed_plugins.json` with explicit plugin name lookup:
+```bash
+PLUGIN_ROOT=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); p=d['plugins'].get('dark-factory@dark-factory',[{}]); print(p[0].get('installPath','') if p else '')")
+if [ -z "$PLUGIN_ROOT" ]; then echo "Failed to resolve plugin path" >&2; exit 1; fi
+```
+
+This approach:
+- Handles multiple installed plugins by explicitly looking for dark-factory
+- Includes error handling for missing/corrupt installed_plugins.json
+- Gracefully fails with a clear error message if the plugin is not found
 
 ## Audit Log
 

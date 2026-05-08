@@ -36,8 +36,9 @@ This applies to:
 - Skills that reference their own helper scripts (e.g. `mermaid_to_image.py`) must use `${CLAUDE_PLUGIN_ROOT}` too — they are bundled plugin assets, not project-local files.
 - **CRITICAL LIMITATION**: `${CLAUDE_PLUGIN_ROOT}` is only injected into **hook command** environments (PreToolUse, PostToolUse, Stop, SubagentStop). It is NOT available in Bash tool call subprocesses that agents execute. Using `${CLAUDE_PLUGIN_ROOT}` in agent instruction body pseudocode results in an empty string expansion and path resolution failure (exit 127).
 - For `allowed-tools:` Bash() frontmatter entries: use `${CLAUDE_PLUGIN_ROOT}` (evaluated in hook context — correct) or use a `*` wildcard prefix to match absolute paths.
-- For agent instruction body Bash calls: resolve the plugin root at runtime from `installed_plugins.json`:
+- For agent instruction body Bash calls: resolve the plugin root at runtime from `installed_plugins.json` using explicit plugin name lookup to handle multiple installed plugins:
   ```bash
-  PLUGIN_ROOT=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); print(list(d['plugins'].values())[0][0]['installPath'])")
+  PLUGIN_ROOT=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); p=d['plugins'].get('dark-factory@dark-factory',[{}]); print(p[0].get('installPath','') if p else '')")
+  if [ -z "$PLUGIN_ROOT" ]; then echo "Failed to resolve dark-factory plugin path" >&2; exit 1; fi
   bash "$PLUGIN_ROOT/agents/dark-factory/scripts/foo.sh"
   ```
