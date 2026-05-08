@@ -30,6 +30,7 @@ The agent runs at depth 2 (dark-factory-agent → feature-agent) and calls `AskU
 6. **Calls AskUserQuestion directly** with System Intent content and options:
    - "Looks good — continue to Mermaid diagram"
    - "Request Changes"
+   - Free-text approval: Common affirmative responses ("yes", "ok", "good", "approve", etc.) are accepted as approval
 7. If "Request Changes": re-invokes planning-agent with feedback and loops until approved
 
 ### Phase 2: Mermaid Diagram
@@ -114,7 +115,8 @@ Execution paused; user must review and resume.
 6. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
 7. **Write brain-patch.json only after execution succeeds** — Resolve WORK_DIR from `$DARK_FACTORY_WORK_DIR`, then fall back to contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
 8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
-9. **ALWAYS return structured JSON** — Every return path must produce `{ status: "..." }`. Valid statuses: `done`, `hard-stop`, `aborted`. Never return free text or intermediate analysis.
+9. **Accept free-text affirmative responses as approval** — At each approval gate, common keywords like "yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", and "done" are automatically mapped to the appropriate approval option for that gate
+10. **ALWAYS return structured JSON** — Every return path must produce `{ status: "..." }`. Valid statuses: `done`, `hard-stop`, `aborted`. Never return free text or intermediate analysis.
 
 ## Dependencies
 
