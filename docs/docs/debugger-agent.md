@@ -8,7 +8,7 @@
 
 ## Overview
 
-The debugger-agent runs systematic debugging following a rigorous checklist-based methodology. It is designed for bugs that are non-obvious, state-dependent, intermittent, or of unknown cause — not simple syntax errors or obvious logic bugs. The agent follows the debug skill checklist step-by-step without skipping, producing a bug audit log and a verified fix.
+The debugger-agent runs systematic debugging following a rigorous checklist-based methodology. It is designed for bugs that are non-obvious, state-dependent, intermittent, or of unknown cause — not simple syntax errors or obvious logic bugs. The agent follows the debug skill checklist step-by-step without skipping, producing a bug audit log, two deterministic commits (red and green test states), and a verified fix.
 
 ## Input
 
@@ -56,34 +56,36 @@ Uses `bug-audit-log-template` to document:
 
 Follows this sequence in strict order:
 
-1. **Write a failing reproduction test**
+1. **5.1: Write a failing reproduction test**
    - Minimal test case that reproduces the bug
    - Arrange inputs per failure conditions
    - Assert expected behavior
    - Confirm test fails (assertion error, not import/syntax error)
 
-2. **Confirm the test fails before any fix**
+2. **5.2: Confirm the test fails before any fix**
    - Run test on unmodified code
    - Verify it fails consistently (not intermittent test failure)
    - Note the failure signature in bug file
+   - **After confirming failure, make the red commit**: stage only the test file(s) and commit with message `"test: <bug-slug> (red)"`
 
-3. **Identify root cause from evidence**
+3. **5.3: Identify root cause from evidence**
    - Examine code paths involved in failure
    - Review logs and stack traces from step 3
    - Form hypothesis about root cause
    - Validate hypothesis against all evidence
 
-4. **Fix the root problem**
+4. **5.4: Fix the root problem**
    - Apply minimal fix targeting identified root cause
    - Do not apply workarounds or papering over symptoms
    - Do not change unrelated code
 
-5. **Confirm the test passes**
+5. **5.5: Confirm the test passes**
    - Run the reproduction test on fixed code
    - Verify it passes consistently
    - Document the fix in bug file
+   - **After confirming pass, make the green commit**: stage only the fix file(s) and commit with message `"fix: <bug-slug>"`
 
-6. **Remove the fix and confirm it fails again** (when safe)
+6. **5.6: Remove the fix and confirm it fails again** (when safe)
    - Revert fix to unmodified code
    - Re-run reproduction test
    - Verify it fails as before (confirms fix actually addresses the issue, not coincidence)
@@ -93,8 +95,18 @@ Follows this sequence in strict order:
 
 Update bug file with:
 - **Root Cause**: Explanation of why the bug occurred (reference code locations)
-- **Fix Summary**: What was changed and why (reference commit or diff)
+- **Fix Summary**: What was changed and why (reference commits)
 - **Verification**: Test name and results confirming the fix
+
+## Commit Sequence
+
+The debugger-agent produces three deterministic commits to the feature branch:
+
+1. **Red commit** (after step 5.2): `"test: <bug-slug> (red)"` — stages only the reproduction test file(s)
+2. **Green commit** (after step 5.5): `"fix: <bug-slug>"` — stages only the fix file(s)
+3. **Docs commit** (SubagentStop hook, after checklist): `"docs: add bug audit log"` — stages the bug audit log and any supporting documentation
+
+This sequence clearly shows the test-first discipline and the minimal scope of each fix.
 
 ## Brain Patch Output
 
@@ -115,11 +127,12 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 1. **Follow the checklist in strict order** — Do not skip steps; each step validates the previous one
 2. **Read all evidence before coding** — Understand the bug completely before touching code
 3. **Write tests before fixing** — Test-first ensures the fix is actually necessary
-4. **Verify fix is necessary** — Remove fix and confirm test fails again (except when unsafe)
-5. **Do NOT read brain.json** — Context is already injected by pre-hook
-6. **Do NOT write brain.json directly** — Only write brain-patch.json
-7. **Resolve WORK_DIR via pointer file fallback** — Use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip brain-patch silently if both are empty
-8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+4. **Make red and green commits** — Commit the test after step 5.2 (before fix) and the fix after step 5.5 (after test passes)
+5. **Verify fix is necessary** — Remove fix and confirm test fails again (except when unsafe)
+6. **Do NOT read brain.json** — Context is already injected by pre-hook
+7. **Do NOT write brain.json directly** — Only write brain-patch.json
+8. **Resolve WORK_DIR via pointer file fallback** — Use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir`; skip brain-patch silently if both are empty
+9. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 
@@ -128,7 +141,7 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 
 ## Tools
 
-- Read, Write, Edit, Bash, Glob, Agent
+- Read, Write, Bash, Glob, Agent, Skill
 
 ## Allowed Bash Commands
 
@@ -151,9 +164,18 @@ The agent declares a `SubagentStop` hook in its YAML frontmatter:
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ```
 
-When the agent finishes, this hook fires and commits all staged changes in the feature worktree with commit message `"docs: add bug audit log"`. This ensures bug audit log files are committed as a discrete step in the manufacture commit sequence.
+When the agent finishes (after step 5.6 and root cause documentation), this hook fires and commits all staged changes in the feature worktree with commit message `"docs: add bug audit log"`. This is the third and final commit in the sequence, after the red and green commits created in steps 5.2 and 5.5.
 
 ## Artifacts Produced
 
-- `docs/bugs/<yyyy-mm-dd>-<bug-slug>.md` — Bug audit log (persisted in repository)
-- `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Metadata linking to bug files
+The debugger-agent produces the following artifacts on the feature branch:
+
+1. **Test file(s)** — Reproduction test(s) for the bug (committed in red commit)
+2. **Fix file(s)** — Fixed source code (committed in green commit)
+3. **Bug audit log** — `docs/bugs/<yyyy-mm-dd>-<bug-slug>.md` — Full documentation of the bug, root cause, fix, and verification (committed in docs commit via SubagentStop hook)
+4. **Brain patch** — `$DARK_FACTORY_WORK_DIR/brain-patch.json` — Metadata linking to bug files (consumed by dark-factory-agent, not committed directly)
+
+The three commits in order are:
+- `test: <bug-slug> (red)` — test file(s) only
+- `fix: <bug-slug>` — source fix file(s) only
+- `docs: add bug audit log` — bug audit log and supporting docs
