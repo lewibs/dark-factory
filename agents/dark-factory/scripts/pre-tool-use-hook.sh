@@ -50,13 +50,16 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
     METRICS_KEY=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.skill // "unknown"')
   fi
 
+  # Extract the short name after the last colon (e.g., "dark-factory:pr:agents:pr-agent" → "pr-agent")
+  METRICS_KEY_SHORT=$(printf '%s' "$METRICS_KEY" | sed 's/.*://')
+
   NOW_MS=$(date +%s%3N)
-  echo "pre-tool-use-hook | metrics-capture | key=${METRICS_KEY} start_ms=${NOW_MS}" >&2
+  echo "pre-tool-use-hook | metrics-capture | key=${METRICS_KEY_SHORT} start_ms=${NOW_MS}" >&2
 
   (
     flock -x 200
     METRICS_TMP=$(mktemp /tmp/brain-metrics-pre-XXXXXX.json)
-    jq --arg key "$METRICS_KEY" --argjson now "$NOW_MS" \
+    jq --arg key "$METRICS_KEY_SHORT" --argjson now "$NOW_MS" \
       '.metrics[$key].start_ms = $now' "$BRAIN_PATH" > "$METRICS_TMP" \
       && mv "$METRICS_TMP" "$BRAIN_PATH"
   ) 200>"$BRAIN_LOCK"
@@ -72,7 +75,10 @@ if [ "$TOOL_NAME" = "Agent" ]; then
   PHASE_AGENT_NAME=$(printf '%s' "$TOOL_INPUT" | jq -r '.tool_input.subagent_type // ""')
 fi
 
-if [[ "$PHASE_AGENT_NAME" =~ ^($PHASE_AGENTS)$ ]]; then
+# Extract the short name after the last colon for phase-agent matching
+PHASE_AGENT_SHORT=$(printf '%s' "$PHASE_AGENT_NAME" | sed 's/.*://')
+
+if [[ "$PHASE_AGENT_SHORT" =~ ^($PHASE_AGENTS)$ ]]; then
   PHASE=$(jq -r '
     .phases | to_entries |
     map(select((.key | endswith("-complete")) and (.value == false))) |
@@ -91,7 +97,7 @@ if [[ "$PHASE_AGENT_NAME" =~ ^($PHASE_AGENTS)$ ]]; then
     echo "pre-tool-use-hook | set-phase-running | phase=none (all phases accounted for)" >&2
   fi
 else
-  echo "pre-tool-use-hook | set-phase-running | skipped (agent=${PHASE_AGENT_NAME} not a phase agent)" >&2
+  echo "pre-tool-use-hook | set-phase-running | skipped (agent=${PHASE_AGENT_SHORT} not a phase agent)" >&2
 fi
 
 # pre-hook.inject: inject brain context into the agent prompt

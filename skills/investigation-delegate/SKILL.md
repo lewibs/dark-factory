@@ -1,5 +1,5 @@
 ---
-name: invoke-investigation-agent
+name: investigation-delegate
 description: "Use this skill when an agent needs to understand how a system or component works before proceeding — delegate that research to investigation-agent rather than doing it inline."
 user-invocable: false
 ---

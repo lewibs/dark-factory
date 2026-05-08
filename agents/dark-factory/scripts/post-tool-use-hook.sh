@@ -80,8 +80,11 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
     METRICS_KEY=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.skill // "unknown"')
   fi
 
+  # Extract the short name after the last colon for metrics and phase-agent matching
+  METRICS_KEY_SHORT=$(printf '%s' "$METRICS_KEY" | sed 's/.*://')
+
   NOW_MS=$(date +%s%3N)
-  START_MS=$(jq --arg k "$METRICS_KEY" '.metrics[$k].start_ms // 0' "$BRAIN_PATH")
+  START_MS=$(jq --arg k "$METRICS_KEY_SHORT" '.metrics[$k].start_ms // 0' "$BRAIN_PATH")
   # If start_ms was absent it defaults to 0 — treat elapsed as 0 rather than computing
   # (NOW_MS - 0) which would yield an epoch-sized value.
   if [ "$START_MS" -eq 0 ]; then
@@ -93,12 +96,12 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
   TOKENS=$(printf '%s' "$HOOK_INPUT" | jq \
     '(.tool_response.usage.input_tokens // 0) + (.tool_response.usage.output_tokens // 0)')
 
-  echo "post-tool-use-hook | metrics-accumulate | key=${METRICS_KEY} elapsed_ms=${ELAPSED} tokens=${TOKENS} runs=+1" >&2
+  echo "post-tool-use-hook | metrics-accumulate | key=${METRICS_KEY_SHORT} elapsed_ms=${ELAPSED} tokens=${TOKENS} runs=+1" >&2
 
   (
     flock -x 200
     METRICS_TMP=$(mktemp /tmp/brain-metrics-post-XXXXXX.json)
-    jq --arg key "$METRICS_KEY" --argjson elapsed "$ELAPSED" --argjson tokens "$TOKENS" '
+    jq --arg key "$METRICS_KEY_SHORT" --argjson elapsed "$ELAPSED" --argjson tokens "$TOKENS" '
       .metrics[$key].elapsed_ms = ((.metrics[$key].elapsed_ms // 0) + $elapsed) |
       .metrics[$key].tokens     = ((.metrics[$key].tokens     // 0) + $tokens)  |
       .metrics[$key].runs       = ((.metrics[$key].runs       // 0) + 1)        |
@@ -109,7 +112,7 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
 
   # post-hook.set-phase-complete: mark the currently-running phase complete,
   # but only when the completing agent is a top-level orchestration phase agent.
-  if [[ "$METRICS_KEY" =~ ^($PHASE_AGENTS)$ ]]; then
+  if [[ "$METRICS_KEY_SHORT" =~ ^($PHASE_AGENTS)$ ]]; then
     (
       flock -x 200
       RUNNING_PHASE=$(jq -r '
@@ -130,7 +133,7 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
       fi
     ) 200>"$BRAIN_LOCK"
   else
-    echo "post-tool-use-hook | set-phase-complete | skipped (agent=${METRICS_KEY} not a phase agent)" >&2
+    echo "post-tool-use-hook | set-phase-complete | skipped (agent=${METRICS_KEY_SHORT} not a phase agent)" >&2
   fi
 else
   # Non-Agent/Skill tool: still check for phase completion (shouldn't normally happen, but keep safe)
