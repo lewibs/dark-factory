@@ -29,7 +29,9 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 - If classification is ambiguous: sends PushNotification, awaits AskUserQuestion response
 
 ### Step 2: Prep Isolated Work Directory
-- Calls bash: `prep-feature-dir.sh <taskName>`
+- Resolves `PLUGIN_ROOT` at runtime from `~/.claude/plugins/installed_plugins.json` using explicit plugin name lookup (`d['plugins'].get('dark-factory@dark-factory')`). `${CLAUDE_PLUGIN_ROOT}` is only available in hook command environments, NOT in Bash tool call subprocesses — using it here would produce an empty string and path failure.
+- If `PLUGIN_ROOT` is empty: reports error and STOPS immediately
+- Calls bash: `"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh" <taskName>`
 - Creates isolated git worktree for the task
 - Stops immediately if worktree creation fails (no cleanup needed yet)
 - Extracts `WORK_DIR` from script output
