@@ -32,7 +32,38 @@ pr-agent(planFilePath or description):
 
   # Step 1 — Build PR body
   Read agents/pr/templates/pr-template.md for structure.
-  Populate Description from planFilePath (or description string).
+  
+  # Determine description content based on work route (from brain.classification)
+  Read brain.json to extract classification field (available via pre-hook injection).
+  
+  IF classification == "feature":
+    # Use planFilePath from brain (already provided)
+    description_content = read file at planFilePath verbatim
+  
+  ELSE IF classification == "debugger":
+    # Search docs/bugs/ for .md file matching taskName
+    Search $PROJECT_DIR/docs/bugs/ for .md files
+    Find the file matching taskName (exact or prefix match), or most recent by date
+    description_content = read matching bug file verbatim
+  
+  ELSE IF classification == "repair" OR classification == "fix-flow":
+    # Fallback to planFilePath if provided, else generate from git diff
+    IF planFilePath is provided:
+      description_content = read file at planFilePath verbatim
+    ELSE:
+      Run: git -C "$WORK_DIR" log main..HEAD --oneline --all (get commit messages)
+      Run: git -C "$WORK_DIR" diff main...HEAD --name-only (get changed files)
+      Format: "Changes: [file list]\n\nCommit history:\n[commit messages]"
+      description_content = formatted git diff summary
+  
+  ELSE:
+    # Fallback: use planFilePath or description string
+    IF planFilePath provided:
+      description_content = read file at planFilePath verbatim
+    ELSE:
+      description_content = description string
+  
+  Populate Description section with description_content.
   Run tests if a test suite exists; include output in Test Plan, or omit section if none.
   Write body to /tmp/pr-body.md.
 
