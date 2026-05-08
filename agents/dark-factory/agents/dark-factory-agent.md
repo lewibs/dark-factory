@@ -114,8 +114,11 @@ dark-factory-agent(taskDescription, taskName):
   # Step 5 — branch-drift guard
   driftCheck = bash("git -C \"$WORK_DIR\" log main..feature/" + taskName + " --oneline")
   if driftCheck is empty:
+    # Collect diagnostic information before cleanup
+    worktreeLog = bash("git -C \"$WORK_DIR\" log --oneline -5")
+    worktreeStatus = bash("git -C \"$WORK_DIR\" status")
     run cleanup(WORK_DIR, taskName)
-    report error: "Branch-drift guard failed: feature/" + taskName + " has no commits ahead of main."
+    report error: "Branch-drift guard failed: feature/" + taskName + " has no commits ahead of main.\nWorktree log (last 5):\n" + worktreeLog + "\nWorktree status:\n" + worktreeStatus
     STOP
 
   # Step 6 — read planFilePath from brain.json
