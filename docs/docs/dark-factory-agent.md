@@ -44,15 +44,15 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 
 ### Step 4: Route to Worker Agent
 Routes based on classification:
-- **"feature"** → `feature-agent` (multi-turn loop)
-  - feature-agent ALWAYS returns a JSON object with a `status` field. Output is never interpreted as free text.
-  - Loop logic:
-    - `status: "done"` → break; feature work complete
+- **"feature"** → `feature-agent` (single invocation)
+  - feature-agent runs at depth 2 and calls AskUserQuestion directly for all user interaction.
+  - dark-factory-agent invokes feature-agent ONCE and waits for a terminal status:
+    - `status: "done"` → feature work complete, continue to Step 5
     - `status: "hard-stop"` → cleanup, report reason, STOP
     - `status: "aborted"` → cleanup, report "User aborted", STOP
-    - `status: "question"` → PushNotification + AskUserQuestion, then re-invoke feature-agent with `{ answer, planPath, taskDescription: null }`, continue loop
     - Any other status → cleanup, report unexpected status, STOP
-  - Never falls through to sub-planning-agent or any other agent if feature-agent returns non-JSON or unexpected output
+  - There is NO multi-turn loop — feature-agent handles all user approvals internally via AskUserQuestion.
+  - Never falls through to sub-planning-agent or any other agent if feature-agent returns unexpected output.
   
 - **"fix-flow"** → `fix-flow-orchestrator`
   - Investigates broken flow, generates fix scripts, applies targeted fixes

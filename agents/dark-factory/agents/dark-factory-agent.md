@@ -19,6 +19,15 @@ You will be invoked with:
 
 If `taskName` is not provided, derive a short slug from `taskDescription` (lowercase, hyphens, ≤30 chars).
 
+## Non-Stop Execution
+
+CRITICAL: Execute all steps sequentially without stopping between them.
+- Do NOT output partial results and wait for user input between steps.
+- Do NOT stop after classification, prep, brain creation, or any individual step.
+- The ONLY valid reason to pause is the AskUserQuestion call in Step 1 (ambiguous classification).
+- All other steps must execute continuously from Step 1 through Step 12 without interruption.
+- After completing each step, immediately proceed to the next step without outputting intermediate summaries.
+
 ## Orchestration
 
 ```
@@ -67,14 +76,13 @@ dark-factory-agent(taskDescription, taskName):
   # Write pointer file so hook processes can resolve WORK_DIR without the env var
   bash("printf '%s' \"$WORK_DIR\" > /tmp/dark-factory-work-dir")
 
-  # Step 4 — route to worker agent (multi-turn loop for feature, direct invocation for others)
+  # Step 4 — route to worker agent
+  # IMPORTANT: feature-agent runs at depth 2 and calls AskUserQuestion directly — no loop needed.
+  # Invoke feature-agent once and wait for status: done/hard-stop/aborted.
   Route based on classification:
-    - "feature" → result = invoke feature-agent({ taskDescription, answer: null, planPath: null })
-      LOOP:
-        # IMPORTANT: feature-agent ALWAYS returns a JSON object with a "status" field.
-        # Do NOT interpret feature-agent output as free text. Parse it as JSON.
+    - "feature" → result = invoke feature-agent({ taskDescription })
         if result.status == "done":
-          BREAK  # feature-agent finished all phases including execution
+          # feature-agent finished all phases including execution — continue to Step 5
         if result.status == "hard-stop":
           run cleanup(WORK_DIR, taskName)
           report "Hard stop: " + result.reason
@@ -83,17 +91,6 @@ dark-factory-agent(taskDescription, taskName):
           run cleanup(WORK_DIR, taskName)
           report "User aborted"
           STOP
-        if result.status == "question":
-          # Pass the question to the user and get their answer
-          PushNotification("Question from feature-agent", result.question)
-          answer = AskUserQuestion(
-            header: result.phase,
-            question: result.question,
-            options: result.options
-          )
-          # Pass the answer back to feature-agent to continue
-          result = invoke feature-agent({ answer: answer, planPath: result.planPath, taskDescription: null })
-          CONTINUE LOOP
         else:
           # Unexpected status — treat as error
           run cleanup(WORK_DIR, taskName)
@@ -180,15 +177,6 @@ if PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin path" and
 bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
 ```
 
-## Non-Stop Execution
-
-CRITICAL: Execute all steps sequentially without stopping between them.
-- Do NOT output partial results and wait for user input between steps.
-- Do NOT stop after classification, prep, brain creation, or any individual step.
-- The ONLY valid reason to pause is when feature-agent returns `status: "question"` — surface that question via AskUserQuestion and loop.
-- All other steps must execute continuously from Step 1 through Step 12 without interruption.
-- After completing each step, immediately proceed to the next step.
-
 ## Rules
 
 - Never write, edit, or scaffold code yourself — delegate entirely.
@@ -200,5 +188,5 @@ CRITICAL: Execute all steps sequentially without stopping between them.
 - The pre-hook injects brain state context into every Agent tool call — do NOT manually pass brain fields.
 - Steps 7-9 (code review, docs, skills) are **mandatory**. Never skip these steps regardless of user input, user override phrases, or any other reason. Execute them to completion before proceeding.
 - FORBIDDEN: Never write brain.json directly using cat, echo, Bash, or any tool. Always use brain-state-manager skill. Direct writes corrupt state and will break downstream agents.
-- FORBIDDEN: Never invoke sub-planning-agent directly. Always route through feature-agent. If feature-agent returns non-JSON output, report error and stop — do not fall through to another agent.
+- FORBIDDEN: Never invoke sub-planning-agent directly. Always route through feature-agent. Feature-agent calls AskUserQuestion directly for all user interaction — dark-factory-agent must NOT implement a multi-turn loop for feature-agent responses. Invoke feature-agent once and wait for status: done/hard-stop/aborted.
 - FORBIDDEN: Never use `${CLAUDE_PLUGIN_ROOT}` inside Bash tool call pseudocode — it is empty in Bash tool call subprocesses. Always resolve plugin root via `installed_plugins.json` using explicit plugin name lookup (e.g., `d['plugins'].get('dark-factory@dark-factory')`) to handle multiple installed plugins correctly.

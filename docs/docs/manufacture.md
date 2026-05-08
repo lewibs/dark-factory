@@ -59,7 +59,7 @@ flowchart TD
 
 - Core files: `commands/manufacture.md`, `agents/dark-factory/agents/dark-factory-agent.md`, `agents/featurework/agents/feature-agent.md`
 
-The feature route is a multi-turn human-in-the-loop planning flow. `dark-factory-agent` invokes `feature-agent` in a loop, receiving `{ status: "question" }` responses that it relays to the user via `AskUserQuestion`. The user approves each planning phase (draft → mermaid diagram → individual flows → final execution) before `feature-agent` calls `execution-agent` to write the code.
+The feature route is a single-invocation human-in-the-loop planning flow. `dark-factory-agent` invokes `feature-agent` exactly once and waits for a terminal status. `feature-agent` runs at depth 2 and calls `AskUserQuestion` directly for all user interaction — it handles all approval loops internally (draft → mermaid diagram → individual flows → final execution) before calling `execution-agent` to write the code. `dark-factory-agent` does not implement a multi-turn loop for the feature route; it receives one of three terminal statuses: `done`, `hard-stop`, or `aborted`.
 
 #### Paths
 
