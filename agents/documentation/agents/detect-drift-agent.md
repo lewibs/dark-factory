@@ -6,6 +6,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit, PushNotification, AskUserQuestion
 model: sonnet
 skills: detect-drift
 allowed-tools: Bash(python ~/.dark-factory/agents/documentation/skills/detect-drift/scripts/*), Bash(find *), Bash(grep -r *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 # detect-drift-agent

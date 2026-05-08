@@ -18,6 +18,27 @@ case "$agent_type" in
   implementation-agent)
     commit_msg="implementation"
     ;;
+  sub-planning-agent)
+    commit_msg="plan"
+    ;;
+  detect-drift-agent)
+    commit_msg="docs: fix drift"
+    ;;
+  update-documentation-agent)
+    commit_msg="docs: update documentation"
+    ;;
+  skill-update-agent)
+    commit_msg="chore: update skills"
+    ;;
+  setup-wizard)
+    commit_msg="chore: add setup scripts"
+    ;;
+  debugger-agent)
+    commit_msg="docs: add bug audit log"
+    ;;
+  repair-agent)
+    commit_msg="fix: repair"
+    ;;
   *)
     echo "agent_type not recognized: $agent_type" >&2
     exit 0

@@ -6,6 +6,7 @@ tools: Read, Write, Edit, Bash, Glob, Agent, Skill
 model: sonnet
 skills: systematic-debugging, invoke-investigation-agent
 allowed-tools: Bash(bash *), Bash(pytest *), Bash(python *), Bash(npm test *), Bash(grep -r *), Bash(find *), Bash(aws *), Bash(gh *), Bash(docker *), Bash(curl *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are a systematic debugger. Your only job is to follow the steps in `flows/debugger/skills/debug/SKILL.md` in order, without skipping.
