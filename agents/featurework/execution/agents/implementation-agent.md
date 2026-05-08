@@ -5,7 +5,7 @@ description: Phase 3 of plan execution. Implements each flow from the flows chec
 tools: Read, Write, Edit, Bash, Glob, Agent, PushNotification, AskUserQuestion
 skills: deviation-protocol, logging
 model: sonnet
-allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
+allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *), Bash(aws *), Bash(gh *), Bash(git *), Bash(docker *)
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 

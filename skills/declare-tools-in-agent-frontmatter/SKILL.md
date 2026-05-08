@@ -34,3 +34,8 @@ Use this whenever you create or modify an agent file (any `agents/**/*.md`) that
   Without these entries, the agent will be blocked from running those git commands at runtime.
 - A regression test (`tests/test_push_notification_declared.py`) exists in this repo that parses the YAML front-matter of all agent files and asserts `PushNotification` is present in `tools:` for every agent that references it in its body. Run this test after modifying agent files to catch omissions early.
 - When adding a new skill invocation to an existing agent (e.g., adding `skills/logging/SKILL.md` to `implementation-agent.md`), always update the `skills:` field in the same edit — do not treat it as optional cleanup.
+- **Doer agents should have broad CLI access by default.** Agents that execute work (implementation-agent, testing-agent, debugger-agent, debug-flow-agent, ralph-fix-and-push, repair-agent) must include `aws`, `gh`, `git`, and `docker` in their `allowed-tools`. Restricting `allowed-tools` to only specific test runners (e.g., `pytest`, `npm test`) assumes a pure local project and silently degrades on cloud-native or infrastructure projects — the agent will not error; it will simply do the best it can with read-only tools and return a plausible-looking but incomplete or incorrect result. The canonical baseline for doer agents is:
+  ```yaml
+  allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *), Bash(aws *), Bash(gh *), Bash(git *), Bash(docker *), Bash(curl *)
+  ```
+  Orchestrator agents (those that only plan and delegate) do not need this expansion.
