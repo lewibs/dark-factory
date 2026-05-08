@@ -4,7 +4,7 @@ user-invocable: false
 description: Lightweight repair agent. Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times.
 tools: Read, Write, Edit, Bash, Glob, Agent, Skill
 model: haiku
-skills: invoke-investigation-agent
+skills: investigation-delegate
 allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(npm run test *), Bash(go test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *), Bash(aws *), Bash(gh *), Bash(git *)
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
