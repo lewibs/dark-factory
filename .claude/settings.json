@@ -60,17 +60,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/agents/pr/hooks/append-footer-hook.sh"
-          }
-        ]
-      }
     ]
   }
 }
