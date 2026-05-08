@@ -127,25 +127,34 @@ def test_scope_main_pid_function_exists():
     )
 
 
-def test_script_still_has_shebang_and_name_default():
-    """Sanity: script must still have shebang and default name."""
+def test_script_still_has_shebang():
+    """Sanity: script must still have shebang."""
     content = _read_script()
     assert content.startswith("#!/bin/bash"), "Script must have #!/bin/bash shebang"
-    assert "dark factory" in content, "Script must still default to 'dark factory'"
 
 
-def test_script_still_spawns_new_terminal_after_killing():
-    """After killing other factory windows, script must still spawn a new one."""
+def test_script_exits_cleanly_without_spawning():
+    """Script must exit cleanly with exit 0, without spawning a new terminal."""
     content = _read_script()
-    assert "open_terminal" in content, (
-        "Script must still call open_terminal to spawn a fresh factory terminal "
-        "after killing other windows."
+    assert "open_terminal" not in content, (
+        "Script must not call open_terminal (no spawn logic)"
+    )
+    assert "exit 0" in content, (
+        "Script must exit cleanly with exit 0 after killing other windows."
     )
 
 
-def test_script_still_self_closes():
-    """After spawning the new terminal, script must still close its own window."""
+def test_script_does_not_self_close():
+    """Script must not self-close (no SELF_SCOPE stop in the main flow)."""
     content = _read_script()
-    assert "SELF_SCOPE" in content, (
-        "Script must still self-close by stopping its own vte-spawn scope (SELF_SCOPE)."
-    )
+    # The SELF_SCOPE variable may still be referenced in find_claude_scope_terminals,
+    # but it should not be used in the main kill flow to stop itself
+    # Check that systemctl stop is not used on SELF_SCOPE in the main section
+    main_section = content.split("find_claude_terminals")[0]  # Get main section before functions
+    if "find_claude_scope_terminals" in content:
+        # Check that the main section (after functions) doesn't have systemctl stop SELF_SCOPE
+        kill_section = content.split("# ── Kill all other Claude terminals")[1] if "# ── Kill all other Claude terminals" in content else ""
+        assert "systemctl --user stop \"$SELF_SCOPE\"" not in kill_section and \
+               "systemctl --user stop $SELF_SCOPE" not in kill_section, (
+            "Script must not self-close by stopping its own vte-spawn scope"
+        )

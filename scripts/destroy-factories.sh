@@ -1,11 +1,9 @@
 #!/bin/bash
-# Usage: destroy-factories.sh [name]
+# Usage: destroy-factories.sh
 # Kills all terminal emulator windows that have a claude descendant (except our own
-# window), then spawns one fresh factory terminal.
+# window).
 # Platform: Linux/GNOME. Uses vte-spawn cgroup scopes to identify individual
 # gnome-terminal windows — not the shared gnome-terminal-server daemon PID.
-
-NAME="${1:-dark factory}"
 
 # ── log helper ─────────────────────────────────────────────────────────────────
 # Usage: _log <flow> <step> <data>
@@ -13,44 +11,6 @@ _log() {
     echo "destroy-factories | $1 | $2 | $3" >&2
 }
 
-# ── open_terminal ──────────────────────────────────────────────────────────────
-# Open a new terminal running claude in remote-control mode.
-# Returns 0 on success, non-zero on failure.
-open_terminal() {
-    local cmd="claude \"/remote-control $NAME\""
-    local cwd
-    cwd="$(pwd)"
-
-    _log "open_terminal" "entry" "name=$NAME cwd=$cwd"
-
-    if command -v gnome-terminal &>/dev/null; then
-        _log "open_terminal" "spawn" "emulator=gnome-terminal"
-        gnome-terminal --working-directory="$cwd" -- bash -c "$cmd"
-        return $?
-    fi
-
-    if command -v x-terminal-emulator &>/dev/null; then
-        _log "open_terminal" "spawn" "emulator=x-terminal-emulator"
-        ( cd "$cwd" && x-terminal-emulator -e bash -c "$cmd" )
-        return $?
-    fi
-
-    if command -v xterm &>/dev/null; then
-        _log "open_terminal" "spawn" "emulator=xterm"
-        ( cd "$cwd" && xterm -e bash -c "$cmd" )
-        return $?
-    fi
-
-    if command -v konsole &>/dev/null; then
-        _log "open_terminal" "spawn" "emulator=konsole"
-        konsole --workdir "$cwd" -e bash -c "$cmd"
-        return $?
-    fi
-
-    _log "open_terminal" "error" "no_emulator_found"
-    echo "Error: No terminal emulator found (tried: gnome-terminal, x-terminal-emulator, xterm, konsole)" >&2
-    return 1
-}
 
 # ── has_claude_descendant ───────────────────────────────────────────────────────
 # Return 0 if any descendant of $1 is named "claude", non-zero otherwise.
@@ -149,8 +109,8 @@ find_claude_terminals() {
     done
 }
 
-# ── Step 1 + 2: Kill all other Claude terminals ────────────────────────────────
-_log "destroy-factories" "entry" "name=$NAME"
+# ── Kill all other Claude terminals ────────────────────────────────────────────
+_log "destroy-factories" "entry"
 
 KILLED=0
 
@@ -174,35 +134,5 @@ for pid in $(find_claude_terminals); do
     KILLED=$((KILLED + 1))
 done
 
-_log "destroy-factories" "killed" "count=$KILLED"
-
-# ── Step 3: Spawn fresh factory ────────────────────────────────────────────────
-_log "destroy-factories" "spawn" "name=$NAME"
-open_terminal || {
-    echo "Error: Failed to open new factory terminal" >&2
-    _log "destroy-factories" "spawn_failed" "name=$NAME"
-    exit 1
-}
-
 _log "destroy-factories" "done" "terminals_killed=$KILLED"
-
-# ── Step 4: Self-close this terminal ──────────────────────────────────────────
-_log "destroy-factories" "self_close" "pid=$$"
-
-SELF_SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/"$$"/cgroup 2>/dev/null | head -1)
-if [ -n "$SELF_SCOPE" ]; then
-    systemctl --user stop "$SELF_SCOPE" 2>/dev/null || true
-fi
-
-# Also kill any claude ancestor process so the old session fully terminates
-self_pid=$$
-while [ "$self_pid" -gt 1 ]; do
-    self_ppid=$(ps -o ppid= -p "$self_pid" 2>/dev/null | tr -d ' ')
-    self_name=$(ps -o comm= -p "$self_pid" 2>/dev/null | tr -d ' ')
-    if [ "$self_name" = "claude" ]; then
-        kill "$self_pid" 2>/dev/null || true
-        break
-    fi
-    ([ -z "$self_ppid" ] || [ "$self_ppid" -le 1 ]) && break
-    self_pid=$self_ppid
-done
+exit 0
