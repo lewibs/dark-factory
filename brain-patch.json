@@ -1,0 +1,4 @@
+{
+  "skillsWritten": ["skills/subagent-stop-in-agent-frontmatter/SKILL.md"],
+  "summary": "Updated subagent-stop-in-agent-frontmatter skill with critical warning: global SubagentStop hooks in settings.json fire for all agents and will destroy the worktree prematurely when repair/debugger agents finish, causing a stuck/never-completes symptom"
+}
