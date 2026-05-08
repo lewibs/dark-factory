@@ -3,7 +3,7 @@
 ## Metadata
 
 - Date: `2026-05-06`
-- Status: `fixed`
+- Status: `fixed (reopened 2026-05-07 — regression found)`
 - Severity: `high`
 - Related issue/ticket: `N/A`
 - Owner: `lewibs`
@@ -147,14 +147,22 @@ else:
 | 12 | Confirm tests pass after fix | 6/6 pass | Fix verified |
 | 13 | Causality verification | Stashed fixes → 6/6 fail; restored → 6/6 pass | Causality confirmed |
 | 14 | Full suite check | Before: 33 failed 156 passed; After: 27 failed 162 passed. Net: +6 passing, 0 regressions | No regressions |
+| 15 | Reopen — regression observed 2026-05-07 | Commit 52e14c0 on main: docs/docs/dark-factory-agent.md written by update-documentation-agent during a manufacture run. Bug persisted despite prior fix. | git log on main branch |
+| 16 | Root cause analysis — regression | Two additional root causes found: (1) WORK_DIR resolution ignores `workDir` argument passed by dark-factory-agent invocation — agent uses only env var and pointer file; (2) fallback to `"."` (CWD) silently directs writes to main repo when pointer file and env var both unavailable | update-documentation-agent.md Resolve WORK_DIR section |
+| 17 | Identify stale test | `test_update_doc_batch_invocation_includes_work_dir` checks for `queue_batch_job(...)` syntax that no longer exists; dark-factory-agent now uses `invoke update-documentation-agent(...)`. Test was failing but was a false negative masking the real issue. | tests/test_agent_workdir_isolation.py |
+| 18 | Apply Fix 4 | update-documentation-agent: updated "Resolve WORK_DIR" to check `workDir argument` first; removed `"."` CWD fallback — replaced with hard stop error return | agents/documentation/agents/update-documentation-agent.md |
+| 19 | Fix stale test | Replaced `test_update_doc_batch_invocation_includes_work_dir` (queue_batch_job) with `test_update_doc_invocation_includes_work_dir` (invoke syntax) | tests/test_agent_workdir_isolation.py |
+| 20 | Add regression tests | Added `test_no_fallback_to_cwd` and `test_workdir_arg_checked_first` to prevent reoccurrence | tests/test_agent_workdir_isolation.py |
+| 21 | Confirm tests pass after fix | 8/8 pass | Fix verified |
+| 22 | Full suite check | Before fix: 17 failed 222 passed. After fix: 16 failed 225 passed. Net: fixed 1 stale failure, added 2 new passing tests, 0 regressions | No regressions introduced |
 
 ## Verification
 
 - [x] Reproduced failure before fix
-- [x] Reproduction test fails before fix (6/6 failed)
-- [x] Root cause identified with evidence
+- [x] Reproduction test fails before fix (1 stale failure confirmed)
+- [x] Root cause identified with evidence (two new root causes: ignores workDir arg, silent CWD fallback)
 - [x] Fix applied at source (no workaround-only patch)
-- [x] Reproduction test passes after fix (6/6 pass)
+- [x] Reproduction test passes after fix (8/8 pass)
 - [x] Reproduction path now passes
-- [x] Regression test added/updated — `tests/test_agent_workdir_isolation.py` (6 tests)
+- [x] Regression test added/updated — `tests/test_agent_workdir_isolation.py` (8 tests, +2 new)
 - [x] Verified no duplicate solved-bug log exists for same root cause

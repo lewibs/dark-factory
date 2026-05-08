@@ -21,7 +21,8 @@ Returns minimal structured output listing files written and a one-line summary (
 ## Input
 
 - `planFilePath` (string, nullable) — Absolute path to the implemented and approved plan file
-- If not provided: sends PushNotification ("Input Required"), awaits AskUserQuestion for path or skip option
+- `workDir` (string, optional) — Absolute path to the target worktree. When provided, takes priority over the env var and pointer-file fallbacks. If none of the three sources resolves to a value, the agent returns a hard-stop error.
+- If `planFilePath` is not provided: sends PushNotification ("Input Required"), awaits AskUserQuestion for path or skip option
 
 ## Output Format
 
@@ -42,15 +43,19 @@ Returns terse structured output as the final message:
 
 ### WORK_DIR Resolution
 
-Before any file write, the agent resolves its working directory:
+Before any file write, the agent resolves its working directory. Each source is checked in order and the first non-empty value wins:
 
 ```
-WORK_DIR = $DARK_FACTORY_WORK_DIR
-if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
-if WORK_DIR is still empty: WORK_DIR = "." (fallback — logs warning: "WORK_DIR not set, writing to CWD")
+WORK_DIR = workDir argument (if provided in the invocation and non-empty)
+if WORK_DIR is still empty: WORK_DIR = $DARK_FACTORY_WORK_DIR (env var)
+if WORK_DIR is still empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: STOP — return error JSON:
+  {"error": "WORK_DIR could not be resolved. Cannot write docs without a target directory. Pass workDir explicitly."}
 ```
 
-All file paths produced by the agent are prefixed with `$WORK_DIR/`. This ensures writes always land in the isolated worktree rather than the main repo or whatever directory the agent happens to be running in.
+The agent does **not** fall back to `"."` (CWD). Writing to the current working directory would silently contaminate the main project repo when the agent runs outside an isolated worktree. If WORK_DIR cannot be resolved the agent halts immediately and surfaces the error to the caller.
+
+All file paths produced by the agent are prefixed with `$WORK_DIR/`. This ensures writes always land in the isolated feature worktree.
 
 ### Phase 1: Identify Flows
 
@@ -94,7 +99,7 @@ Writes `$WORK_DIR/brain-patch.json`:
 }
 ```
 
-**WORK_DIR resolution**: use `$DARK_FACTORY_WORK_DIR` if set; else read contents of `/tmp/dark-factory-work-dir` (if file exists); if both are empty, fall back to `.` with a warning logged. The same resolution applies to all file writes throughout the agent, not just brain-patch.json.
+**WORK_DIR resolution**: check `workDir` argument first; else use `$DARK_FACTORY_WORK_DIR`; else read `/tmp/dark-factory-work-dir`; if all three are empty, halt with error — no CWD fallback. The same resolution applies to all file writes throughout the agent, not just brain-patch.json.
 
 ## Key Design Rules
 
@@ -105,7 +110,7 @@ Writes `$WORK_DIR/brain-patch.json`:
 5. **Use documentation skill** — Delegate doc generation for new flows to the skill
 6. **Track all changes** — Write brain-patch.json with paths to every file touched
 7. **Work silently** — Execute all phases without output prose; return only final JSON summary
-8. **Always resolve WORK_DIR before writing** — All file paths (tmp checklist, docs/docs/, brain-patch.json) must be prefixed with `$WORK_DIR/`. Resolve WORK_DIR at the start via `$DARK_FACTORY_WORK_DIR`, then `/tmp/dark-factory-work-dir`, then fallback to `.` with a warning. Never write to bare relative paths.
+8. **Always resolve WORK_DIR before writing** — All file paths (tmp checklist, docs/docs/, brain-patch.json) must be prefixed with `$WORK_DIR/`. Resolve WORK_DIR at the start: check `workDir` argument, then `$DARK_FACTORY_WORK_DIR`, then `/tmp/dark-factory-work-dir`. If none resolve, halt with an error — never fall back to CWD or bare relative paths.
 
 ## Dependencies
 
@@ -143,6 +148,7 @@ When the agent finishes, this hook fires and commits all staged changes in the f
 
 ## Error Handling
 
+- If WORK_DIR cannot be resolved (no `workDir` arg, env var unset, pointer file absent): returns `{"error": "WORK_DIR could not be resolved..."}` and halts — no CWD fallback
 - If plan file not provided: requests via AskUserQuestion; halts if user skips
 - If plan file unreadable: reports error and halts
 - If find-affected-docs command fails: reports error and halts
