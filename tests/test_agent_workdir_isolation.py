@@ -128,6 +128,51 @@ class TestUpdateDocumentationAgentWorkDir:
             f"writes. Found bare references: {lines_with_bare_docs}"
         )
 
+    def test_no_fallback_to_cwd(self):
+        """
+        agentWorkdirIsolation.update-doc-no-cwd-fallback: update-documentation-agent must NOT
+        fall back to '.' (CWD) when WORK_DIR cannot be resolved. Falling back to CWD causes
+        doc writes to land in the main project repo, bypassing the feature branch worktree.
+        The agent must STOP with an error instead.
+        """
+        content = _full(UPDATE_DOC_AGENT_PATH)
+        # Look for "." as a fallback assignment — this is the dangerous pattern
+        cwd_fallback_lines = [
+            line.strip()
+            for line in content.splitlines()
+            if re.search(r'WORK_DIR\s*=\s*["\']?\.["\']?\s*(#|$)', line)
+        ]
+        assert cwd_fallback_lines == [], (
+            "update-documentation-agent must NOT fall back to '.' (CWD) for WORK_DIR. "
+            "This causes doc writes to contaminate the main project repo. "
+            f"Found CWD fallback lines: {cwd_fallback_lines}"
+        )
+
+    def test_workdir_arg_checked_first(self):
+        """
+        agentWorkdirIsolation.update-doc-uses-workdir-arg: update-documentation-agent must
+        check the `workDir` argument passed via invocation BEFORE falling back to env var
+        and pointer file. This ensures the explicitly-passed value takes precedence.
+        """
+        content = _full(UPDATE_DOC_AGENT_PATH)
+        # The resolution block must mention checking `workDir argument` before $DARK_FACTORY_WORK_DIR
+        workdir_arg_pattern = re.compile(
+            r"workDir\s+argument", re.IGNORECASE
+        )
+        match = workdir_arg_pattern.search(content)
+        assert match is not None, (
+            "update-documentation-agent must check the `workDir argument` (from invocation) "
+            "before falling back to $DARK_FACTORY_WORK_DIR env var and pointer file."
+        )
+        # The workDir argument check must appear before $DARK_FACTORY_WORK_DIR
+        envvar_pattern = re.compile(r"\$DARK_FACTORY_WORK_DIR", re.MULTILINE)
+        envvar_match = envvar_pattern.search(content)
+        if envvar_match:
+            assert match.start() < envvar_match.start(), (
+                "workDir argument check must appear BEFORE $DARK_FACTORY_WORK_DIR fallback. "
+                f"workDir arg at char {match.start()}, env var at char {envvar_match.start()}."
+            )
+
 
 # ---------------------------------------------------------------------------
 # dark-factory-agent: must pass workDir to update-documentation-agent batch invocation
@@ -136,26 +181,26 @@ class TestUpdateDocumentationAgentWorkDir:
 class TestDarkFactoryAgentPassesWorkDir:
     """Flow: agentWorkdirIsolation — dark-factory-agent must pass workDir to update-documentation-agent."""
 
-    def test_update_doc_batch_invocation_includes_work_dir(self):
+    def test_update_doc_invocation_includes_work_dir(self):
         """
         agentWorkdirIsolation.dark-factory-passes-workdir: dark-factory-agent Step 8 must pass
-        workDir (or WORK_DIR) as an argument when invoking update-documentation-agent via
-        queue_batch_job. Currently it only passes {planFilePath}.
+        workDir (or WORK_DIR) as an argument when invoking update-documentation-agent.
+        The invocation must use `invoke update-documentation-agent({ planFilePath, workDir: WORK_DIR })`
+        syntax (not the old queue_batch_job syntax).
         """
         content = _full(DARK_FACTORY_AGENT_PATH)
-        # Find all queue_batch_job calls for update-documentation-agent
-        batch_call_pattern = re.compile(
-            r'queue_batch_job\("update-documentation-agent",\s*\{([^}]+)\}',
+        # Find all `invoke update-documentation-agent(...)` calls
+        invoke_pattern = re.compile(
+            r'invoke update-documentation-agent\(\s*\{([^}]+)\}',
             re.MULTILINE | re.DOTALL,
         )
-        matches = batch_call_pattern.findall(content)
+        matches = invoke_pattern.findall(content)
         assert len(matches) > 0, (
-            "dark-factory-agent must have at least one queue_batch_job call for "
-            "update-documentation-agent"
+            "dark-factory-agent must have at least one `invoke update-documentation-agent(...)` call"
         )
         for args_str in matches:
             assert re.search(r"\bwork[Dd]ir\b|\bWORK_DIR\b", args_str), (
-                "dark-factory-agent queue_batch_job for update-documentation-agent must "
+                "dark-factory-agent invocation of update-documentation-agent must "
                 f"include workDir/WORK_DIR in args. Found args: {{{args_str.strip()}}}"
             )
 

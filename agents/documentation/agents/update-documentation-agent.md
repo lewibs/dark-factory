@@ -35,12 +35,15 @@ If no plan path is provided: PushNotification("Input Required", "update-document
 
 ## Resolve WORK_DIR
 
-Before any file write, resolve the working directory:
+Before any file write, resolve the working directory. Check each source in order and use the first non-empty value:
 ```
-WORK_DIR = $DARK_FACTORY_WORK_DIR
-if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
-if WORK_DIR is still empty: WORK_DIR = "." (fallback — log a warning: "WORK_DIR not set, writing to CWD")
+WORK_DIR = workDir argument (if provided in the invocation and non-empty)
+if WORK_DIR is still empty: WORK_DIR = $DARK_FACTORY_WORK_DIR (env var)
+if WORK_DIR is still empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: STOP — return error JSON: {"error": "WORK_DIR could not be resolved. Cannot write docs without a target directory. Pass workDir explicitly."}
 ```
+
+Do NOT fall back to `"."` — writing to the current working directory would contaminate the main project repo if the agent is running outside an isolated worktree.
 
 All file paths below must be prefixed with `$WORK_DIR/`.
 
