@@ -70,9 +70,12 @@ If non-feature worker returns error or hard-stop: runs cleanup, reports error, S
 - Bash: `git -C "$WORK_DIR" log main..feature/<taskName> --oneline`
 - Halts with error if no new commits found (cleanup runs first)
 
-### Step 6: Read Plan File Path
+### Step 6: Read Plan File Path and Validate Brain State
 - Delegates to `brain-state-manager` with `operation: "read"`
 - Extracts `planFilePath` from brain.json (may be null for debugger/repair routes)
+- **Validation**: If `planFilePath` is null AND classification is "feature", logs warning:
+  - feature-agent always writes planFilePath on success, so null indicates brain-patch.json write failure
+  - Warning alerts developer before proceeding to downstream agents with degraded context
 
 ### Step 7: Code Review
 - Invokes `code-review-orchestrator-agent` with:
