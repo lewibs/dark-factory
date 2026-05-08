@@ -8,6 +8,9 @@ commands: ci-watch-runner, comment-resolution-runner
 allowed-tools: Bash(gh pr create *), Bash(gh pr view *), Bash(gh api graphql *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * status *), Bash(git -C * log *), Bash(cat > /tmp/pr-body.md *)
 model: haiku
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh"
+PostToolUse: "${CLAUDE_PLUGIN_ROOT}/agents/pr/hooks/append-footer-hook.sh"
+# Hook Coordination: The append-footer-hook reads pr-body.md (created in Step 1)
+# and appends the footer before the PR is created. The hook is idempotent and safe to invoke multiple times.
 ---
 
 You are the pr-agent. Take a fix already applied to the working tree and shepherd it through the PR lifecycle: open, watch CI, resolve review comments. Stop once CI is green and all threads are resolved — do not merge.

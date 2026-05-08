@@ -1,120 +1,137 @@
-# Plan: Add SubagentStop Hooks to File-Generating Agents
+# Plan: Move "Made with dark-factory" PR Footer from Template to Yama End-of-Agent Hook
 
 ## System Intent
 
-Update all agents in dark_factory that generate files to declare a `SubagentStop` hook in their YAML frontmatter. This ensures that file-generating agents can properly commit generated artifacts when they complete, following the pattern established in `dark-factory:subagent-stop-in-agent-frontmatter` skill documentation.
+Currently, the "Made with dark-factory" footer is hardcoded into the PR template. This task moves that footer from being a static template element to a dynamic Yama end-of-agent hook, ensuring it's automatically appended to PR descriptions by the manufacturing agent (manufacture-agent) when it completes.
 
-The hook declarations should be embedded in each agent's own `.md` file (not in hooks.json), making it clear which agents trigger which hooks. Agents that generate files include:
-- Execution phase agents (skeleton-agent, testing-agent, implementation-agent)
-- Documentation agents (investigation-agent, claim-validator-agent)
-- Planning agents (planning-agent, diagram-rendering agents)
-- Other agents that write files (pr-agent, etc.)
+The benefits of this approach:
+- PR footer is now generated dynamically rather than being a static template
+- Footer can be customized more easily without touching template files
+- Separation of concerns: template vs. generated content
+- Follows dark-factory's existing hook-based architecture pattern
 
 ## Mermaid Diagram
 
 ```mermaid
 graph TD
-    A[Identify all file-generating agents] --> B[Research current agent implementations]
-    B --> C{Agent generates files?}
-    C -->|Yes| D[Check if SubagentStop exists]
-    C -->|No| E[Skip]
-    D -->|Has hook| F[Verify correct script path]
-    D -->|Missing hook| G[Determine appropriate script]
-    G --> H[Add SubagentStop to frontmatter]
-    F --> I[Verify path format: \$CLAUDE_PLUGIN_ROOT]
-    H --> J[Update agent file]
-    J --> K{All agents processed?}
-    K -->|No| C
-    K -->|Yes| L[Run gen-hooks to verify generation]
-    L --> M[Commit changes]
+    A[Identify current PR footer location] --> B[Understand PR template structure]
+    B --> C[Understand Yama end-of-agent hooks]
+    C --> D[Locate manufacture-agent or pr-agent]
+    D --> E{Where is footer used?}
+    E -->|In PR template| F[Remove from template]
+    E -->|In PR generation code| G[Find generation logic]
+    F --> H[Create Yama hook script]
+    G --> H
+    H --> I[Add hook declaration to agent frontmatter]
+    I --> J[Test PR generation with hook]
+    J --> K[Verify footer appears in PR]
+    K --> L[Remove template footer]
+    L --> M[Final verification]
 ```
 
-## Flow: Research Phase
+## Flow: Discovery Phase
 
 ### Objective
-Identify all agents that generate files and determine which need SubagentStop hooks added.
+Locate the current "Made with dark-factory" footer and understand how it's currently integrated into the PR creation process.
 
 ### Steps
 
-1. Search the codebase for all agent `.md` files in:
-   - `agents/featurework/execution/agents/`
-   - `agents/featurework/planning/`
-   - `agents/commands/`
-   - `agents/dark-factory/`
+1. Search for "Made with dark-factory" in the codebase to identify:
+   - Where it appears (template files, PR description generation code)
+   - Current location and implementation
+   - Any existing PR generation mechanisms
 
-2. For each agent file, determine:
-   - Does the agent description mention creating, writing, or generating files?
-   - Are there Write, Edit, or glob tool mentions in the frontmatter?
-   - Does the agent already have a SubagentStop hook?
-   - What is the agent's primary purpose (file generation)?
+2. Identify the PR generation agent(s):
+   - Find which agent(s) handle PR creation and description building
+   - Look for manufacture-agent, pr-agent, or similar
+   - Understand current PR description assembly logic
 
-3. Create a comprehensive list of agents that need updates:
-   - Current status (has hook or needs hook)
-   - Hook script they should use
-   - Any special considerations
+3. Research Yama end-of-agent hooks:
+   - Understand how Yama hooks work in this context
+   - Identify existing examples of end-of-agent hooks
+   - Determine hook naming and registration patterns
+
+4. Document findings:
+   - Current footer location and implementation
+   - Which agent should own the footer hook
+   - Proposed hook placement and mechanism
 
 ### Expected Output
-- `agents_needing_hooks.md` - List of all file-generating agents and their hook status
-- Understanding of which hook scripts are appropriate for each agent
+- Clear understanding of current footer implementation
+- Identified agents responsible for PR creation
+- Hook integration strategy documented
 
 ## Flow: Implementation Phase
 
 ### Objective
-Add SubagentStop hook declarations to all identified file-generating agents.
+Move the PR footer from static template to dynamic Yama end-of-agent hook.
 
 ### Steps
 
-1. For each agent that generates files and lacks a SubagentStop hook:
-   - Open the agent's `.md` file
-   - Add the appropriate SubagentStop line to YAML frontmatter
-   - Use absolute path: `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/<script-name>`
-   - Verify YAML syntax is correct
+1. Create the Yama hook script:
+   - Create a new hook script that appends "Made with dark-factory" to PR description
+   - Script should integrate with Yama's end-of-agent hook system
+   - Ensure proper formatting and styling
 
-2. Hook script selection logic:
-   - **Execution agents** (skeleton, testing, implementation): Use `commit-on-subagent-stop.sh`
-   - **Investigation agents** (investigation-agent, investigation-orchestrator): Use `commit-investigation-docs.sh`
-   - **Documentation agents**: Determine if they need existing script or create new one
-   - **Planning agents**: Determine if they need SubagentStop at all
+2. Add hook to agent frontmatter:
+   - Identify the correct agent (likely manufacture-agent)
+   - Add Yama hook declaration to agent's `.md` file
+   - Follow existing hook declaration patterns
 
-3. Verify each change:
-   - Frontmatter YAML parses correctly
-   - Hook path format is correct
-   - No duplicate declarations
+3. Remove footer from template:
+   - Locate PR template file(s)
+   - Remove "Made with dark-factory" footer text
+   - Ensure template is still valid after removal
 
-### Core Files to Modify
-- `agents/featurework/execution/agents/skeleton-agent.md` (verify existing)
-- `agents/featurework/execution/agents/testing-agent.md` (verify existing)
-- `agents/featurework/execution/agents/implementation-agent.md` (verify existing)
-- `agents/commands/investigation-orchestrator.md` (verify existing)
-- `agents/commands/investigation-agent.md` (if exists and generates files)
-- `agents/commands/claim-validator-agent.md` (if exists and generates files)
-- Other file-generating agents identified in research phase
+4. Test the integration:
+   - Verify hook is properly registered
+   - Test PR generation with hook in place
+   - Confirm footer appears correctly in generated PRs
+
+### Expected Output
+- Yama hook script created and functional
+- Agent frontmatter updated with hook declaration
+- PR template updated (footer removed)
+- PRs now include footer via hook
 
 ## Flow: Verification Phase
 
 ### Objective
-Verify that SubagentStop hooks are properly declared and will be generated correctly.
+Verify the footer migration is complete and working correctly.
 
 ### Steps
 
-1. Run `/dark-factory:gen-hooks` to regenerate `.claude/settings.json`
-2. Verify that all SubagentStop entries appear in `settings.json` with correct paths
-3. Check that hook scripts referenced actually exist:
-   - `agents/dark-factory/scripts/commit-on-subagent-stop.sh`
-   - `agents/dark-factory/scripts/commit-investigation-docs.sh`
-4. Reinstall the plugin with `/dark-factory:install`
-5. Verify plugin loads without errors
+1. Verify hook registration:
+   - Check that hook is properly declared in agent frontmatter
+   - Confirm hook appears in settings.json after plugin reload
+   - Validate hook script syntax
+
+2. Test PR generation:
+   - Create a test PR using the manufacturing agent
+   - Verify footer appears in PR description
+   - Check formatting and placement
+
+3. Verify template cleanup:
+   - Confirm footer removed from PR template
+   - Ensure template is still valid
+   - Check no duplicate footers appear
+
+4. Final validation:
+   - Run through complete PR creation workflow
+   - Verify no regressions
+   - Check hook runs at correct time (end-of-agent)
 
 ### Expected Output
-- All hooks properly generated in `.claude/settings.json`
-- Plugin reinstalls successfully
-- No missing script errors
+- Hook working correctly with manufacture-agent
+- PR footer appears dynamically in generated PRs
+- No duplicate footers from old template
+- All tests passing
 
 ## Stage Gate Tracker
 
-- [x] Stage 1: System Intent approved
-- [x] Stage 2: Mermaid Diagram approved
-- [x] Stage 3: Research Flow approved
-- [x] Stage 4: Implementation Flow approved
-- [x] Stage 5: Verification Flow approved
-- [x] Ready for Execution
+- [ ] Stage 1: System Intent approved
+- [ ] Stage 2: Mermaid Diagram approved
+- [ ] Stage 3: Discovery Flow approved
+- [ ] Stage 4: Implementation Flow approved
+- [ ] Stage 5: Verification Flow approved
+- [ ] Ready for Execution

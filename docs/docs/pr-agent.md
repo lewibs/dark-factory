@@ -132,9 +132,6 @@ The PR body is built from `agents/pr/templates/pr-template.md`, which has exactl
 
 <!-- Only include this section if tests were actually run.
      Paste the exact test output (truncated if very long). If no tests exist, delete this section. -->
-
----
-🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)
 ```
 
 **Description source**: The `## Description` section is populated based on the work route (read from `brain.classification`):
@@ -146,6 +143,8 @@ The PR body is built from `agents/pr/templates/pr-template.md`, which has exactl
 Content is never summarised; verbatim source text is always preferred.
 
 **Test Plan**: Only included when a test suite was actually run. If no tests exist, the section is omitted entirely.
+
+**PR footer**: The `---` separator and `🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)` footer are **not** part of the template. They are appended dynamically by `agents/pr/hooks/append-footer-hook.sh`, declared as a `PostToolUse` hook in pr-agent's frontmatter. The hook reads `/tmp/pr-body.md` (or `$DARK_FACTORY_PR_BODY_FILE` if set) and appends the footer with an idempotency guard — it checks for an existing `Generated with [dark factory]` string before appending, so the footer is never duplicated across multiple hook invocations.
 
 **PR title**: Derived from the create-pr skill using `<type>(<scope>): <description>` format in imperative mood, under 72 characters. Types include feat, fix, chore, docs, refactor, test, ci, perf, style, revert.
 
@@ -168,6 +167,7 @@ Content is never summarised; verbatim source text is always preferred.
 - **Skills**: create-pr (opens the PR)
 - **Commands**: ci-watch-runner (polls CI status), comment-resolution-runner (resolves review threads)
 - **Templates**: agents/pr/templates/pr-template.md
+- **Hooks**: agents/pr/hooks/append-footer-hook.sh (PostToolUse — appends PR footer dynamically)
 
 ## Tools
 
