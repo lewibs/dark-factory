@@ -1,21 +1,22 @@
 {
-  "taskDescription": "The flow keeps stopping between agents. Please debug what would the issue be. Notice how the last few PRs have already tried to fix this. This means we are missing something. it may be some deterministic thing not working right. some hook issue.",
-  "taskName": "debug-agent-flow-stop",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-debug-agent-flow-stop",
+  "taskDescription": "figure out why dark-factory did not use the agent like it was supposed to when invoked inside another session and fix it. Claude invoked /dark-factory:manufacture via the Skill tool, dark-factory-agent.md was not found at the expected path so it delegated directly to the subagent. After PR #423 was opened, the merge was handled manually rather than routing through dark-factory's PR lifecycle tooling (pr-agent, ci-watch-runner, comment-resolution-runner).",
+  "taskName": "fix-agent-flow-deviation",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-fix-agent-flow-deviation",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
   "classification": "debugger",
   "planFilePath": null,
   "bugFiles": [
-    "docs/bugs/2026-05-08-pr-agent-cleanup-hook-destroys-worktree-early.md"
+    "/home/lewibs/github/dark_factory/dark_factory-fix-agent-flow-deviation/docs/bugs/2026-05-08-agent-flow-deviation-nested-session.md"
   ],
   "prUrl": null,
   "docsWritten": null,
-  "skillsWritten": null,
+  "skillsWritten": [
+    "skills/plugin-root-script-paths/SKILL.md",
+    "skills/pr-agent-does-not-merge/SKILL.md"
+  ],
   "artifacts": {
     "created": [],
-    "modified": [
-      "agents/pr/agents/pr-agent.md"
-    ]
+    "modified": []
   },
   "phases": {
     "prep-running": false,
@@ -33,10 +34,28 @@
     "cleanup-running": false,
     "cleanup-complete": false
   },
-  "notes": [],
+  "notes": [
+    "debugger-agent: root cause was (1) bare relative path in commands/manufacture.md fails when CWD != plugin root in nested sessions, (2) create-pr/SKILL.md description 'through to merge' and missing no-merge rule allowed PR lifecycle bypass, fixed in commands/manufacture.md, skills/create-pr/SKILL.md, agents/dark-factory/agents/dark-factory-agent.md"
+  ],
   "metrics": {
     "dark-factory:code-review:agents:code-review-orchestrator-agent": {
-      "start_ms": 1778227255497
+      "elapsed_ms": 45912,
+      "tokens": 1083,
+      "runs": 2
+    },
+    "dark-factory:documentation:agents:update-documentation-agent": {
+      "elapsed_ms": 74221,
+      "tokens": 280,
+      "runs": 2
+    },
+    "dark-factory:skill-update:agents:skill-update-agent": {
+      "elapsed_ms": 2421,
+      "tokens": 236,
+      "runs": 2
+    },
+    "dark-factory:pr:agents:pr-agent": {
+      "start_ms": 1778229637156
     }
-  }
+  },
+  "summary": "Extended plugin-root-script-paths skill to cover agent .md file references in command files (not just script paths); updated pr-agent-does-not-merge skill to note the FORBIDDEN rule enforcement in dark-factory-agent.md"
 }

@@ -155,7 +155,7 @@ Content is never summarised; verbatim source text is always preferred.
 3. **Write body to /tmp/pr-body.md** — Use standard gh cli pattern
 4. **Delegate CI watching** — Use ci-watch-runner, don't implement watch loop inline
 5. **Delegate comment resolution** — Use comment-resolution-runner, don't implement loop inline
-6. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
+6. **FORBIDDEN: Do NOT merge** — Stop at "ready" status; human makes the merge decision. Never merge a PR manually or instruct any sub-agent to merge.
 7. **Write brain-patch after PR opens** — Captures prUrl for downstream use
 8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR` first; if unset, read `/tmp/dark-factory-work-dir`; skip silently if both empty
 9. **Step 0 does NOT return early** — When an existing PR is found, commit+push and set pr_url, then continue; CI watching and comment resolution always run on both the new-PR and existing-PR paths

@@ -128,7 +128,8 @@ Called on any error path after worktree creation:
 9. **Steps 7-9 are mandatory** — Code review, docs, and skills steps must always execute to completion; never skip regardless of user input or override phrases
 10. **FORBIDDEN: Direct brain.json writes** — Never write brain.json via cat, echo, Bash, or any tool; always use brain-state-manager skill
 11. **FORBIDDEN: Direct sub-planning-agent invocation** — Always route through feature-agent; if feature-agent returns non-JSON output, report error and stop
-12. **Worktree lifecycle is owned by dark-factory-agent** — Sub-agents (including pr-agent) must NOT declare SubagentStop hooks that delete brain.json or remove the worktree. A SubagentStop hook on a sub-agent fires before dark-factory-agent regains control, destroying brain.json before Steps 11-12 can read prUrl and flush metrics. Cleanup runs exclusively in Step 12 (success path) and the cleanup() helper (error paths).
+12. **FORBIDDEN: Never merge a PR manually** — pr-agent returns `status: ready` but does not merge. Never instruct any sub-agent to merge. Merging is the developer's responsibility after human review.
+13. **Worktree lifecycle is owned by dark-factory-agent** — Sub-agents (including pr-agent) must NOT declare SubagentStop hooks that delete brain.json or remove the worktree. A SubagentStop hook on a sub-agent fires before dark-factory-agent regains control, destroying brain.json before Steps 11-12 can read prUrl and flush metrics. Cleanup runs exclusively in Step 12 (success path) and the cleanup() helper (error paths).
 
 ## Dependencies
 

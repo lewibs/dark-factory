@@ -5,7 +5,7 @@ user-invocable: false
 ---
 ## When to use
 
-Any time you write or edit an agent (`.md` in `agents/`), a command (`.md` in `commands/`), or a skill (`SKILL.md` in `skills/`) that invokes a script (`bash`, `python3`, etc.) that ships inside the dark-factory plugin repository.
+Any time you write or edit an agent (`.md` in `agents/`), a command (`.md` in `commands/`), or a skill (`SKILL.md` in `skills/`) that references any file (script or `.md` agent file) that ships inside the dark-factory plugin repository.
 
 This applies to:
 - `bash <script>.sh` calls
@@ -13,21 +13,25 @@ This applies to:
 - `allowed-tools:` Bash() entries that include a script path
 - `scripts:` frontmatter declarations in agent files
 - Prose pseudocode inside agent instruction bodies
+- Command files (`.md` in `commands/`) that reference agent `.md` files via `Follow the instructions in <path>` or similar directives
 
 ## Steps
 
-1. Identify every script reference that uses a bare relative path such as:
+1. Identify every reference that uses a bare relative path such as:
    - `bash agents/dark-factory/scripts/foo.sh`
    - `python3 scripts/bar.py`
+   - `Follow the instructions in agents/dark-factory/agents/dark-factory-agent.md`
 2. Replace each bare relative path with the `${CLAUDE_PLUGIN_ROOT}/` prefix:
    - `bash "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/foo.sh"`
    - `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/bar.py"`
+   - `Follow the instructions in ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/agents/dark-factory-agent.md`
 3. Apply the same replacement in `allowed-tools:` Bash() entries:
    - Before: `Bash(bash agents/dark-factory/scripts/foo.sh *)`
    - After: `Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/foo.sh *)`
 4. Apply the same replacement in `scripts:` frontmatter lines.
 5. Double-quote the expanded path in shell contexts to handle spaces:
    - `bash "${CLAUDE_PLUGIN_ROOT}/scripts/foo.sh"` (not `bash $CLAUDE_PLUGIN_ROOT/scripts/foo.sh`)
+6. In command files, `${CLAUDE_PLUGIN_ROOT}` is available and resolves correctly — use it directly for agent `.md` file references in command directives.
 
 ## Notes
 
