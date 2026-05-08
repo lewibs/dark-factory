@@ -26,7 +26,7 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
    - Uses AskUserQuestion to request flow name or allow cancel/reinvocation
    - Stops and waits for response
 
-2. Spawns `investigation-agent` with the flow name
+2. Invokes Agent tool with subagent_type `dark-factory:documentation:agents:investigation-agent` with the flow name
 
 3. Waits for investigation-agent to return path to documentation file (in `docs/docs/`)
 
@@ -38,7 +38,7 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
 
 **Objective**: Generate test trigger, log fetching, and deployment scripts.
 
-1. Spawns `setup-wizard` sub-agent with:
+1. Invokes Agent tool with subagent_type `dark-factory:fix-flow:agents:setup-wizard` with:
    - Path to `docs/plans/system-diagram.md`
 
 2. Waits for setup-wizard to return paths to generated scripts:
@@ -52,7 +52,7 @@ The fix-flow-orchestrator is a specialized orchestrator for fixing broken integr
 
 **Objective**: Loop through fix attempts until flow passes; create single PR with all fixes.
 
-1. Spawns `ralph-fix-and-push` sub-agent with:
+1. Invokes Agent tool with subagent_type `dark-factory:fix-flow:agents:ralph-fix-and-push` with:
    - Paths to all generated scripts from Phase 2
    - branchName (e.g., "feature/fix-flow-<flow-name>")
 
@@ -74,7 +74,8 @@ When ralph-fix-and-push returns `all-green: true`:
 3. **Verify Phase 2 scripts exist** — Before invoking ralph-fix-and-push, confirm all generated scripts are present
 4. **Persist documentation** — system-diagram.md and bug audit logs remain in the repository after fixes complete
 5. **Single PR output** — ralph-fix-and-push produces one PR with all accumulated fixes across multiple debug loops
-6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+6. **Explicit Agent tool invocation** — Use Agent tool with proper subagent_type references, not vague "Spawn X" instructions
+7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 
@@ -83,7 +84,7 @@ When ralph-fix-and-push returns `all-green: true`:
 
 ## Tools
 
-- Read, Bash, PushNotification, AskUserQuestion
+- Read, Bash, Agent, PushNotification, AskUserQuestion
 
 ## Return Value
 
