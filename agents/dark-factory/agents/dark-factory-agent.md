@@ -125,6 +125,9 @@ dark-factory-agent(taskDescription, taskName):
   brain = invoke brain-state-manager({ operation: "read", workDir: WORK_DIR })
   planFilePath = brain.planFilePath
 
+  if planFilePath is null AND classification == "feature":
+    warn "WARNING: feature-agent returned status:done but planFilePath is missing from brain.json. brain-patch.json may not have been written. Downstream agents will use taskDescription as fallback — PR body and code review context may be lower quality."
+
   # Step 7 — code review
   invoke code-review-orchestrator-agent({
     planFilePath: planFilePath ?? "Task: " + taskDescription,
