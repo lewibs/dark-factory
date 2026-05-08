@@ -4,9 +4,3 @@ tmp/
 __pycache__/
 *.pyc
 *.pyo
-
-# dark-factory transient files
-brain.json
-brain.json.lock
-brain-patch.json
-flows-state.json
