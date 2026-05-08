@@ -77,6 +77,13 @@ dark-factory-agent(taskDescription, taskName):
 
   If brain-state-manager errors: report error and STOP
 
+  # Verify brain.json was actually written to disk
+  brainExists = bash("test -f \"$WORK_DIR/brain.json\" && echo 'ok' || echo 'missing'")
+  if brainExists != "ok":
+    bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
+    report error: "brain.json not found at $WORK_DIR/brain.json after brain-state-manager completed. Check WORK_DIR permissions and disk space. Worktree cleaned up."
+    STOP
+
   # Write pointer file so hook processes can resolve WORK_DIR without the env var
   bash("printf '%s' \"$WORK_DIR\" > /tmp/dark-factory-work-dir")
 
