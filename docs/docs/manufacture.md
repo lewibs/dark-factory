@@ -59,7 +59,7 @@ flowchart TD
 
 - Core files: `commands/manufacture.md`, `agents/dark-factory/agents/dark-factory-agent.md`, `agents/featurework/agents/feature-agent.md`
 
-The `commands/manufacture.md` command uses `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/agents/dark-factory-agent.md` (an absolute plugin-root-relative path) to locate the orchestrator instructions. This ensures the correct agent file is found when dark-factory is invoked from a nested Claude session where the working directory may not be the plugin root.
+`commands/manufacture.md` is a thin dispatcher. It invokes `dark-factory-agent` exactly once as a sub-agent via the Agent tool, passing `taskDescription` and optional `taskName`, then returns the result unchanged. All orchestration logic (classification, worktree prep, routing, code review, docs, PR, cleanup) lives entirely in `dark-factory-agent` — `commands/manufacture.md` contains none of it.
 
 The feature route is a single-invocation human-in-the-loop planning flow. `dark-factory-agent` invokes `feature-agent` exactly once and waits for a terminal status. `feature-agent` runs at depth 2 and calls `AskUserQuestion` directly for all user interaction — it handles all approval loops internally (draft → mermaid diagram → individual flows → final execution) before calling `execution-agent` to write the code. `dark-factory-agent` does not implement a multi-turn loop for the feature route; it receives one of three terminal statuses: `done`, `hard-stop`, or `aborted`.
 
