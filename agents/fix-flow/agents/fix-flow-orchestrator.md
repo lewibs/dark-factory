@@ -2,7 +2,7 @@
 name: fix-flow-orchestrator
 user-invocable: false
 description: "Autonomously drives a failing integration flow to green. Generates test/log/deploy scripts, then loops: trigger, debug, PR, deploy until the flow passes."
-tools: Read, Bash, PushNotification, AskUserQuestion
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 allowed-tools: "Bash(find *), Bash(grep -r *)"
 ---
@@ -21,27 +21,21 @@ The flow name is required. If not provided, call PushNotification with title: "I
 
 ## Phase 1 — Understand System
 
-Spawn a sub-agent using investigation-agent.
-
-Pass it:
+Invoke Agent tool with subagent_type `dark-factory:documentation:agents:investigation-agent` with input:
 - The flow name from the argument
 
 Wait for it to return the path to the `docs/docs/` file it wrote. Then write `docs/plans/system-diagram.md` from that documentation as the working plan for this session. Do not proceed to Phase 2 until `docs/plans/system-diagram.md` exists.
 
 ## Phase 2 — Setup
 
-Spawn a sub-agent using setup-wizard.
-
-Pass it:
+Invoke Agent tool with subagent_type `dark-factory:fix-flow:agents:setup-wizard` with input:
 - Path to `docs/plans/system-diagram.md`
 
 Wait for it to return paths to the generated scripts. Do not proceed to Phase 3 until all required scripts exist.
 
 ## Phase 3 — Fix and Push
 
-Spawn a sub-agent using the instructions in ralph-fix-and-push.
-
-Pass it:
+Invoke Agent tool with subagent_type `dark-factory:fix-flow:agents:ralph-fix-and-push` with inputs:
 - Paths to all generated scripts from Phase 2
 - branchName (e.g., "feature/fix-flow-single-branch")
 
