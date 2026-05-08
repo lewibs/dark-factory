@@ -1,50 +1,49 @@
-# Plan: Refactor Agent Output to Terse Structured JSON
+# Plan: Fix PR Description Generation — Route-Specific Content Sourcing
 
 ## System Intent
-update-documentation-agent and skill-update-agent currently generate multi-paragraph explanations during their execution. These verbose outputs consume output tokens (billed at full price even with prompt caching) and are rarely read. The refactor reduces output tokens by 40-70% by instructing both agents to return minimal JSON-style summaries listing only:
-- Files written/updated (absolute paths)
-- One-line summary of what was done
+
+The pr-agent previously used a single code path for PR body generation regardless of work route:
+`Populate Description from planFilePath (or description string).`
+
+This meant debug flows got no description (planFilePath is null for debugger-agent) and repair flows had no way to auto-generate content. The fix makes pr-agent read `classification` from brain.json and apply route-appropriate sourcing.
 
 ## Scope
 
 ### Files Modified
-1. `agents/documentation/agents/update-documentation-agent.md`
-2. `agents/skill-update/agents/skill-update-agent.md`
+1. `agents/pr/agents/pr-agent.md` — Step 1: replace single-path description logic with route-specific IF/ELSE
 
-### Changes per Agent
+### Changes
 
-#### update-documentation-agent
-**Current behavior**: Writes multi-paragraph Phase descriptions, progress updates, checklist output during execution
+#### pr-agent.md — Step 1 (Build PR Body)
 
-**New behavior**:
-- Suppress all prose output during Phase 1, 2, 3 execution
-- At completion: return minimal structured output (JSON format or list)
-- Output format: `{ "docsWritten": [...paths...], "summary": "one-liner" }`
-- Example summary: "Updated 3 docs, created 1 new doc for auth-flow"
+**Before**:
+```
+Populate Description from planFilePath (or description string).
+```
 
-#### skill-update-agent  
-**Current behavior**: Already has structured output defined (SkillUpdateOutput), but likely generates verbose prose during Steps 1-5
+**After**:
+- Read `classification` from brain.json (injected via pre-hook)
+- `feature`: read planFilePath verbatim
+- `debugger`: search `$PROJECT_DIR/docs/bugs/` for .md matching `taskName` (exact/prefix or most recent); read verbatim
+- `repair` / `fix-flow`: use planFilePath if provided, else generate from `git log` + `git diff --name-only` summary
+- Fallback (unknown classification): planFilePath or description string
 
-**New behavior**:
-- Suppress all narrative output during Steps 1-5
-- Return only: `{ "skillsWritten": [...paths...], "summary": "one-liner" }`
-- Example summary: "Extracted 2 new patterns, created 1 skill file"
+## Flows
 
-### Implementation Pattern
-For each agent instruction file:
-1. Keep the frontmatter (name, tools, model, etc.) unchanged
-2. Keep the orchestration pseudocode structure but add instructions to suppress prose
-3. Add explicit instruction: "Do NOT output progress messages, explanations, or prose — return only the final JSON summary"
-4. Define concise output format upfront (before the orchestration section)
-5. Update any completion/brain-patch sections to match the terse format
+### Flow 1: feature route
+Entry: pr-agent Step 1, classification == "feature"
+Steps: read planFilePath from brain → read file verbatim → populate Description
+Exit: PR body contains full plan
+
+### Flow 2: debugger route
+Entry: pr-agent Step 1, classification == "debugger"
+Steps: glob $PROJECT_DIR/docs/bugs/*.md → find file matching taskName → read verbatim → populate Description
+Exit: PR body contains full bug doc
+
+### Flow 3: repair/fix-flow route
+Entry: pr-agent Step 1, classification == "repair" or "fix-flow"
+Steps: if planFilePath → read it; else run git log + git diff --name-only → format summary → populate Description
+Exit: PR body contains meaningful description of changes
 
 ## Files Written
-- `agents/documentation/agents/update-documentation-agent.md` — refactored instructions
-- `agents/skill-update/agents/skill-update-agent.md` — refactored instructions
-
-## Testing
-After merging, verify in a test manufacture run:
-1. Run /dark-factory:manufacture on a small feature task
-2. Check that update-documentation-agent and skill-update-agent produce single-line JSON output
-3. Verify output tokens are reduced (check Claude API usage logs if available)
-
+- `agents/pr/agents/pr-agent.md` — route-specific description sourcing logic
