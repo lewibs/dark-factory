@@ -5,7 +5,7 @@ dark-factory:code-review:agents:code-review-orchestrator-agent,,119138.235294117
 dark-factory:documentation:agents:update-documentation-agent,,59854.333333333336,250.58333333333334,12,718252.0,3007.0
 dark-factory:skill-update:agents:skill-update-agent,,48341.90909090909,265.8181818181818,11,531761.0,2924.0
 dark-factory:pr:agents:pr-agent,,56624.125,165.75,16,905986.0,2652.0
-dark-factory:repair:agents:repair-agent,,12952.346153846154,175.53846153846155,26,336761.0,4564.0
+dark-factory:repair:agents:repair-agent,,12472.62962962963,169.03703703703704,27,336761.0,4564.0
 testing-agent,,0.0,0.0,13,0.0,0.0
 planning-agent,,0.0,0.0,20,0.0,0.0
 dark-factory:featurework:agents:feature-agent,,88144.26086956522,526.4347826086956,23,2027318.0,12108.0
