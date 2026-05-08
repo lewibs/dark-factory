@@ -30,4 +30,5 @@ return result
 
 - Never implement orchestration logic yourself. All logic (classification, prep, routing, review, docs, PR, cleanup) is owned by dark-factory-agent.
 - Invoke dark-factory-agent exactly once and return its result immediately.
+- **CRITICAL**: The manufacture command must always invoke dark-factory-agent using the `agent:` field with subagent_type (e.g., `agent: "dark-factory-agent"`), never as a file path reference. Path-based references fail when the CLI's CWD differs from the plugin root directory.
 - Do not modify, parse, or filter dark-factory-agent's output — pass it through unchanged.

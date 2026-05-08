@@ -54,7 +54,11 @@ dark-factory-agent(taskDescription, taskName):
   # Use explicit plugin name lookup to handle multiple installed plugins correctly.
   PLUGIN_ROOT = bash("python3 -c \"import json,os,sys; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); p=d['plugins'].get('dark-factory@dark-factory',[{}]); print(p[0].get('installPath','') if p else '')\"")
   
-  If PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin path from installed_plugins.json" and STOP
+  if PLUGIN_ROOT is empty:
+    # Fallback: try to extract from 'claude plugins list' output
+    PLUGIN_ROOT = bash("claude plugins list 2>/dev/null | grep dark-factory | awk '{print $NF}' || true")
+  
+  If PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root. Checked installed_plugins.json at ~/.claude/plugins/installed_plugins.json using key 'dark-factory@dark-factory'. Ensure the plugin is installed by running /dark-factory:install." and STOP
 
   prepOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh\" <taskName>")
   WORK_DIR = extract WORK_DIR=<value> line from prepOutput
@@ -190,7 +194,10 @@ invoke brain-state-manager({ operation: "delete", workDir: WORK_DIR })
 bash("rm -f /tmp/dark-factory-work-dir")
 # Resolve plugin root with explicit dark-factory plugin lookup (CLAUDE_PLUGIN_ROOT not available in Bash subprocesses)
 PLUGIN_ROOT = bash("python3 -c \"import json,os,sys; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); p=d['plugins'].get('dark-factory@dark-factory',[{}]); print(p[0].get('installPath','') if p else '')\"")
-if PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin path" and return
+if PLUGIN_ROOT is empty:
+    # Fallback: try to extract from 'claude plugins list' output
+    PLUGIN_ROOT = bash("claude plugins list 2>/dev/null | grep dark-factory | awk '{print $NF}' || true")
+  if PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root. Checked installed_plugins.json at ~/.claude/plugins/installed_plugins.json using key 'dark-factory@dark-factory'. Ensure the plugin is installed by running /dark-factory:install." and return
 bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
 ```
 
