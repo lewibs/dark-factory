@@ -41,12 +41,19 @@ StandardError {
    - `agents/code-review/agents/low-level-review-agent.md` with input `codePath`
 3. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
-4. Enter the resolver loop:
-   - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath` set to the absolute path of `<codePath>/issues.md`.
-   - Wait for it to return.
-   - If it returns an error: surface the error and halt.
-   - If `anyRemaining` is false: exit the loop.
-   - If `anyRemaining` is true: re-enter the loop (re-spawn the resolver).
+4. Enter the resolver loop (up to 10 iterations):
+   - Initialize `noProgressCount = 0`.
+   - For each iteration:
+     - Read the current issues.md file and count the number of unresolved issues. Store this as `issueCountBefore`.
+     - Spawn `agents/code-review/agents/resolver-agent.md` with `issuesFilePath` set to the absolute path of `<codePath>/issues.md`.
+     - Wait for it to return.
+     - If it returns an error: surface the error and halt.
+     - Read the updated issues.md file and count the number of unresolved issues. Store this as `issueCountAfter`.
+     - If `issueCountAfter < issueCountBefore`: reset `noProgressCount = 0` (progress was made).
+     - If `issueCountAfter >= issueCountBefore`: increment `noProgressCount += 1` (no progress).
+     - If `noProgressCount >= 2`: exit the loop early and return a `StandardError` with message: "Code review resolver is stuck — issue count unchanged for 2 consecutive iterations. Unresolvable issues likely require human review: [list the remaining unresolved issues here]."
+     - If `anyRemaining` is false: exit the loop (all issues resolved).
+     - If `anyRemaining` is true and `noProgressCount < 2`: continue to next iteration.
 5. Use `manage-issues-file` command with `operation: "delete"` to remove the issues file.
 6. Return `{ status: "complete" }`.
 
