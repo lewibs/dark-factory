@@ -2,7 +2,7 @@
 name: pr-agent
 user-invocable: false
 description: Manages the PR lifecycle for a code fix. Opens a PR, watches CI via ci-watch-runner, resolves review comments via comment-resolution-runner, and stops once CI is green and all threads are resolved. Does not merge.
-tools: Read, Bash, Write, Edit, Command
+tools: Read, Bash, Write, Edit, Command, Skill
 skills: create-pr
 commands: ci-watch-runner, comment-resolution-runner
 allowed-tools: Bash(gh pr create *), Bash(gh pr view *), Bash(gh api graphql *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * status *), Bash(git -C * log *), Bash(cat > /tmp/pr-body.md *)
@@ -23,11 +23,16 @@ A file path or description string for the PR body. If neither provided, use the 
 ```
 pr-agent(planFilePath or description):
 
-  # Step 0 — Check for existing PR on current branch
-  existingPr = gh pr view --json url --jq '.url' 2>/dev/null || null
+  # Step 0 — Resolve WORK_DIR early (before checking for existing PR)
+  WORK_DIR = $DARK_FACTORY_WORK_DIR
+  if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+  
+  # Step 0b — Check for existing PR on feature branch in the worktree
+  branchName = brain.taskName (from injected brain context)
+  existingPr = bash("gh pr view feature/" + branchName + " --json url --jq '.url' 2>/dev/null") || null
   if existingPr is not null:
     git -C "$WORK_DIR" add --all
-    git -C "$WORK_DIR" commit -m "<short description of fix>"
+    git -C "$WORK_DIR" diff --cached --quiet || git -C "$WORK_DIR" commit -m "<short description of fix>"
     git -C "$WORK_DIR" push
     pr_url = existingPr
   # (if no existing PR, pr_url will be set in Step 2 below)
@@ -73,9 +78,7 @@ pr-agent(planFilePath or description):
   if existingPr is null:
     pr_url = invoke create-pr({ bodyFile: "/tmp/pr-body.md" })
   
-  WORK_DIR = $DARK_FACTORY_WORK_DIR
-  if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
-  if WORK_DIR is still empty: skip silently
+  if WORK_DIR is empty: skip silently
   else: write $WORK_DIR/brain-patch.json:
     {
       "prUrl": pr_url,
@@ -105,3 +108,5 @@ pr-agent(planFilePath or description):
 - Delegate comment resolution to comment-resolution-runner — do not implement comment loop inline.
 - Do not merge.
 - Write brain-patch.json after PR is opened; use pointer file fallback if DARK_FACTORY_WORK_DIR is unset.
+- FORBIDDEN: Never use `gh pr create --body '...'` or `gh pr create --body "..."` with an inline body string. Always write the PR body to /tmp/pr-body.md first, then use `gh pr create --body-file /tmp/pr-body.md`. Inline bodies fail with "Parser aborted" on large content.
+- FORBIDDEN: Never open a PR without first reading the plan or bug file verbatim and populating the Description section. A summary or paraphrase is not acceptable — paste the file contents directly.
