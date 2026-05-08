@@ -22,7 +22,19 @@ if git -C "$GIT_ROOT" worktree list | grep -qF "$WORKTREE_NAME"; then
     exit 0
 fi
 
+# Check if the branch already exists
+BRANCH_NAME="feature/${TASK_NAME}"
+if git -C "$GIT_ROOT" branch --list "$BRANCH_NAME" | grep -qF "$BRANCH_NAME"; then
+    # Branch exists; check if it's currently checked out in any worktree
+    if git -C "$GIT_ROOT" worktree list --porcelain | grep -qF "branch refs/heads/$BRANCH_NAME"; then
+        echo "Error: Branch $BRANCH_NAME is already checked out in a worktree. Remove the existing worktree first or choose a different taskName." >&2
+        exit 1
+    fi
+    # Branch exists but is not checked out; safe to delete
+    git -C "$GIT_ROOT" branch -D "$BRANCH_NAME" || { echo "Error: Failed to delete existing branch $BRANCH_NAME." >&2; exit 1; }
+fi
+
 git -C "$GIT_ROOT" pull origin main || { echo "Error: git pull failed." >&2; exit 1; }
-git -C "$GIT_ROOT" worktree add "$WORK_DIR" -b "feature/${TASK_NAME}" || { echo "Error: git worktree add failed." >&2; exit 1; }
+git -C "$GIT_ROOT" worktree add "$WORK_DIR" -b "$BRANCH_NAME" || { echo "Error: git worktree add failed." >&2; exit 1; }
 
 echo "WORK_DIR=${WORK_DIR}"
