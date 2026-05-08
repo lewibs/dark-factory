@@ -50,8 +50,12 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 3. Receives `prUrl` back from skill
 4. **Writes brain-patch.json** regardless of path (new or existing PR), resolving work dir via pointer file fallback:
    ```json
-   { "prUrl": "<github PR URL>" }
+   {
+     "prUrl": "<github PR URL>",
+     "notes": ["pr-agent: opened PR at <prUrl>, CI <passed/failed>"]
+   }
    ```
+   `<prUrl>` is replaced with the actual PR URL; `<passed/failed>` is filled in with the CI result from Step 3.
    Work dir resolution: use `$DARK_FACTORY_WORK_DIR` if set; else read `/tmp/dark-factory-work-dir`; skip silently if both empty.
 
 ### Step 3: Watch CI (always runs)
@@ -94,7 +98,7 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
    - Review comments could not be resolved
    - PR remains open with pending threads
 
-6. **If commentResult.status == "success"**: all threads resolved, proceeds to Step 5
+6. **If commentResult.status == "all-resolved"**: all threads resolved, proceeds to Step 5
 
 ### Step 5: Return Success
 
@@ -113,24 +117,27 @@ Status "ready" indicates:
 
 ## PR Body Template
 
-The PR body includes (from `agents/pr/templates/pr-template.md`):
+The PR body is built from `agents/pr/templates/pr-template.md`, which has exactly two sections:
 
 ```markdown
-## Summary
-- Brief description of changes
+## Description
 
-## Approach
-- How/why this solution was chosen
-- Any design decisions
+<!-- Paste the full contents of the relevant plan file (docs/plans/<date>-<slug>.md) or bug file (docs/bugs/<date>-<slug>.md) verbatim here. Do not summarise. -->
 
 ## Test Plan
-- [if test suite exists]
-- Test output showing all tests passing
-- Coverage information if applicable
 
-## Related
-- Links to related issues, PRs, or documentation
+<!-- Only include this section if tests were actually run.
+     Paste the exact test output (truncated if very long). If no tests exist, delete this section. -->
+
+---
+🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)
 ```
+
+**Description source**: The `## Description` section is populated with the full, verbatim contents of the plan file or bug doc — not a summary. If neither exists, the git diff is used.
+
+**Test Plan**: Only included when a test suite was actually run. If no tests exist, the section is omitted entirely.
+
+**PR title**: Derived from the create-pr skill using `<type>(<scope>): <description>` format in imperative mood, under 72 characters. Types include feat, fix, chore, docs, refactor, test, ci, perf, style, revert.
 
 ## Key Design Rules
 
@@ -177,7 +184,7 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 
 When pr-agent finishes, triggers: `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh`
 
-This hook performs cleanup specific to PR operations (e.g., removing temporary files, updating metrics).
+This hook checks out `main` in the project directory and removes the worktree via `cleanup-worktree.sh`. It reads `WORK_DIR` from the `/tmp/dark-factory-work-dir` pointer file (since env vars may not be visible in hook processes), then removes the pointer file itself. Metrics are NOT updated here — metrics are updated by dark-factory-agent in a separate step (Step 12) before this cleanup hook runs.
 
 ## Integration with dark-factory-agent
 
