@@ -152,16 +152,23 @@ def test_build_factory_script_uses_working_directory():
 # ---------------------------------------------------------------------------
 
 def test_reopen_remote_control_still_has_self_close_logic():
-    """reopen-remote-control.sh must still contain its self-close behavior.
+    """reopen-remote-control.sh must still close the current terminal after opening the new one.
 
-    The fix must NOT modify reopen-remote-control.sh — other callers depend
-    on it closing the old terminal as part of the reopen flow.
+    The self-close behavior is delegated to close-factory.sh which is called after
+    the new terminal opens successfully.
     """
     content = _read(REOPEN_SCRIPT)
-    assert "systemctl --user stop" in content, (
-        "reopen-remote-control.sh should still stop the vte-spawn scope "
-        "(its self-close behavior must remain intact)"
+    assert "close-factory.sh" in content, (
+        "reopen-remote-control.sh should delegate to close-factory.sh to close the old terminal"
     )
-    assert 'pid=$$' in content, (
-        "reopen-remote-control.sh should still walk the process tree to kill claude"
+
+    # Verify close-factory.sh has the actual implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
+    assert "systemctl --user stop" in close_factory_content, (
+        "close-factory.sh should stop the vte-spawn scope"
+    )
+    assert 'pid=$$' in close_factory_content, (
+        "close-factory.sh should walk the process tree to kill claude"
     )

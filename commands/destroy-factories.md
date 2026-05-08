@@ -18,6 +18,8 @@ Linux only. Designed for GNOME terminal and other systems using systemd cgroup s
 
 ## Implementation
 
+Calls `scripts/close-factory.sh` to stop the current terminal's vte-spawn cgroup scope and terminate the ancestor `claude` process.
+
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"
 ```

@@ -5,65 +5,13 @@
 
 NAME="${1:-dark factory}"
 
-# Function to open a new terminal with fallback support
-open_terminal() {
-    local cmd="claude \"/remote-control $NAME\""
-    local cwd="$(pwd)"
+# Open a new terminal with the given name
+bash "$(dirname "$0")/open-factory.sh" "$NAME"
+OPEN_EXIT=$?
 
-    # Try gnome-terminal first (GNOME desktop)
-    if command -v gnome-terminal &> /dev/null; then
-        gnome-terminal --working-directory="$cwd" -- bash -c "$cmd"
-        return $?
-    fi
-
-    # Fallback to x-terminal-emulator (Debian/Ubuntu standard)
-    if command -v x-terminal-emulator &> /dev/null; then
-        cd "$cwd" && x-terminal-emulator -e bash -c "$cmd"
-        return $?
-    fi
-
-    # Fallback to xterm
-    if command -v xterm &> /dev/null; then
-        cd "$cwd" && xterm -e bash -c "$cmd"
-        return $?
-    fi
-
-    # Fallback to konsole (KDE)
-    if command -v konsole &> /dev/null; then
-        konsole --workdir "$cwd" -e bash -c "$cmd"
-        return $?
-    fi
-
-    # No terminal emulator found
-    echo "Error: No terminal emulator found (tried: gnome-terminal, x-terminal-emulator, xterm, konsole)" >&2
-    return 1
-}
-
-# Launch the new terminal with Claude in remote-control mode
-open_terminal
-TERMINAL_EXIT=$?
-
-if [ $TERMINAL_EXIT -ne 0 ]; then
-    echo "Error: Failed to open terminal (exit code: $TERMINAL_EXIT)" >&2
-    exit $TERMINAL_EXIT
+if [ $OPEN_EXIT -ne 0 ]; then
+    exit $OPEN_EXIT
 fi
 
-# Find this terminal tab's vte-spawn scope from the cgroup
-SCOPE=$(grep -oP 'vte-spawn-[^/]+\.scope' /proc/$$/cgroup 2>/dev/null | head -1)
-
-if [ -n "$SCOPE" ]; then
-    systemctl --user stop "$SCOPE" 2>/dev/null || true
-fi
-
-# Also kill the claude process so the old session fully terminates
-pid=$$
-while [ "$pid" -gt 1 ]; do
-    ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
-    name=$(ps -o comm= -p "$pid" 2>/dev/null | tr -d ' ')
-    if [ "$name" = "claude" ]; then
-        kill "$pid" 2>/dev/null || true
-        break
-    fi
-    [ -z "$ppid" ] || [ "$ppid" -le 1 ] && break
-    pid=$ppid
-done
+# Close the current terminal
+bash "$(dirname "$0")/close-factory.sh"

@@ -125,44 +125,62 @@ def test_script_does_not_have_fallback_terminal_logic():
 
 def test_script_reads_own_scope_only():
     """
-    Script must read its own vte-spawn scope from /proc/$$/cgroup.
+    Script must delegate to close-factory.sh which reads its own vte-spawn scope from /proc/$$/cgroup.
     It should NOT enumerate other scopes.
     """
     content = _read_script()
 
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, (
+        "destroy-factories.sh must delegate to close-factory.sh which handles scopes."
+    )
+
+    # Verify close-factory.sh has the actual implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
     # Must read /proc/$$/cgroup
     has_own_cgroup_read = (
-        "/proc/$$/cgroup" in content
-        or '/proc/"$$"/cgroup' in content
+        "/proc/$$/cgroup" in close_factory_content
+        or '/proc/"$$"/cgroup' in close_factory_content
     )
     assert has_own_cgroup_read, (
-        "Script must read /proc/$$/cgroup to identify its own vte-spawn scope."
+        "close-factory.sh must read /proc/$$/cgroup to identify its own vte-spawn scope."
     )
 
     # Must store in SCOPE (or similar) variable for the single self-close operation
-    assert "SCOPE" in content, (
-        "Script must extract its own scope into a SCOPE variable."
+    assert "SCOPE" in close_factory_content, (
+        "close-factory.sh must extract its own scope into a SCOPE variable."
     )
 
 
 def test_script_stops_only_own_scope():
     """
-    Script must call systemctl --user stop exactly once on its own scope.
+    Script must delegate to close-factory.sh which calls systemctl --user stop exactly once on its own scope.
     No loops, no enumeration of other scopes.
     """
     content = _read_script()
 
-    # Count systemctl stop calls
-    stop_calls = content.count("systemctl --user stop")
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, (
+        "destroy-factories.sh must delegate to close-factory.sh."
+    )
+
+    # Verify close-factory.sh has the actual implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
+    # Count systemctl stop calls in close-factory.sh
+    stop_calls = close_factory_content.count("systemctl --user stop")
     assert stop_calls == 1, (
-        f"Script should have exactly one 'systemctl --user stop' call (found {stop_calls}). "
+        f"close-factory.sh should have exactly one 'systemctl --user stop' call (found {stop_calls}). "
         "Self-close-only approach targets only the current terminal."
     )
 
     # Should reference SCOPE variable, not loop over scopes
-    assert "systemctl --user stop \"$SCOPE\"" in content or \
-           "systemctl --user stop $SCOPE" in content, (
-        "Script must stop $SCOPE (its own scope), not enumerate and kill others."
+    assert "systemctl --user stop \"$SCOPE\"" in close_factory_content or \
+           "systemctl --user stop $SCOPE" in close_factory_content, (
+        "close-factory.sh must stop $SCOPE (its own scope), not enumerate and kill others."
     )
 
 
@@ -174,42 +192,60 @@ def test_script_still_has_shebang():
 
 def test_script_exits_cleanly():
     """
-    Script must exit cleanly with exit 0 after self-close.
+    destroy-factories.sh must delegate to close-factory.sh which exits cleanly.
     No spawn logic, no complex error handling.
     """
     content = _read_script()
 
-    assert "exit 0" in content, (
-        "Script must exit cleanly with exit 0."
+    # destroy-factories.sh just delegates
+    assert "close-factory.sh" in content, (
+        "destroy-factories.sh must delegate to close-factory.sh."
+    )
+
+    # Verify close-factory.sh exists and has proper structure
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
+    assert close_factory_content.startswith("#!/bin/bash"), (
+        "close-factory.sh must have #!/bin/bash shebang."
     )
 
 
 def test_script_kills_ancestor_claude():
     """
-    Script must walk up the process tree and kill the ancestor claude process.
+    close-factory.sh must walk up the process tree and kill the ancestor claude process.
     This is the second part of self-close: after stopping the scope,
-    also kill the claude parent process.
+    also kill the claude parent process. destroy-factories.sh delegates this.
     """
     content = _read_script()
 
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, (
+        "destroy-factories.sh must delegate to close-factory.sh."
+    )
+
+    # Verify close-factory.sh has the actual implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
     # Must walk process tree (not enumerate all terminals)
-    assert "while" in content or "for pid in" not in content, (
-        "Script should use while loop to walk process tree, not for loop over terminals."
+    assert "while" in close_factory_content or "for pid in" not in close_factory_content, (
+        "close-factory.sh should use while loop to walk process tree, not for loop over terminals."
     )
 
     # Must check for claude process name
-    assert '"claude"' in content or "'claude'" in content or '= "claude"' in content, (
-        "Script must check for 'claude' process name when walking up process tree."
+    assert '"claude"' in close_factory_content or "'claude'" in close_factory_content or '= "claude"' in close_factory_content, (
+        "close-factory.sh must check for 'claude' process name when walking up process tree."
     )
 
     # Must kill the ancestor
-    assert "kill " in content or "kill\t" in content, (
-        "Script must use kill to terminate ancestor claude process."
+    assert "kill " in close_factory_content or "kill\t" in close_factory_content, (
+        "close-factory.sh must use kill to terminate ancestor claude process."
     )
 
     # Must break after finding and killing claude (not continue loop)
-    assert "break" in content, (
-        "Script should break after killing ancestor claude."
+    assert "break" in close_factory_content, (
+        "close-factory.sh should break after killing ancestor claude."
     )
 
 

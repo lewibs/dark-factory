@@ -11,66 +11,96 @@ SCRIPT_PATH = "scripts/destroy-factories.sh"
 
 def test_destroy_factories_reads_own_cgroup_scope():
     """
-    Script must read its own vte-spawn scope from /proc/$$/cgroup
+    Script must delegate to close-factory.sh which reads its own vte-spawn scope from /proc/$$/cgroup
     to identify which terminal to close.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh"
+
+    # Verify close-factory.sh has the implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
     # Must read /proc/$$/cgroup
-    assert "/proc/$$/cgroup" in content or '/proc/"$$"/cgroup' in content, \
-        "Script should read /proc/$$/cgroup to find own vte-spawn scope"
+    assert "/proc/$$/cgroup" in close_factory_content or '/proc/"$$"/cgroup' in close_factory_content, \
+        "close-factory.sh should read /proc/$$/cgroup to find own vte-spawn scope"
 
     # Must extract scope name
-    assert "vte-spawn" in content, \
-        "Script should extract vte-spawn scope from cgroup"
+    assert "vte-spawn" in close_factory_content, \
+        "close-factory.sh should extract vte-spawn scope from cgroup"
 
 
 def test_destroy_factories_stops_own_scope():
     """
-    Script must use systemctl --user stop to close its own vte-spawn scope.
+    Script must delegate to close-factory.sh which uses systemctl --user stop to close its own vte-spawn scope.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh"
+
+    # Verify close-factory.sh has the implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
     # Must use systemctl to stop the scope
-    assert "systemctl --user stop" in content, \
-        "Script should use systemctl --user stop to close own scope"
+    assert "systemctl --user stop" in close_factory_content, \
+        "close-factory.sh should use systemctl --user stop to close own scope"
 
     # Must reference SCOPE variable
-    assert "SCOPE" in content, \
-        "Script should store scope in SCOPE variable"
+    assert "SCOPE" in close_factory_content, \
+        "close-factory.sh should store scope in SCOPE variable"
 
 
 def test_destroy_factories_kills_ancestor_claude():
     """
-    Script must walk up the process tree and kill the ancestor claude process.
+    Script must delegate to close-factory.sh which walks up the process tree and kills the ancestor claude process.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
+    # Must delegate to close-factory.sh
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh"
+
+    # Verify close-factory.sh has the implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
     # Must walk process tree
-    assert "while" in content or "for" in content, \
-        "Script should walk process tree to find ancestor"
+    assert "while" in close_factory_content or "for" in close_factory_content, \
+        "close-factory.sh should walk process tree to find ancestor"
 
     # Must check for claude process
-    assert "claude" in content, \
-        "Script should check for 'claude' process name"
+    assert "claude" in close_factory_content, \
+        "close-factory.sh should check for 'claude' process name"
 
     # Must use kill
-    assert "kill " in content or "kill\t" in content, \
-        "Script should use kill to terminate ancestor"
+    assert "kill " in close_factory_content or "kill\t" in close_factory_content, \
+        "close-factory.sh should use kill to terminate ancestor"
 
 
 def test_destroy_factories_exits_cleanly():
     """
-    Script must exit with code 0 after closing its own session.
+    Script must delegate to close-factory.sh which exits cleanly.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
 
-    assert "exit 0" in content, \
-        "Script should exit cleanly with code 0"
+    # destroy-factories.sh just delegates
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh"
+
+    # Verify the script is simple - it should have the bash call to delegate
+    # (the shebang has "bash" too, but we're checking for the delegation pattern)
+    assert 'bash "$(dirname "$0")/close-factory.sh"' in content, \
+        "Script should call close-factory.sh using bash"
 
 
 def test_destroy_factories_no_open_terminal():
@@ -149,6 +179,7 @@ def test_destroy_factories_self_close_only():
     Script must only close itself, not kill other terminals.
     The presence of loop functions like find_claude_scope_terminals or
     all_vte_scopes that enumerate ALL terminals should be gone.
+    destroy-factories.sh delegates to close-factory.sh which implements self-close-only.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
@@ -160,7 +191,14 @@ def test_destroy_factories_self_close_only():
     assert "for scope in $(find_claude_scope_terminals)" not in content, \
         "Script should not iterate over multiple claude terminals"
 
-    # Should only have one explicit self-close logic
-    scope_stops = content.count("systemctl --user stop")
+    # Should delegate to close-factory.sh
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh"
+
+    # Verify close-factory.sh has only one self-close logic
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
+    scope_stops = close_factory_content.count("systemctl --user stop")
     assert scope_stops == 1, \
-        f"Script should have exactly one systemctl --user stop call (found {scope_stops})"
+        f"close-factory.sh should have exactly one systemctl --user stop call (found {scope_stops})"

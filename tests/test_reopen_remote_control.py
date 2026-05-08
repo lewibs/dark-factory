@@ -23,101 +23,100 @@ def test_reopen_remote_control_has_shebang():
 
 
 def test_reopen_remote_control_error_handling():
-    """Verify error handling for terminal launch failures"""
+    """Verify error handling for terminal launch failures via open-factory.sh delegation"""
     script_path = "scripts/reopen-remote-control.sh"
 
-    # Test that error handling exists by checking for error message patterns
+    # Test that error handling exists by checking for delegation to open-factory
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should have error handling
-    assert "Error:" in content or "error" in content.lower(), \
-        "Script should have error handling for terminal launch failures"
+    # Should call open-factory.sh and check its exit status
+    assert "open-factory.sh" in content, \
+        "Script should delegate to open-factory.sh"
 
-    # Should check terminal exit status
-    assert "TERMINAL_EXIT" in content or "$?" in content, \
-        "Script should check terminal command exit status"
+    # Should check the exit status of open-factory.sh
+    assert "OPEN_EXIT" in content or "$?" in content, \
+        "Script should check exit status of open-factory.sh call"
 
 
 def test_reopen_remote_control_uses_cgroup_scope_to_close_tab():
-    """Verify the script reads the vte-spawn scope from /proc/$$/cgroup to close the current tab"""
+    """Verify the script delegates to close-factory.sh which closes the current tab"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # Should read cgroup to find the vte-spawn scope
-    assert "/proc/$$/cgroup" in content, \
-        "Script should read /proc/$$/cgroup to find the current tab's scope"
-    assert "vte-spawn-" in content, \
-        "Script should look for a vte-spawn-*.scope cgroup entry"
-    assert "systemctl --user stop" in content, \
-        "Script should stop the scope with systemctl --user stop"
+    # Should delegate to close-factory.sh which handles the scope closing
+    assert "close-factory.sh" in content, \
+        "Script should delegate to close-factory.sh to close the current tab"
+
+    # Verify close-factory.sh has the actual implementation
+    with open("scripts/close-factory.sh", "r") as f:
+        close_factory_content = f.read()
+
+    assert "/proc/$$/cgroup" in close_factory_content, \
+        "close-factory.sh should read /proc/$$/cgroup to find the current tab's scope"
+    assert "vte-spawn-" in close_factory_content, \
+        "close-factory.sh should look for a vte-spawn-*.scope cgroup entry"
+    assert "systemctl --user stop" in close_factory_content, \
+        "close-factory.sh should stop the scope with systemctl --user stop"
 
 
 def test_reopen_remote_control_skips_silently_without_scope():
-    """Verify the script skips closing the tab silently when no vte-spawn scope is found"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh skips closing the tab silently when no vte-spawn scope is found"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # Should guard against empty SCOPE before stopping
     assert '[ -n "$SCOPE" ]' in content, \
-        "Script should only stop the scope when SCOPE is non-empty (i.e. running in gnome-terminal)"
+        "close-factory.sh should only stop the scope when SCOPE is non-empty (i.e. running in gnome-terminal)"
 
 
 def test_reopen_remote_control_scope_stop_only_on_success():
-    """Verify the script only stops the scope after the new terminal opens successfully"""
+    """Verify reopen-remote-control only stops the scope after the new terminal opens successfully"""
     script_path = "scripts/reopen-remote-control.sh"
 
     with open(script_path, "r") as f:
         content = f.read()
 
-    # TERMINAL_EXIT check must appear before the systemctl stop
-    terminal_exit_idx = content.find("TERMINAL_EXIT")
-    scope_stop_idx = content.find("systemctl --user stop")
-    assert terminal_exit_idx != -1, "Script should check TERMINAL_EXIT"
-    assert scope_stop_idx != -1, "Script should contain systemctl --user stop"
-    assert terminal_exit_idx < scope_stop_idx, \
-        "Script should check TERMINAL_EXIT before stopping the scope"
+    # OPEN_EXIT check must appear before the close-factory call
+    open_exit_idx = content.find("OPEN_EXIT")
+    close_factory_idx = content.find("close-factory.sh")
+    assert open_exit_idx != -1, "Script should check OPEN_EXIT"
+    assert close_factory_idx != -1, "Script should delegate to close-factory.sh"
+    assert open_exit_idx < close_factory_idx, \
+        "Script should check OPEN_EXIT before calling close-factory.sh"
 
 
 def test_reopen_remote_control_scope_stop_silently_fails_in_non_terminal():
-    """Verify the script silently ignores errors when not running in a gnome-terminal"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh silently ignores errors when not running in a gnome-terminal"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # systemctl stop should have error suppression so it fails silently in non-gnome-terminal contexts
     assert "2>/dev/null" in content, \
-        "Script should suppress systemctl errors so it fails silently when not in gnome-terminal"
+        "close-factory.sh should suppress systemctl errors so it fails silently when not in gnome-terminal"
     assert "|| true" in content, \
-        "Script should use '|| true' so a failing systemctl stop does not abort the script"
+        "close-factory.sh should use '|| true' so a failing systemctl stop does not abort the script"
 
 
 def test_reopen_remote_control_scope_stop_error_handling():
-    """Verify the scope stop command has error handling"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh scope stop command has error handling"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # Should stop at most one scope (head -1 limits output to one line)
     assert "head -1" in content, \
-        "Script should use head -1 to ensure only one scope is stopped"
+        "close-factory.sh should use head -1 to ensure only one scope is stopped"
 
     # Should handle stop errors gracefully
     assert "2>/dev/null" in content or "||" in content, \
-        "Script should handle potential systemctl stop errors gracefully"
+        "close-factory.sh should handle potential systemctl stop errors gracefully"
 
 
 def test_reopen_remote_control_terminal_emulator_fallback():
-    """Verify fallback support for different terminal emulators"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify open-factory.sh has fallback support for different terminal emulators"""
+    with open("scripts/open-factory.sh", "r") as f:
         content = f.read()
 
     # Should attempt multiple terminal emulators
@@ -125,14 +124,12 @@ def test_reopen_remote_control_terminal_emulator_fallback():
     found_terminals = sum(1 for term in terminal_names if term in content)
 
     assert found_terminals > 0, \
-        "Script should support at least one terminal emulator"
+        "open-factory.sh should support at least one terminal emulator"
 
 
 def test_reopen_remote_control_supported_terminal_emulators():
-    """Verify the script supports multiple terminal emulators in open_terminal"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify open-factory.sh supports multiple terminal emulators"""
+    with open("scripts/open-factory.sh", "r") as f:
         content = f.read()
 
     # The open_terminal function should attempt multiple terminal emulators
@@ -144,7 +141,7 @@ def test_reopen_remote_control_supported_terminal_emulators():
     ]
     for term in required_terms:
         assert term in content, \
-            f"Script should support '{term}' as a terminal emulator in open_terminal"
+            f"open-factory.sh should support '{term}' as a terminal emulator"
 
 
 def test_reopen_remote_control_accepts_name_argument():
@@ -164,85 +161,75 @@ def test_reopen_remote_control_accepts_name_argument():
 
 
 def test_reopen_remote_control_uses_pwd():
-    """Verify script uses current working directory"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify open-factory.sh uses current working directory"""
+    with open("scripts/open-factory.sh", "r") as f:
         content = f.read()
 
     # Should use pwd for working directory
     assert "$(pwd)" in content or "${PWD}" in content or "pwd" in content, \
-        "Script should use the current working directory"
+        "open-factory.sh should use the current working directory"
 
 
 def test_reopen_remote_control_kills_claude_process_after_scope_stop():
-    """Verify the script walks the process tree and kills the first ancestor named 'claude'"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh walks the process tree and kills the first ancestor named 'claude'"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # Should walk up the process tree from $$
     assert 'pid=$$' in content, \
-        "Script should start the process-tree walk from $$"
+        "close-factory.sh should start the process-tree walk from $$"
 
     # Should use ps to get parent PID and process name
     assert 'ppid=$(ps -o ppid=' in content, \
-        "Script should retrieve the parent PID with ps -o ppid="
+        "close-factory.sh should retrieve the parent PID with ps -o ppid="
     assert 'name=$(ps -o comm=' in content, \
-        "Script should retrieve the process name with ps -o comm="
+        "close-factory.sh should retrieve the process name with ps -o comm="
 
     # Should compare against the literal name 'claude'
     assert '"claude"' in content, \
-        "Script should check whether the process name equals 'claude'"
+        "close-factory.sh should check whether the process name equals 'claude'"
 
     # Should kill the found process with silent failure
     assert 'kill "$pid"' in content, \
-        "Script should kill the process when its name matches 'claude'"
+        "close-factory.sh should kill the process when its name matches 'claude'"
 
 
 def test_reopen_remote_control_kills_claude_only_after_scope_stop():
-    """Verify the claude-kill logic comes after the systemctl scope stop"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh's claude-kill logic comes after the systemctl scope stop"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     scope_stop_idx = content.find("systemctl --user stop")
     kill_claude_idx = content.find('kill "$pid"')
 
-    assert scope_stop_idx != -1, "Script should contain systemctl --user stop"
-    assert kill_claude_idx != -1, "Script should contain the claude kill logic"
+    assert scope_stop_idx != -1, "close-factory.sh should contain systemctl --user stop"
+    assert kill_claude_idx != -1, "close-factory.sh should contain the claude kill logic"
     assert scope_stop_idx < kill_claude_idx, \
-        "Claude kill logic must appear after the systemctl scope stop"
+        "Claude kill logic must appear after the systemctl scope stop in close-factory.sh"
 
 
 def test_reopen_remote_control_never_kills_pid_1_or_below():
-    """Verify the loop guard prevents killing PID 1 or below"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh's loop guard prevents killing PID 1 or below"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # The while condition must guard against PID <= 1
     assert '[ "$pid" -gt 1 ]' in content, \
-        "Script should guard the loop with [ \"$pid\" -gt 1 ] to never kill PID 1 or below"
+        "close-factory.sh should guard the loop with [ \"$pid\" -gt 1 ] to never kill PID 1 or below"
 
     # The inner break should also guard against ppid <= 1
     assert '"$ppid" -le 1' in content, \
-        "Script should break when ppid drops to 1 or below"
+        "close-factory.sh should break when ppid drops to 1 or below"
 
 
 def test_reopen_remote_control_claude_kill_silent_failure():
-    """Verify the kill command uses silent failure so the script never aborts"""
-    script_path = "scripts/reopen-remote-control.sh"
-
-    with open(script_path, "r") as f:
+    """Verify close-factory.sh's kill command uses silent failure so the script never aborts"""
+    with open("scripts/close-factory.sh", "r") as f:
         content = f.read()
 
     # kill line must have both 2>/dev/null and || true
     assert 'kill "$pid" 2>/dev/null || true' in content, \
-        "kill command must suppress errors with 2>/dev/null and use || true for silent failure"
+        "close-factory.sh's kill command must suppress errors with 2>/dev/null and use || true for silent failure"
 
 
 if __name__ == "__main__":
