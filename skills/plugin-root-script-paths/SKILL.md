@@ -1,6 +1,6 @@
 ---
 name: plugin-root-script-paths
-description: "When an agent, command, or skill calls a script bundled inside the dark-factory plugin, always prefix the path with ${CLAUDE_PLUGIN_ROOT}/ instead of using a bare relative path."
+description: "When an agent calls a plugin script from a Bash tool call, resolve the plugin root from installed_plugins.json at runtime. ${CLAUDE_PLUGIN_ROOT} is only available in hook command environments, not in Bash tool call subprocesses."
 user-invocable: false
 ---
 ## When to use
@@ -34,4 +34,10 @@ This applies to:
 - `${CLAUDE_PLUGIN_ROOT}` is injected by the Claude Code plugin runtime and resolves to the absolute directory where the plugin is installed. Bare relative paths break when the plugin is installed at a location different from the current working directory of the Claude process.
 - Relative paths like `bash scripts/foo.sh` look correct in development (when CWD is the repo root) but fail silently in production installs.
 - Skills that reference their own helper scripts (e.g. `mermaid_to_image.py`) must use `${CLAUDE_PLUGIN_ROOT}` too — they are bundled plugin assets, not project-local files.
-- The `${CLAUDE_PLUGIN_ROOT}` variable is available in hook commands, agent pseudocode, and allowed-tool patterns alike.
+- **CRITICAL LIMITATION**: `${CLAUDE_PLUGIN_ROOT}` is only injected into **hook command** environments (PreToolUse, PostToolUse, Stop, SubagentStop). It is NOT available in Bash tool call subprocesses that agents execute. Using `${CLAUDE_PLUGIN_ROOT}` in agent instruction body pseudocode results in an empty string expansion and path resolution failure (exit 127).
+- For `allowed-tools:` Bash() frontmatter entries: use `${CLAUDE_PLUGIN_ROOT}` (evaluated in hook context — correct) or use a `*` wildcard prefix to match absolute paths.
+- For agent instruction body Bash calls: resolve the plugin root at runtime from `installed_plugins.json`:
+  ```bash
+  PLUGIN_ROOT=$(python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); print(list(d['plugins'].values())[0][0]['installPath'])")
+  bash "$PLUGIN_ROOT/agents/dark-factory/scripts/foo.sh"
+  ```
