@@ -1,11 +1,11 @@
-# destroy-factories
+# destroy-factory
 
 Closes the current terminal/factory session. Only terminates the terminal this command is run from — no other terminals are affected.
 
 ## Usage
 
 ```
-/dark-factory:destroy-factories
+/dark-factory:destroy-factory
 ```
 
 ## Description
@@ -21,9 +21,9 @@ Linux only. Designed for GNOME terminal and other systems using systemd cgroup s
 Calls `scripts/close-factory.sh` to stop the current terminal's vte-spawn cgroup scope and terminate the ancestor `claude` process.
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factory.sh"
 ```
 
 ## Flows
 
-- `destroy-factories.success` — Terminal closed cleanly; command exits with code 0.
+- `destroy-factory.success` — Terminal closed cleanly; command exits with code 0.

@@ -59,4 +59,4 @@ Any time a bash script needs to programmatically close a GNOME terminal window o
 - `systemctl --user stop <scope>` sends SIGTERM to all processes in the cgroup and waits for them to exit — cleaner than a raw `kill` on the terminal PID, which may leave child processes orphaned.
 - Stopping the cgroup scope closes the terminal window but does not necessarily terminate the `claude` process that was running inside it. Always follow up with the process-tree walk to kill the `claude` ancestor when a full session teardown is needed.
 - The grep pattern `vte-spawn-[^/]+\.scope` is anchored to extract only the scope name segment regardless of the full cgroup path format, which varies between kernel versions.
-- Both `destroy-factories.sh` and `reopen-remote-control.sh` use this exact pattern — treat those files as authoritative references.
+- Both `destroy-factory.sh` and `reopen-remote-control.sh` use this exact pattern — treat those files as authoritative references.

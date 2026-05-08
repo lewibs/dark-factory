@@ -1,5 +1,5 @@
 """
-Regression test: ensure destroy-factories no longer attempts to kill other terminals.
+Regression test: ensure destroy-factory no longer attempts to kill other terminals.
 
 The old implementation tried to enumerate all vte-spawn scopes and kill those with
 claude descendants (except its own). This was removed in favor of a self-close-only approach.
@@ -10,7 +10,7 @@ This test file verifies that the old code patterns are completely removed.
 import os
 import re
 
-SCRIPT_PATH = "scripts/destroy-factories.sh"
+SCRIPT_PATH = "scripts/destroy-factory.sh"
 
 
 def _read_script():
@@ -132,7 +132,7 @@ def test_script_reads_own_scope_only():
 
     # Must delegate to close-factory.sh
     assert "close-factory.sh" in content, (
-        "destroy-factories.sh must delegate to close-factory.sh which handles scopes."
+        "destroy-factory.sh must delegate to close-factory.sh which handles scopes."
     )
 
     # Verify close-factory.sh has the actual implementation
@@ -163,7 +163,7 @@ def test_script_stops_only_own_scope():
 
     # Must delegate to close-factory.sh
     assert "close-factory.sh" in content, (
-        "destroy-factories.sh must delegate to close-factory.sh."
+        "destroy-factory.sh must delegate to close-factory.sh."
     )
 
     # Verify close-factory.sh has the actual implementation
@@ -192,14 +192,14 @@ def test_script_still_has_shebang():
 
 def test_script_exits_cleanly():
     """
-    destroy-factories.sh must delegate to close-factory.sh which exits cleanly.
+    destroy-factory.sh must delegate to close-factory.sh which exits cleanly.
     No spawn logic, no complex error handling.
     """
     content = _read_script()
 
-    # destroy-factories.sh just delegates
+    # destroy-factory.sh just delegates
     assert "close-factory.sh" in content, (
-        "destroy-factories.sh must delegate to close-factory.sh."
+        "destroy-factory.sh must delegate to close-factory.sh."
     )
 
     # Verify close-factory.sh exists and has proper structure
@@ -215,13 +215,13 @@ def test_script_kills_ancestor_claude():
     """
     close-factory.sh must walk up the process tree and kill the ancestor claude process.
     This is the second part of self-close: after stopping the scope,
-    also kill the claude parent process. destroy-factories.sh delegates this.
+    also kill the claude parent process. destroy-factory.sh delegates this.
     """
     content = _read_script()
 
     # Must delegate to close-factory.sh
     assert "close-factory.sh" in content, (
-        "destroy-factories.sh must delegate to close-factory.sh."
+        "destroy-factory.sh must delegate to close-factory.sh."
     )
 
     # Verify close-factory.sh has the actual implementation

@@ -68,16 +68,15 @@ def test_script_has_shebang():
 Name each test `test_<script>_<path-name>` and include the plan path in the docstring:
 
 ```python
-def test_destroy_factories_kill_failed():
+def test_destroy_factory_success():
     """
-    # Plan path: destroy-factories.kill-failed
-    One or more terminals could not be killed; warns to stderr, continues to spawn.
+    # Plan path: destroy-factory.success
+    Current terminal closed cleanly; vte-spawn scope stopped, ancestor claude killed.
     """
     with open(SCRIPT_PATH, "r") as f:
         content = f.read()
-    assert "||" in content, "Script should use || to handle kill failure gracefully"
-    assert ">&2" in content or "2>/dev/null" in content, \
-        "Script should warn on kill failure (write to stderr)"
+    assert "systemctl --user stop" in content, "Script should use systemctl to stop scope"
+    assert "kill" in content, "Script should kill ancestor claude process"
 ```
 
 ### 5. Combine content assertions with case-insensitive checks for prose messages
@@ -95,4 +94,4 @@ assert "error" in content.lower() or "Error" in content, \
 - Do not over-specify: check for the presence of key identifiers (`kill`, `open_terminal`, `$$`) rather than exact syntax, since bash allows multiple valid formulations.
 - Always include `f"stderr: ..."` in assert failure messages when running subprocess-based tests, but for content tests, describe what is missing: `"Script should call open_terminal to spawn a fresh factory terminal"`.
 - See also: `test-bash-hook-scripts-with-pytest` for scripts that CAN be executed via subprocess (hook scripts with stdin/stdout contracts).
-- This pattern appeared in `tests/test_destroy_factories.py` for testing `scripts/destroy-factories.sh`, which spawns terminal emulators and kills other processes.
+- This pattern appeared in `tests/test_destroy_factory.py` for testing `scripts/destroy-factory.sh`, which closes terminals and manages processes.
