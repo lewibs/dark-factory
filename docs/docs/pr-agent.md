@@ -192,9 +192,17 @@ Content is never summarised; verbatim source text is always preferred.
 
 ## SubagentStop Hook
 
-When pr-agent finishes, triggers: `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pr-agent-cleanup-hook.sh`
+pr-agent does NOT declare a SubagentStop hook for worktree cleanup. This is intentional.
 
-This hook checks out `main` in the project directory and removes the worktree via `cleanup-worktree.sh`. It reads `WORK_DIR` from the `/tmp/dark-factory-work-dir` pointer file (since env vars may not be visible in hook processes), then removes the pointer file itself. Metrics are NOT updated here — metrics are updated by dark-factory-agent in a separate step (Step 12) before this cleanup hook runs.
+**Reason**: dark-factory-agent owns the full worktree lifecycle. After pr-agent returns (Step 10), dark-factory-agent still needs to:
+- Step 11: Read `prUrl` and `projectDir` from `brain.json` (in the worktree)
+- Step 12: Flush metrics, delete brain.json, then call `cleanup-worktree.sh`
+
+A SubagentStop cleanup hook would fire when pr-agent stops — BEFORE dark-factory-agent regains control — destroying `brain.json` and the worktree before Steps 11-12 can complete. This would cause the orchestrator to fail reading `prUrl` and to skip metrics flushing.
+
+The `pr-agent-cleanup-hook.sh` script exists in `agents/dark-factory/scripts/` for potential standalone use, but it is not wired as a SubagentStop for pr-agent within the manufacture flow.
+
+**PostToolUse Hook**: pr-agent declares `PostToolUse: agents/pr/hooks/append-footer-hook.sh` to append the "Made with dark-factory" footer to the PR body when `gh pr create` is called.
 
 ## Integration with dark-factory-agent
 

@@ -1,0 +1,42 @@
+{
+  "taskDescription": "The flow keeps stopping between agents. Please debug what would the issue be. Notice how the last few PRs have already tried to fix this. This means we are missing something. it may be some deterministic thing not working right. some hook issue.",
+  "taskName": "debug-agent-flow-stop",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-debug-agent-flow-stop",
+  "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
+  "classification": "debugger",
+  "planFilePath": null,
+  "bugFiles": [
+    "docs/bugs/2026-05-08-pr-agent-cleanup-hook-destroys-worktree-early.md"
+  ],
+  "prUrl": null,
+  "docsWritten": null,
+  "skillsWritten": null,
+  "artifacts": {
+    "created": [],
+    "modified": [
+      "agents/pr/agents/pr-agent.md"
+    ]
+  },
+  "phases": {
+    "prep-running": false,
+    "prep-complete": true,
+    "worker-running": false,
+    "worker-complete": true,
+    "review-running": false,
+    "review-complete": false,
+    "docs-running": false,
+    "docs-complete": false,
+    "skills-running": false,
+    "skills-complete": false,
+    "pr-running": false,
+    "pr-complete": false,
+    "cleanup-running": false,
+    "cleanup-complete": false
+  },
+  "notes": [],
+  "metrics": {
+    "dark-factory:code-review:agents:code-review-orchestrator-agent": {
+      "start_ms": 1778227255497
+    }
+  }
+}
