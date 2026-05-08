@@ -4,18 +4,27 @@
 # Purpose: Append "Made with dark-factory" footer to PR body at end-of-agent
 # This hook runs after pr-agent completes to dynamically add the footer to PR descriptions
 # Yama will invoke this script when pr-agent finishes (PostToolUse hook)
+# IMPORTANT: PostToolUse hooks may be invoked multiple times during agent execution.
+# The idempotency check ensures footer is only appended once per PR body.
 
 set -e
 
 # Function: append_footer_to_pr_body
 # Input: PR body file path
-# Output: Modified PR body with footer appended
+# Output: Modified PR body with footer appended (with idempotency guard)
 append_footer_to_pr_body() {
     local pr_body_file="$1"
 
     if [[ ! -f "$pr_body_file" ]]; then
         echo "Error: PR body file not found at $pr_body_file" >&2
         return 1
+    fi
+
+    # Idempotency guard: check if footer is already present
+    # This prevents duplicate footers if hook is invoked multiple times
+    if grep -q "Generated with \[dark factory\]" "$pr_body_file"; then
+        echo "Footer already present in PR body, skipping append" >&2
+        return 0
     fi
 
     # Append the footer separator and footer text to the PR body
@@ -34,8 +43,8 @@ append_footer_to_pr_body() {
 
 # Main hook execution
 # When invoked by Yama's end-of-agent hook mechanism:
-# The PR body file is passed as an environment variable or first argument
-PR_BODY_FILE="${1:-/tmp/pr-body.md}"
+# The PR body file can be passed via DARK_FACTORY_PR_BODY_FILE env var, command arg, or defaults to /tmp/pr-body.md
+PR_BODY_FILE="${DARK_FACTORY_PR_BODY_FILE:-${1:-/tmp/pr-body.md}}"
 
 if [[ -n "$PR_BODY_FILE" && -f "$PR_BODY_FILE" ]]; then
     append_footer_to_pr_body "$PR_BODY_FILE"

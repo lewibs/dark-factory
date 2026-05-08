@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: Four Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, `commit-on-subagent-stop.sh`, and `cleanup-session-files.sh` — manage brain state, metrics persistence, and ordered git commits during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when any file-generating agent finishes (skeleton-agent, testing-agent, implementation-agent, sub-planning-agent, update-documentation-agent, skill-update-agent, debugger-agent, repair-agent, detect-drift-agent, setup-wizard), producing an ordered proof-of-execution commit sequence. A separate `commit-investigation-docs.sh` hook commits verified documentation when investigation-agent or investigation-orchestrator finishes. The Stop hook flushes accumulated metrics from brain.json to metrics.csv before deleting all transient session files.
+- What this is: Five Claude Code hooks — `pre-tool-use-hook.sh`, `post-tool-use-hook.sh`, `commit-on-subagent-stop.sh`, `cleanup-session-files.sh`, and `append-footer-hook.sh` — manage brain state, metrics persistence, ordered git commits, and PR body generation during a manufacture run. The pre-hook injects brain.json context into the agent prompt and records a start timestamp for metrics. The post-hook merges any `brain-patch.json` written by the sub-agent back into `brain.json`, accumulates elapsed time and token counts, and marks the current phase complete. The SubagentStop hook commits staged changes to the feature worktree when any file-generating agent finishes (skeleton-agent, testing-agent, implementation-agent, sub-planning-agent, update-documentation-agent, skill-update-agent, debugger-agent, repair-agent, detect-drift-agent, setup-wizard), producing an ordered proof-of-execution commit sequence. A separate `commit-investigation-docs.sh` hook commits verified documentation when investigation-agent or investigation-orchestrator finishes. The Stop hook flushes accumulated metrics from brain.json to metrics.csv before deleting all transient session files. The `append-footer-hook.sh` is a PostToolUse hook declared in pr-agent's frontmatter that dynamically appends the "Made with dark-factory" footer to `/tmp/pr-body.md` after the agent writes the PR body.
 
 ## Mermaid Diagram
 
@@ -202,6 +202,32 @@ Work-dir resolution uses the same two-step fallback as `commit-on-subagent-stop.
 | `hooks.investigation-subagent-stop.unknown-agent-type` | agent_type not in recognized set | exits 0 silently | no-op | |
 | `hooks.investigation-subagent-stop.no-work-dir` | DARK_FACTORY_WORK_DIR unset and pointer file absent | exits 0, logs "DARK_FACTORY_WORK_DIR not set, skipping commit" | no-op | |
 | `hooks.investigation-subagent-stop.git-failure` | git add or git commit fails | exits 0, logs error to stderr | error | non-blocking |
+
+---
+
+### Flow: `hooks.append-footer`
+
+- Core files: `agents/pr/hooks/append-footer-hook.sh`
+
+A `PostToolUse` hook declared in `agents/pr/agents/pr-agent.md` frontmatter. Fires during pr-agent execution (PostToolUse events may fire multiple times). Appends the "Made with dark-factory" footer to the PR body file after pr-agent writes `/tmp/pr-body.md`.
+
+This hook is responsible for all footer content — the footer (`---` separator and `🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)`) is **not** present in `agents/pr/templates/pr-template.md`. The template has only `## Description` and `## Test Plan` sections; footer generation is fully owned by this hook.
+
+Steps:
+
+1. Resolve the PR body file path: `$DARK_FACTORY_PR_BODY_FILE` env var, then first positional argument, then default `/tmp/pr-body.md`.
+2. If the file does not exist, exit 0 silently (hook may fire before the body file is written).
+3. Check for existing footer (`Generated with [dark factory]`). If present, exit 0 (idempotency guard).
+4. Append `\n---\n🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)` to the file via a temp-file swap.
+5. Exit 0.
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `hooks.append-footer.appended` | PR body file exists, footer absent | footer appended to PR body file | happy path | normal case on first invocation after Step 1 |
+| `hooks.append-footer.idempotent` | PR body file exists, footer already present | no-op, exit 0 | edge case | safe for multiple PostToolUse invocations |
+| `hooks.append-footer.no-file` | PR body file absent | exit 0 silently | no-op | hook fired before body written |
 
 ---
 
