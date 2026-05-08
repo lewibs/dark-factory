@@ -5,7 +5,7 @@ description: Lightweight repair agent. Applies a targeted change from a plain ta
 tools: Read, Write, Edit, Bash, Glob, Agent, Skill
 model: haiku
 skills: invoke-investigation-agent
-allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(npm run test *), Bash(go test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *)
+allowed-tools: Bash(pytest *), Bash(python *), Bash(npm test *), Bash(npm run test *), Bash(go test *), Bash(bash *), Bash(mkdir -p *), Bash(find *), Bash(grep -r *), Bash(aws *), Bash(gh *), Bash(git *)
 ---
 
 You are the repair-agent. Your job is to apply a targeted change described in plain language, run the existing test suite, fix any breakage iteratively, and report back to the caller.
