@@ -1,16 +1,18 @@
-# dark-factory-agent
+# manufacture command
 
 **Role**: Top-level dark-factory orchestrator and entry point for all manufacturing tasks.
 
+**Type**: Command (not an agent).
+
 **Model**: Haiku (lightweight state/routing only, no heavy reasoning).
 
-**User-Invocable**: Yes (primary command-line entry point).
+**Location**: `commands/manufacture.md`
 
 ## Overview
 
-The dark-factory-agent is the single entry point for all autonomous feature work, bug debugging, fix flows, and repair operations. It orchestrates an entire unit of work end-to-end: classifying the task, isolating work in a fresh directory, delegating to the appropriate worker agent, reviewing results, keeping documentation current, opening a PR, and cleaning up.
+The manufacture command is the single entry point for all autonomous feature work, bug debugging, fix flows, and repair operations. It orchestrates an entire unit of work end-to-end: classifying the task, isolating work in a fresh directory, delegating to the appropriate worker agent, reviewing results, keeping documentation current, opening a PR, and cleaning up.
 
-The agent never writes or modifies code itself — it delegates entirely to specialized workers based on task classification.
+The command never writes or modifies code itself — it delegates entirely to specialized workers based on task classification.
 
 ## Input
 
@@ -46,7 +48,7 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 Routes based on classification:
 - **"feature"** → `feature-agent` (single invocation)
   - feature-agent runs at depth 2 and calls AskUserQuestion directly for all user interaction.
-  - dark-factory-agent invokes feature-agent ONCE and waits for a terminal status:
+  - manufacture command invokes feature-agent ONCE and waits for a terminal status:
     - `status: "done"` → feature work complete, continue to Step 5
     - `status: "hard-stop"` → cleanup, report reason, STOP
     - `status: "aborted"` → cleanup, report "User aborted", STOP
@@ -132,7 +134,7 @@ Called on any error path after worktree creation:
 10. **FORBIDDEN: Direct brain.json writes** — Never write brain.json via cat, echo, Bash, or any tool; always use brain-state-manager skill
 11. **FORBIDDEN: Direct sub-planning-agent invocation** — Always route through feature-agent; if feature-agent returns non-JSON output, report error and stop
 12. **FORBIDDEN: Never merge a PR manually** — pr-agent returns `status: ready` but does not merge. Never instruct any sub-agent to merge. Merging is the developer's responsibility after human review.
-13. **Worktree lifecycle is owned by dark-factory-agent** — Sub-agents (including pr-agent) must NOT declare SubagentStop hooks that delete brain.json or remove the worktree. A SubagentStop hook on a sub-agent fires before dark-factory-agent regains control, destroying brain.json before Steps 11-12 can read prUrl and flush metrics. Cleanup runs exclusively in Step 12 (success path) and the cleanup() helper (error paths).
+13. **Worktree lifecycle is owned by manufacture command** — Sub-agents (including pr-agent) must NOT declare SubagentStop hooks that delete brain.json or remove the worktree. A SubagentStop hook on a sub-agent fires before manufacture command regains control, destroying brain.json before Steps 11-12 can read prUrl and flush metrics. Cleanup runs exclusively in Step 12 (success path) and the cleanup() helper (error paths).
 
 ## Dependencies
 
