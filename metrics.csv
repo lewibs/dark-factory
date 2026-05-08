@@ -1,10 +1,10 @@
 agent,skill,avg_runtime,avg_tokens,runs,sum_runtime,sum_tokens
 dark-factory:featurework:planning:agents:planning-agent,,31902.666666666668,1155.0,3,95708.0,3465.0
 dark-factory:featurework:execution:agents:execution-agent,,78434.0,603.4,5,392170.0,3017.0
-dark-factory:code-review:agents:code-review-orchestrator-agent,,83515.18518518518,574.2592592592592,27,2254910.0,15505.0
-dark-factory:documentation:agents:update-documentation-agent,,49516.22727272727,200.3181818181818,22,1089357.0,4407.0
-dark-factory:skill-update:agents:skill-update-agent,,25898.380952380954,195.42857142857142,21,543866.0,4104.0
-dark-factory:pr:agents:pr-agent,,43142.19047619047,126.28571428571429,21,905986.0,2652.0
+dark-factory:code-review:agents:code-review-orchestrator-agent,,79338.68965517242,572.0,29,2300822.0,16588.0
+dark-factory:documentation:agents:update-documentation-agent,,48482.416666666664,195.29166666666666,24,1163578.0,4687.0
+dark-factory:skill-update:agents:skill-update-agent,,23751.608695652172,188.69565217391303,23,546287.0,4340.0
+dark-factory:pr:agents:pr-agent,,41181.181818181816,120.54545454545455,22,905986.0,2652.0
 dark-factory:repair:agents:repair-agent,,12472.62962962963,169.03703703703704,27,336761.0,4564.0
 testing-agent,,0.0,0.0,13,0.0,0.0
 planning-agent,,0.0,0.0,20,0.0,0.0
