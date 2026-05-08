@@ -115,7 +115,7 @@ dark-factory-agent(taskDescription, taskName):
           STOP
     
     - "fix-flow"  → invoke fix-flow-orchestrator({ taskDescription })
-    - "debugger"  → invoke debugger-agent({ taskDescription })
+    - "debugger"  → invoke debugger-orchestrator({ taskDescription })
     - "repair"    → invoke repair-agent({ taskDescription })
     
     For non-feature routes, if worker returns error or hard-stop:
