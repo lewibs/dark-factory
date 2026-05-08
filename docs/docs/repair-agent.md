@@ -118,6 +118,12 @@ Sets `significantChange` flag based on whether any modified file is:
 
 - Read, Write, Edit, Bash, Glob
 
+## Allowed Bash Commands
+
+`Bash(pytest *)`, `Bash(python *)`, `Bash(npm test *)`, `Bash(npm run test *)`, `Bash(go test *)`, `Bash(bash *)`, `Bash(mkdir -p *)`, `Bash(find *)`, `Bash(grep -r *)`, `Bash(aws *)`, `Bash(gh *)`, `Bash(git *)`
+
+Includes `aws`, `gh`, and `git` so the agent can inspect cloud state, query GitHub, and run git operations when validating cloud-native repairs.
+
 ## Error Handling
 
 - If no test suite exists: skips test validation; repair still succeeds if code is syntactically valid

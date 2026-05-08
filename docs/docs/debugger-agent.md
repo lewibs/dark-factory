@@ -130,6 +130,12 @@ Resolves WORK_DIR (see rule 7) and writes `$WORK_DIR/brain-patch.json`:
 
 - Read, Write, Edit, Bash, Glob, Agent
 
+## Allowed Bash Commands
+
+`Bash(bash *)`, `Bash(pytest *)`, `Bash(python *)`, `Bash(npm test *)`, `Bash(grep -r *)`, `Bash(find *)`, `Bash(aws *)`, `Bash(gh *)`, `Bash(docker *)`, `Bash(curl *)`
+
+Includes cloud-native tooling (`aws`, `gh`, `docker`, `curl`) so the agent can fetch remote logs, query cloud resources, and inspect container state without silently failing on cloud-hosted projects.
+
 ## Error Handling
 
 - If bug is obviously simple (not non-obvious/state-dependent): report and STOP
