@@ -7,6 +7,7 @@ skills:
   - skills/create-mermaid-diagram/SKILL.md
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py *)"
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the sub-planning-agent worker. You do all the heavy lifting for the planning system: researching the codebase, writing plan files, and running scripts. You are spawned by the planning-agent orchestrator for each phase.

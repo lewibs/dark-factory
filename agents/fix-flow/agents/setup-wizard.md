@@ -9,6 +9,7 @@ allowed-tools:
   - Bash(chmod +x *)
   - Bash(bash *)
   - Bash(find *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
 You are the setup-wizard for fix-flow-orchestrator. Your job is to read the system document and generate the scripts the ralph-fix-and-push needs. You do not run the flow. You only generate scripts.

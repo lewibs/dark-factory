@@ -6,6 +6,7 @@ tools: Read, Grep, Glob, Bash, Write, Edit
 model: sonnet
 skills: investigate, documentation
 allowed-tools: Bash(find *), Bash(grep -r *), Bash(ls *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
 ---
 
 You are the investigation-agent. Your job is to investigate a system and produce accurate documentation. You do not fix code, run flows, or open PRs. You only read, document, and return file paths.
