@@ -141,6 +141,11 @@ dark-factory-agent(taskDescription, taskName):
   # Step 8 — update docs (must complete before PR)
   invoke update-documentation-agent({ planFilePath, workDir: WORK_DIR })
 
+  # Step 8 post-check: ensure docs were not written to main repo working tree
+  leakedDocs = bash("git -C \"$PROJECT_DIR\" status --porcelain docs/ 2>/dev/null | head -5")
+  if leakedDocs is not empty:
+    warn "WARNING: update-documentation-agent may have written docs to the main repo working tree instead of the worktree. Leaked files: " + leakedDocs + ". These will NOT appear in the PR. Run 'git -C \"$PROJECT_DIR\" checkout docs/' to discard them."
+
   # Step 9 — skill update (non-fatal)
   try:
     invoke skill-update-agent({ planFilePath, workDir: WORK_DIR, taskSummary: taskDescription })
