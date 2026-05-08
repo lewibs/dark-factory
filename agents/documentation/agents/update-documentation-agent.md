@@ -7,7 +7,7 @@ model: sonnet
 skills: documentation
 commands: find-affected-docs
 allowed-tools: Bash(find *), Bash(ls *)
-SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
 ---
 
 # update-documentation-agent

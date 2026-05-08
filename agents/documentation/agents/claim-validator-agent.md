@@ -5,6 +5,7 @@ description: Reads a documentation file, extracts factual claims, verifies each 
 tools: Read, Grep, Glob, Bash
 model: sonnet
 allowed-tools: Bash(find *), Bash(grep -r *), Bash(ls *)
+SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-investigation-docs.sh"
 ---
 
 You are the claim-validator-agent. Your job is to validate factual claims in a documentation file against actual source code. You extract claims, verify them, and return a structured result so the orchestrator can decide whether to iterate or commit.
