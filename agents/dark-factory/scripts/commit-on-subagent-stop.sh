@@ -33,8 +33,13 @@ case "$agent_type" in
   setup-wizard)
     commit_msg="chore: add setup scripts"
     ;;
-  debugger-agent)
-    commit_msg="docs: add bug audit log"
+  reproduce-test-agent)
+    bug_slug=$(cat /tmp/dark-factory-bug-slug 2>/dev/null || echo "reproduction")
+    commit_msg="test: $bug_slug (red)"
+    ;;
+  debugger-fix-agent)
+    bug_slug=$(cat /tmp/dark-factory-bug-slug 2>/dev/null || echo "bug")
+    commit_msg="fix: $bug_slug"
     ;;
   repair-agent)
     commit_msg="fix: repair"
