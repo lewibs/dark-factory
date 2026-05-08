@@ -115,9 +115,18 @@ Every named point below corresponds to a step or handoff in the pipeline where a
 - `dark-factory-agent` resolves `PLUGIN_ROOT` at runtime from `~/.claude/plugins/installed_plugins.json` using the key `dark-factory@dark-factory`. If the plugin is not installed, the key does not exist, or the JSON is malformed, `PLUGIN_ROOT` is empty.
 - Effect: `prep-feature-dir.sh` cannot be invoked; agent stops immediately before worktree creation.
 
-### F3: Worktree creation failure (Step 2)
-- `prep-feature-dir.sh` creates an isolated git worktree on a new branch. If the branch already exists, git is in a dirty state, or disk space is exhausted, the script fails.
+### F3: Worktree creation failure (Step 2) — FIXED
+
+Previously: `prep-feature-dir.sh` creates an isolated git worktree on a new branch. If the branch already exists, git is in a dirty state, or disk space is exhausted, the script fails.
 - Effect: Agent stops (no cleanup needed since worktree never existed).
+
+Now fixed (2026-05-08): When a previous manufacture run is interrupted, the feature branch may exist locally without a corresponding worktree. The script now:
+1. Checks if `feature/<taskName>` branch exists before attempting worktree creation
+2. Safely deletes the branch if it exists but is not checked out in any worktree
+3. Returns a clear error if the branch is already checked out in a worktree (requires manual cleanup)
+4. Proceeds normally with worktree creation
+
+This allows manufacture to recover from interrupted runs by reusing task names without manual branch cleanup.
 
 ### F4: brain.json creation failure (Step 3)
 - If `brain-state-manager` skill fails to write `brain.json` (permissions, disk, bad workDir), the state backbone for the entire task is missing.
