@@ -1,38 +1,29 @@
 # destroy-factories
 
-Terminates all other running Claude / dark-factory terminal sessions and spawns one fresh factory terminal, leaving the user with exactly one active terminal.
+Closes the current terminal/factory session. Only terminates the terminal this command is run from — no other terminals are affected.
 
 ## Usage
 
 ```
-/dark-factory:destroy-factories [name]
+/dark-factory:destroy-factories
 ```
 
 ## Description
 
-Scans all running terminal emulator processes for those that have a `claude` descendant process. Kills each one (excluding the terminal running this command), then opens a new terminal running `claude "/remote-control <name>"`.
-
-Safe by design: only terminals whose process tree contains a `claude` descendant are targeted. Unrelated terminals are never touched.
-
-## Arguments
-
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `name` | `dark factory` | Remote-control session name for the new terminal |
+Cleanly closes the current Claude terminal session by stopping its own vte-spawn cgroup scope and terminating the ancestor `claude` process. Does not affect any other terminals or sessions.
 
 ## Platform
 
-Linux only. Requires at least one of: `gnome-terminal`, `x-terminal-emulator`, `xterm`, or `konsole`.
+Linux only. Designed for GNOME terminal and other systems using systemd cgroup scopes.
 
 ## Implementation
 
+Calls `scripts/close-factory.sh` to stop the current terminal's vte-spawn cgroup scope and terminate the ancestor `claude` process.
+
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh" "dark factory"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh"
 ```
 
 ## Flows
 
-- `destroy-factories.success` — Claude terminals found and killed; new factory terminal spawned.
-- `destroy-factories.none-found` — No Claude terminals found; new factory terminal spawned (no kills).
-- `destroy-factories.kill-failed` — Kill fails for one or more PIDs; warns to stderr, continues to spawn.
-- `destroy-factories.spawn-failed` — Terminal spawn fails; prints error to stderr and exits non-zero.
+- `destroy-factories.success` — Terminal closed cleanly; command exits with code 0.
