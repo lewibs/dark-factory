@@ -25,6 +25,7 @@ When an agent `.md` file needs to be renamed (slug, filename, or display name ch
 
 4. **Update each reference location in this order:**
    - **Caller agent files** (`agents/*/agents/*.md`) — update `description:` fields, orchestration pseudocode, and resource tables that reference the old name or old path
+   - **Skill files** (`skills/*/SKILL.md`) — update any steps or notes that reference the old agent name; these are easy to miss and stale skill references are a regression risk because future agents may follow them and re-introduce the broken name
    - **Docs files** (`docs/docs/*.md`) — update prose, Mermaid diagram node labels, pseudocode blocks, and flow path tables
    - **Plan files** (`docs/plans/*.md`) — update any references in plan summaries or pseudocode
    - **Hook scripts** (`agents/*/scripts/*.sh`) — update any string matches on the agent name
@@ -50,7 +51,8 @@ When an agent `.md` file needs to be renamed (slug, filename, or display name ch
 ## Notes
 
 - Use `git mv` (not a plain file rename) so that `git diff` shows a rename rather than a delete+add. This matters for PR reviewers and for `git log --follow`.
-- Mermaid diagrams inside fenced code blocks are the most commonly missed location — always grep inside `.md` files for the old name, even within code fences.
+- Mermaid diagrams inside fenced code blocks are a commonly missed location — always grep inside `.md` files for the old name, even within code fences.
+- **Skill files are another commonly missed location.** Stale agent names in `skills/*/SKILL.md` are a regression risk: a future LLM agent reading that skill will follow its instructions verbatim and re-introduce the broken name into routing or orchestration. Always include `skills/` in the grep sweep. Consider adding a regression test (see `tests/test_repair_agent_routing.py` as a template) that asserts the old name does not appear in any routing-sensitive file.
 - The `description:` field in calling agents often embeds the old agent name as a path string — update it to the new path.
 - `brain.json` stores the current `taskName` and `workDir` which may encode the old agent name — update them to avoid stale state in subsequent runs.
 - If the agent being renamed is referenced in a `pre-tool-use-hook.sh` or `post-tool-use-hook.sh`, update the string match there too; hook scripts key on agent names for routing decisions.
