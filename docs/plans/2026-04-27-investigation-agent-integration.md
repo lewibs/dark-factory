@@ -142,7 +142,7 @@ Rather than editing all agent files individually, the plan uses the CLAUDE.md ap
 
 3. **Optional: Create an investigation-agent-call skill** (if agents cannot directly invoke sub-agents):
    - Wraps the investigation-agent invocation with standard error handling
-   - Provides a convenient interface: `@invoke-investigation-agent(system="...", question="...")`
+   - Provides a convenient interface: `@investigation-delegate(system="...", question="...")`
    - Agents reference this skill in their CLAUDE.md guidance
 
 ## Logs
