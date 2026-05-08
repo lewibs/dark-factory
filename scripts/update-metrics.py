@@ -107,47 +107,40 @@ def main():
         sys.exit(0)
 
     metrics = brain.get("metrics", {})
-    
-    # Always read existing CSV (even if no new metrics to add)
+    if not metrics:
+        print("update-metrics | flush | no metrics in brain.json, skipping", file=sys.stderr)
+        sys.exit(0)
+
     try:
         rows = read_csv(args.csv)
     except Exception as e:
         print(f"update-metrics | error | cannot read CSV: {e}", file=sys.stderr)
         sys.exit(0)
 
-    # If there are metrics in brain.json, upsert them
-    if metrics:
-        for key, data in metrics.items():
-            # Key format: "agent/skill" or just "agent" (skill defaults to empty string)
-            if "/" in key:
-                agent, skill = key.split("/", 1)
-            else:
-                agent = key
-                skill = ""
+    for key, data in metrics.items():
+        # Key format: "agent/skill" or just "agent" (skill defaults to empty string)
+        if "/" in key:
+            agent, skill = key.split("/", 1)
+        else:
+            agent = key
+            skill = ""
 
-            elapsed_ms = float(data.get("elapsed_ms", 0))
-            tokens = float(data.get("tokens", 0))
-            runs = int(data.get("runs", 1))
+        elapsed_ms = float(data.get("elapsed_ms", 0))
+        tokens = float(data.get("tokens", 0))
+        runs = int(data.get("runs", 1))
 
-            upsert(rows, agent, skill, elapsed_ms, tokens, runs)
+        upsert(rows, agent, skill, elapsed_ms, tokens, runs)
 
-    # Always write CSV back, even if no metrics were added (ensures file exists for git add)
     try:
         write_csv(args.csv, rows)
     except Exception as e:
         print(f"update-metrics | error | cannot write CSV: {e}", file=sys.stderr)
         sys.exit(0)
 
-    if metrics:
-        print(
-            f"update-metrics | flush | rows={len(rows)} csv={args.csv}",
-            file=sys.stderr,
-        )
-    else:
-        print(
-            f"update-metrics | flush | no new metrics, wrote {len(rows)} existing rows to {args.csv}",
-            file=sys.stderr,
-        )
+    print(
+        f"update-metrics | flush | rows={len(rows)} csv={args.csv}",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

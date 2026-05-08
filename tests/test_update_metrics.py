@@ -5,7 +5,7 @@ Tests cover:
 - New CSV created with correct headers when csv_path does not exist
 - Row upsert increments runs and accumulates sums
 - Averages recomputed correctly from sums
-- No-metrics key in brain.json creates empty CSV (for git add to work)
+- No-metrics key in brain.json is a no-op (CSV unchanged)
 - Missing usage fields in metrics data default to 0
 - Script exits 0 on missing brain.json (non-fatal)
 """
@@ -160,7 +160,7 @@ class TestOrchestratorFlushesCSV:
             assert float(row["avg_tokens"]) == pytest.approx(12400.0 / 3)
 
     def test_no_metrics_is_noop(self):
-        """orchestratorFlushesCSV.no-metrics: brain.json with no metrics key creates empty CSV for git add."""
+        """orchestratorFlushesCSV.no-metrics: brain.json with no metrics key leaves CSV unchanged."""
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = os.path.join(tmpdir, "metrics.csv")
             brain_path = write_brain(tmpdir)  # no metrics key
@@ -168,13 +168,11 @@ class TestOrchestratorFlushesCSV:
             result = run_script(csv_path, brain_path)
 
             assert result.returncode == 0, f"stderr: {result.stderr}"
-            # CSV should be created (even with no metrics) so git add doesn't fail
-            assert os.path.exists(csv_path), "CSV should be created even when there are no metrics"
-            rows = read_csv_rows(csv_path)
-            assert len(rows) == 0, "CSV should have no data rows when no metrics provided"
+            # CSV should not have been created
+            assert not os.path.exists(csv_path)
 
     def test_empty_metrics_is_noop(self):
-        """orchestratorFlushesCSV.empty-metrics: empty metrics dict creates empty CSV for git add."""
+        """orchestratorFlushesCSV.no-metrics: empty metrics dict leaves CSV unchanged."""
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = os.path.join(tmpdir, "metrics.csv")
             brain_path = write_brain(tmpdir, metrics={})
@@ -182,10 +180,7 @@ class TestOrchestratorFlushesCSV:
             result = run_script(csv_path, brain_path)
 
             assert result.returncode == 0, f"stderr: {result.stderr}"
-            # CSV should be created (even with empty metrics) so git add doesn't fail
-            assert os.path.exists(csv_path), "CSV should be created even when metrics dict is empty"
-            rows = read_csv_rows(csv_path)
-            assert len(rows) == 0, "CSV should have no data rows when metrics dict is empty"
+            assert not os.path.exists(csv_path)
 
     def test_script_error_is_nonfatal(self):
         """orchestratorFlushesCSV.script-error: missing brain.json exits 0 (non-fatal)."""
