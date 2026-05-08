@@ -104,7 +104,7 @@ class TestCleanupFlushesMetrics:
             assert not os.path.exists(brain_path), "brain.json should be deleted after cleanup"
 
     def test_flush_no_metrics(self):
-        """cleanupFlushesMetrics.no-metrics: cleanup succeeds even when brain.json has no metrics."""
+        """cleanupFlushesMetrics.no-metrics: cleanup creates empty CSV even when brain.json has no metrics."""
         with tempfile.TemporaryDirectory() as tmpdir:
             brain = make_brain(project_dir=tmpdir, metrics={})
             brain_path = os.path.join(tmpdir, "brain.json")
@@ -116,9 +116,11 @@ class TestCleanupFlushesMetrics:
             result = run_cleanup(tmpdir, env_override={"DARK_FACTORY_WORK_DIR": tmpdir})
 
             assert result.returncode == 0, f"stderr: {result.stderr}"
-            # No metrics, so CSV should not be created
-            assert not os.path.exists(csv_path)
-            assert not os.path.exists(brain_path)
+            # CSV should be created even with no metrics (for consistency)
+            assert os.path.exists(csv_path), "CSV should be created even when there are no metrics"
+            rows = read_csv_rows(csv_path)
+            assert len(rows) == 0, "CSV should have no data rows when metrics are empty"
+            assert not os.path.exists(brain_path), "brain.json should be deleted"
 
     def test_flush_no_project_dir(self):
         """cleanupFlushesMetrics.no-project-dir: cleanup succeeds when projectDir is null."""
