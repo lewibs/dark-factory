@@ -59,7 +59,14 @@ When `phase == "draft_plan"`:
 When `phase == "mermaid"`:
 
 1. Read the plan file at `planPath`.
-2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, follow the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
+2. If `feedback` is not "none": 
+   a. **MANDATORY: First, read the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md`**. This skill defines the required standards you must follow:
+      - Node colors: Gray (unchanged), Yellow (updated), Red (deleted), Green (created)
+      - Edge labels for all data flow
+      - Black-box treatment for external services
+      - Syntax validation with mmdc
+   b. Apply the changes indicated by `feedback` to the Mermaid diagram section following the standards from the skill.
+   c. Write the updated plan file.
 3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
    MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <planPath>
@@ -72,7 +79,7 @@ When `phase == "mermaid"`:
    url = f"https://mermaid.ink/img/{encoded}"
    ```
    Only set `url = null` if both the script and the inline fallback fail (e.g., no mermaid block found in the plan). Do not treat stderr output as a failure on its own — check the exit code.
-5. Return:
+4. Return:
    ```json
    {
      "planPath": "<absolute path to plan file>",
@@ -113,7 +120,7 @@ If you cannot complete the phase for any reason, return:
 - Always write the plan file using the Write or Edit tool — never just return content and expect the caller to save it.
 - Use the exact plan template structure from `agents/featurework/planning/templates/plan-template.md`.
 - For `draft_plan`: date format is `YYYY-MM-DD`, slug uses hyphens, all lowercase.
-- For `mermaid`: if feedback is "none", only run the script and return the url without changing the diagram.
+- For `mermaid`: if feedback is "none", only run the script and return the url without changing the diagram. When feedback is not "none", you MUST read the `create-mermaid-diagram` skill and follow all its standards.
 - For `flows`: only edit the specific `### Flow: <flowName>` section, leave all other sections untouched.
 - **When searching the codebase, always use narrow, specific glob patterns:**
   - For agent files: `agents/**/*.md` instead of `**/*.md`
