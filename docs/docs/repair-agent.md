@@ -16,11 +16,23 @@ Unlike the debugging agent, repair-agent does not use a systematic debug methodo
 
 - `taskDescription` (string) — Plain-language description of what to change or fix (no plan file)
 
-## Workflow (6 Steps)
+## Workflow (7 Steps)
+
+### Step 0: Resolve WORK_DIR
+
+Before any file operation, repair-agent resolves the working directory from injected brain context:
+
+```
+WORK_DIR = $DARK_FACTORY_WORK_DIR (env var)
+if WORK_DIR is empty: WORK_DIR = contents of /tmp/dark-factory-work-dir (if the file exists)
+if WORK_DIR is still empty: return { success: false, significantChange: false, error: { message: "WORK_DIR could not be resolved from brain context" } }
+```
+
+**All file operations (Read/Write/Edit) must use absolute paths prefixed with `$WORK_DIR/`.** CWD-relative paths are forbidden — using them writes files to the main project repo instead of the isolated feature worktree, causing changes to appear as uncommitted modifications on the main branch rather than landing in the PR.
 
 ### Step 1: Understand Scope
 
-1. Reads relevant files based on task description
+1. Reads relevant files using absolute `$WORK_DIR/`-prefixed paths
 2. Identifies the minimal set of files that need to change
 3. **Does NOT refactor or expand scope** beyond what is asked
 4. Determines: "What is the smallest change that satisfies this request?"
@@ -78,7 +90,16 @@ Sets `significantChange` flag based on whether any modified file is:
    - Returns `{ success: false, significantChange, error: { message: "<last failure summary>" } }`
    - Notes pre-existing failures but doesn't count them
 
-### Step 6: Return Result
+### Step 6: Stage Modified Files
+
+Before returning, repair-agent stages all modified files in the feature worktree:
+
+1. Executes `git -C $WORK_DIR add <modified-files>` to stage all changed files
+2. Executes `git -C $WORK_DIR status` to verify files are staged
+
+This staging step is required because the SubagentStop hook (`commit-on-subagent-stop.sh`) only commits files that are already staged. Without explicit staging, changes remain unstaged and the hook commits nothing — leaving the repair changes uncommitted in the worktree and absent from the PR branch.
+
+### Step 7: Return Result
 
 **Success**:
 ```json
@@ -99,6 +120,8 @@ Sets `significantChange` flag based on whether any modified file is:
 }
 ```
 
+All modified files are staged via `git -C $WORK_DIR add` before either return path. The SubagentStop hook commits whatever is staged.
+
 ## Key Design Rules
 
 1. **Stay minimal** — Do not refactor or clean up code outside the repair scope
@@ -108,6 +131,9 @@ Sets `significantChange` flag based on whether any modified file is:
 5. **5-attempt limit** — Stop iterating after 5 tries; return failure
 6. **No plan file required** — This is the lightweight alternative to feature-agent
 7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+8. **Resolve WORK_DIR at startup** — Always read WORK_DIR from brain context (`$DARK_FACTORY_WORK_DIR` or `/tmp/dark-factory-work-dir` pointer file) before any file operations. Fail fast if WORK_DIR is unresolvable.
+9. **Use absolute WORK_DIR paths** — All Read/Write/Edit operations must use `$WORK_DIR/<path>` absolute paths. CWD-relative paths write to the main project repo, not the isolated feature worktree.
+10. **Stage all changes before returning** — Execute `git -C $WORK_DIR add <files>` for all modified files. The SubagentStop hook only commits staged changes; unstaged changes are left uncommitted and absent from the PR.
 
 ## Dependencies
 
@@ -120,9 +146,11 @@ Sets `significantChange` flag based on whether any modified file is:
 
 ## Allowed Bash Commands
 
-`Bash(pytest *)`, `Bash(python *)`, `Bash(npm test *)`, `Bash(npm run test *)`, `Bash(go test *)`, `Bash(bash *)`, `Bash(mkdir -p *)`, `Bash(find *)`, `Bash(grep -r *)`, `Bash(aws *)`, `Bash(gh *)`, `Bash(git *)`
+`Bash(pytest *)`, `Bash(python *)`, `Bash(npm test *)`, `Bash(npm run test *)`, `Bash(go test *)`, `Bash(bash *)`, `Bash(mkdir -p *)`, `Bash(find *)`, `Bash(grep -r *)`, `Bash(aws *)`, `Bash(gh *)`, `Bash(git *)`, `Bash(git -C * add *)`, `Bash(git -C * status *)`
 
 Includes `aws`, `gh`, and `git` so the agent can inspect cloud state, query GitHub, and run git operations when validating cloud-native repairs.
+
+`Bash(git -C * add *)` and `Bash(git -C * status *)` are explicitly allowed for the Step 6 staging requirement — staging all modified files in the feature worktree before the SubagentStop hook fires.
 
 ## Error Handling
 

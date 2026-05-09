@@ -177,7 +177,7 @@ Lightweight targeted fix without a full plan file.
 **repair-agent** (`agents/repair/agents/repair-agent.md`)
 - Model: haiku
 - User-invocable: false (spawned by dark-factory-agent for `route=repair`)
-- Role: Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times. Invokes investigation-agent first for system context.
+- Role: Applies a targeted change from a plain task description (no plan file), runs the test suite, and iteratively fixes failures up to 5 times. Resolves WORK_DIR from brain context before any file operations, uses absolute `$WORK_DIR/`-prefixed paths for all file access, stages modified files via `git -C $WORK_DIR add` before returning, and invokes investigation-agent first for system context.
 - Skills: `investigation-delegate`
 - SubagentStop hook: `commit-on-subagent-stop.sh`
 

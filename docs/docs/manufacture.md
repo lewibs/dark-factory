@@ -212,6 +212,12 @@ This allows manufacture to recover from interrupted runs by reusing task names w
 - The fuzzy matcher requires a score >= 2 keyword hits (each keyword > 2 chars). Short or generic task descriptions (e.g., "fix bug") may match unrelated PRs or fail to match related ones.
 - Effect: User is shown a misleading reuse prompt; declining falls through to new-branch flow without harm. A false negative (no match shown) causes a duplicate branch to be created.
 
+### F23: repair-agent writes files to PROJECT_DIR instead of WORK_DIR — FIXED
+
+Previously: repair-agent used CWD-relative paths when reading and writing files. Because the agent's CWD was the main project repo (PROJECT_DIR), all file edits landed in the main branch working tree rather than the isolated feature worktree (WORK_DIR). The SubagentStop commit hook only operated in WORK_DIR, so the changes were never committed to the feature branch. Instead they appeared as uncommitted modifications on main.
+
+Now fixed: repair-agent explicitly resolves WORK_DIR from brain context (`$DARK_FACTORY_WORK_DIR` env var, falling back to `/tmp/dark-factory-work-dir` pointer file) as Step 0, before any file operations. All Read/Write/Edit calls use `$WORK_DIR/<path>` absolute paths. The agent also explicitly stages all modified files via `git -C $WORK_DIR add <files>` (Step 6) before returning, ensuring the SubagentStop hook commits them to the feature branch.
+
 ### F18: Metrics flush failure (Step 12)
 - `update-metrics.py` and the subsequent `git commit/push` are non-fatal (`|| true`). However, if the metrics commit fails, the PR diff will not include updated metrics, and the local `metrics.csv` copy may also fail.
 - Effect: Non-fatal; pipeline continues to cleanup. Metrics may be stale.
