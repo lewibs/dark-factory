@@ -12,5 +12,4 @@
   "skills": [
     "./skills/"
   ],
-  "hooks": "./hooks/hooks.json"
 }
