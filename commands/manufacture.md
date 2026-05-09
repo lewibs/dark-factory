@@ -1,6 +1,6 @@
 ---
 description: "Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager."
-tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
+tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill, SendMessage
 model: haiku
 scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
 allowed-tools: Bash(*/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(*/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(python3 */scripts/update-metrics.py *), Bash(python3 -c *installed_plugins.json*), Bash(git -C * log *), Bash(git -C * add *), Bash(git -C * diff *), Bash(git -C * commit *), Bash(git -C * push *), Bash(cp *), Bash(git rev-parse *), Bash(rm -f /tmp/dark-factory-work-dir)
