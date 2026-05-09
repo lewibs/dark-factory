@@ -5,7 +5,7 @@ user-invocable: false
 ---
 ## When to use
 
-Immediately after any worker agent (feature-agent, fix-flow-orchestrator, debugger-agent, repair-agent) returns control to the dark-factory orchestrator, and before proceeding to code review or PR steps.
+Immediately after any worker agent (feature-agent, debugger-agent, repair-agent) returns control to the dark-factory orchestrator, and before proceeding to code review or PR steps.
 
 This guard catches the class of bug where a sub-agent runs `git commit` without an explicit `-C WORK_DIR` or `--work-tree` flag and the commit lands on the wrong branch (e.g., main) because the CWD defaults to the parent worktree.
 
