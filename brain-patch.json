@@ -1,4 +1,7 @@
 {
-  "skillsWritten": ["skills/fuzzy-match-open-prs/SKILL.md", "skills/branch-prefix-strip-for-taskname/SKILL.md"],
-  "summary": "Extracted 2 patterns: fuzzy-matching open PRs by keyword scoring to detect reuse opportunities, and stripping branch prefixes before using branch names as taskName slugs"
+  "skillsWritten": [
+    "skills/add-or-remove-pipeline-route/SKILL.md",
+    "skills/phase-agent-allowlist/SKILL.md"
+  ],
+  "summary": "Created route-addition/removal checklist skill; updated phase-agent-allowlist example to remove deleted fix-flow-orchestrator"
 }

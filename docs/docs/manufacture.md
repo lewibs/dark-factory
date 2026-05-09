@@ -101,14 +101,6 @@ The feature route is a single-invocation human-in-the-loop planning flow. `dark-
 
 ---
 
-### Flow: `manufacture.fix-flow`
-
-- Core files: `agents/fix-flow/agents/fix-flow-orchestrator.md`
-
-Routes to `fix-flow-orchestrator`, which runs three phases in strict sequence: (1) investigation via `investigation-agent` to understand the broken flow, (2) script generation via `setup-wizard`, (3) an iterative fix-trigger-debug loop via `ralph-fix-and-push` until CI is green. All fixes accumulate on a single branch and are merged into one PR.
-
----
-
 ### Flow: `manufacture.debugger`
 
 - Core files: `agents/debugger/agents/debugger-agent.md`

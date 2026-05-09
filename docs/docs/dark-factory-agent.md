@@ -135,7 +135,7 @@ Called on any error path after worktree creation:
 ## Dependencies
 
 - **Skills**: task-classifier, brain-state-manager
-- **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-orchestrator (+ reproduce-test-agent, debugger-fix-agent), repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
+- **Sub-agents**: feature-agent, debugger-orchestrator (+ reproduce-test-agent, debugger-fix-agent), repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
 - **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh
 
 ## Tools

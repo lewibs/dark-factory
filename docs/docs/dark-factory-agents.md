@@ -151,7 +151,7 @@ Systematic debugging of non-obvious bugs using a three-phase structured orchestr
 
 **debugger-orchestrator** (`agents/debugger/agents/debugger-orchestrator.md`)
 - Model: haiku
-- User-invocable: false (spawned by dark-factory-agent for `route=debugger`, or by debug-flow-agent)
+- User-invocable: false (spawned by dark-factory-agent for `route=debugger`)
 - Role: Top-level orchestrator for systematic debugging. Coordinates investigation, triage, test reproduction, and fix application across three specialized sub-agents with structural commit enforcement via SubagentStop hooks.
 - Invokes: `reproduce-test-agent`, `debugger-fix-agent`
 - Skills: `investigation-delegate`
@@ -326,17 +326,13 @@ Skills are instruction files read at runtime by agents. They are not agents them
 | `detect-drift` | `skills/detect-drift/SKILL.md` | `detect-drift-agent` |
 | `create-pr` | `skills/create-pr/SKILL.md` | `pr-agent` |
 | `systematic-debugging` | `skills/debug/SKILL.md` | `debugger-agent` |
-| `generate-trigger` | `skills/generate-trigger/SKILL.md` | `setup-wizard` |
-| `generate-wait-for-completion` | `skills/generate-wait-for-completion/SKILL.md` | `setup-wizard` |
-| `generate-fetch-logs` | `skills/generate-fetch-logs/SKILL.md` | `setup-wizard` |
-| `generate-deploy` | `skills/generate-deploy/SKILL.md` | `setup-wizard` |
 
 ---
 
 ## Usage / Reference Notes
 
 - All agents marked `user-invocable: false` are internal and only reachable through the orchestration tree.
-- `debugger-orchestrator` is the top-level debugger router invoked by `dark-factory-agent` for `route=debugger`, or by `debug-flow-agent` for integration flow failures. It orchestrates `reproduce-test-agent` and `debugger-fix-agent` with structural commit enforcement.
+- `debugger-orchestrator` is the top-level debugger router invoked by `dark-factory-agent` for `route=debugger`. It orchestrates `reproduce-test-agent` and `debugger-fix-agent` with structural commit enforcement.
 - `detect-drift-agent` has no direct caller in the manufacture flow — it runs standalone or is triggered separately for documentation auditing.
 - `manage-issues-file` command is declared but not referenced in agent frontmatter in the current codebase; usage may be inline within orchestration logic.
 - The `metrics` command is user-facing only and not part of any automated flow.
