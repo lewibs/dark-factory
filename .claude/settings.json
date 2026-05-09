@@ -37,7 +37,8 @@
       "Bash(jq *)",
       "Read(/tmp/**)",
       "Write(/tmp/**)",
-      "Skill(*)"
+      "Skill(*)",
+      "SendMessage(*)"
     ]
   },
   "hooks": {}
