@@ -2,8 +2,8 @@
 description: "Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager."
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill, SendMessage
 model: haiku
-scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(*/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(*/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(python3 */scripts/update-metrics.py *), Bash(python3 -c *installed_plugins.json*), Bash(git -C * log *), Bash(git -C * add *), Bash(git -C * diff *), Bash(git -C * commit *), Bash(git -C * push *), Bash(cp *), Bash(git rev-parse *), Bash(rm -f /tmp/dark-factory-work-dir)
+scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh
+allowed-tools: Bash(*/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(*/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(*/agents/dark-factory/scripts/find-related-pr.sh *), Bash(python3 */scripts/update-metrics.py *), Bash(python3 -c *installed_plugins.json*), Bash(git -C * log *), Bash(git -C * add *), Bash(git -C * diff *), Bash(git -C * commit *), Bash(git -C * push *), Bash(cp *), Bash(git rev-parse *), Bash(rm -f /tmp/dark-factory-work-dir)
 skills: task-classifier, brain-state-manager
 ---
 
@@ -22,7 +22,7 @@ If `taskName` is not provided, derive a short slug from `taskDescription` (lower
 CRITICAL: Execute all steps sequentially without stopping between them.
 - Do NOT output partial results and wait for user input between steps.
 - Do NOT stop after classification, prep, brain creation, or any individual step.
-- The ONLY valid reason to pause is the AskUserQuestion call in Step 1 (ambiguous classification).
+- The ONLY valid reasons to pause are: (a) the AskUserQuestion call in Step 1 (ambiguous classification), and (b) the AskUserQuestion call in Step 2 (PR reuse confirmation when a related open PR is found).
 - All other steps must execute continuously from Step 1 through Step 12 without interruption.
 - After completing each step, immediately proceed to the next step without outputting intermediate summaries.
 
@@ -58,10 +58,55 @@ manufacture(taskDescription, taskName):
   
   If PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root. Checked installed_plugins.json at ~/.claude/plugins/installed_plugins.json using key 'dark-factory@dark-factory'. Ensure the plugin is installed by running /dark-factory:install." and STOP
 
-  prepOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh\" <taskName>")
-  WORK_DIR = extract WORK_DIR=<value> line from prepOutput
+  # NEW: check for related open PR before creating a new branch
+  relatedPrOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/find-related-pr.sh\" \"$taskDescription\"") || ""
+  EXISTING_BRANCH = extract BRANCH=<value> from relatedPrOutput  (or empty)
+  EXISTING_URL    = extract URL=<value>    from relatedPrOutput  (or empty)
+  EXISTING_TITLE  = extract TITLE=<value>  from relatedPrOutput (or empty)
 
-  If script fails: report error and STOP (worktree was never created)
+  if EXISTING_BRANCH is not empty:
+    answer = AskUserQuestion(
+      header: "Reuse Existing PR?",
+      question: "Found a related open PR that may match your task.\n\nPR: \"" + EXISTING_TITLE + "\"\nBranch: " + EXISTING_BRANCH + "\nURL: " + EXISTING_URL + "\n\nReuse this branch (new commits will be pushed to the existing PR) or create a fresh branch?",
+      options: ["Reuse existing branch", "Create new branch"]
+    )
+    if answer == "Reuse existing branch":
+      USE_EXISTING = true
+    else:
+      USE_EXISTING = false
+  else:
+    USE_EXISTING = false
+
+  if USE_EXISTING:
+    # Derive WORK_DIR path (mirrors prep-feature-dir.sh naming convention)
+    GIT_ROOT = PROJECT_DIR
+    PROJECT_NAME = basename(GIT_ROOT)
+    # EXISTING_BRANCH may be "feature/add-oauth", "bugfix/foo", "user/bar", or "plain-slug".
+    # Strip any leading "<prefix>/" so that existingTaskName is always a plain slug with no slashes.
+    # This prevents downstream consumers (brain-state-manager, cleanup-worktree.sh) from receiving
+    # a taskName that contains "/" characters.
+    existingTaskName = EXISTING_BRANCH after stripping leading "<anything>/" prefix (i.e. remove up to and including the first "/" if one is present, otherwise use EXISTING_BRANCH as-is)
+    WORKTREE_NAME = PROJECT_NAME + "-" + existingTaskName
+    WORK_DIR = GIT_ROOT + "/../" + WORKTREE_NAME
+
+    # Check if worktree already exists for this branch
+    worktreeExists = bash("git -C \"$GIT_ROOT\" worktree list | grep -qE \"(^|/)$WORKTREE_NAME( |$)\" && echo yes || echo no")
+    if worktreeExists == "no":
+      bash("git -C \"$GIT_ROOT\" pull origin main || true")
+      bash("git -C \"$GIT_ROOT\" worktree add \"$WORK_DIR\" \"$EXISTING_BRANCH\"")
+    else:
+      # Worktree already exists — verify the checked-out branch matches EXISTING_BRANCH
+      # to guard against a corrupted or mismatched worktree silently landing commits on the wrong branch
+      actualBranch = bash("git -C \"$WORK_DIR\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ''")
+      if actualBranch != EXISTING_BRANCH:
+        report error: "Worktree at " + WORK_DIR + " exists but is checked out on '" + actualBranch + "' instead of expected '" + EXISTING_BRANCH + "'. Remove the worktree manually and retry."
+        STOP
+    # taskName for brain.json should reflect the existing branch slug
+    taskName = existingTaskName
+  else:
+    prepOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh\" \"$taskName\"")
+    WORK_DIR = extract WORK_DIR=<value> line from prepOutput
+    If script fails: report error and STOP
 
   # Step 3 — create brain.json (delegate to brain-state-manager skill)
   invoke brain-state-manager({
@@ -121,13 +166,16 @@ manufacture(taskDescription, taskName):
       report error and STOP
 
   # Step 5 — branch-drift guard
-  driftCheck = bash("git -C \"$WORK_DIR\" log main..feature/" + taskName + " --oneline")
+  # Use EXISTING_BRANCH when reusing an existing PR branch (it may not follow the "feature/" prefix),
+  # otherwise construct the expected ref as "feature/<taskName>".
+  branchRef = USE_EXISTING ? EXISTING_BRANCH : ("feature/" + taskName)
+  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + branchRef + " --oneline")
   if driftCheck is empty:
     # Collect diagnostic information before cleanup
     worktreeLog = bash("git -C \"$WORK_DIR\" log --oneline -5")
     worktreeStatus = bash("git -C \"$WORK_DIR\" status")
     run cleanup(WORK_DIR, taskName)
-    report error: "Branch-drift guard failed: feature/" + taskName + " has no commits ahead of main.\nWorktree log (last 5):\n" + worktreeLog + "\nWorktree status:\n" + worktreeStatus
+    report error: "Branch-drift guard failed: " + branchRef + " has no commits ahead of main.\nWorktree log (last 5):\n" + worktreeLog + "\nWorktree status:\n" + worktreeStatus
     STOP
 
   # Step 6 — read planFilePath from brain.json
@@ -197,12 +245,9 @@ Called on error or after feature-agent completes.
 ```
 invoke brain-state-manager({ operation: "delete", workDir: WORK_DIR })
 bash("rm -f /tmp/dark-factory-work-dir")
-# Resolve plugin root with explicit dark-factory plugin lookup (CLAUDE_PLUGIN_ROOT not available in Bash subprocesses)
-PLUGIN_ROOT = bash("python3 -c \"import json,os,sys; d=json.load(open(os.path.expanduser('~/.claude/plugins/installed_plugins.json'))); p=d['plugins'].get('dark-factory@dark-factory',[{}]); print(p[0].get('installPath','') if p else '')\"")
-if PLUGIN_ROOT is empty:
-    # Fallback: try to extract from 'claude plugins list' output
-    PLUGIN_ROOT = bash("claude plugins list 2>/dev/null | grep dark-factory | awk '{print $NF}' || true")
-  if PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root. Checked installed_plugins.json at ~/.claude/plugins/installed_plugins.json using key 'dark-factory@dark-factory'. Ensure the plugin is installed by running /dark-factory:install." and return
+# PLUGIN_ROOT was already resolved in Step 2 — reuse it here. Do NOT re-resolve from
+# installed_plugins.json; that would duplicate resolution logic and allow the two values to diverge.
+if PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root (was not set in Step 2). Ensure the plugin is installed by running /dark-factory:install." and return
 bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
 ```
 
