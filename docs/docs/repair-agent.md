@@ -112,11 +112,11 @@ Sets `significantChange` flag based on whether any modified file is:
 ## Dependencies
 
 - **Test runners**: pytest, npm test, go test (auto-detected)
-- **No skills or sub-agents required**
+- **Skills**: investigation-delegate (to invoke investigation-agent before applying changes)
 
 ## Tools
 
-- Read, Write, Edit, Bash, Glob
+- Read, Write, Edit, Bash, Glob, Agent, Skill
 
 ## Allowed Bash Commands
 
