@@ -10,7 +10,7 @@
 
 ## Overview
 
-The manufacture command is the single entry point for all autonomous feature work, bug debugging, fix flows, and repair operations. It orchestrates an entire unit of work end-to-end: classifying the task, isolating work in a fresh directory, delegating to the appropriate worker agent, reviewing results, keeping documentation current, opening a PR, and cleaning up.
+The manufacture command is the single entry point for all autonomous feature work, bug debugging, and repair operations. It orchestrates an entire unit of work end-to-end: classifying the task, isolating work in a fresh directory, delegating to the appropriate worker agent, reviewing results, keeping documentation current, opening a PR, and cleaning up.
 
 The command never writes or modifies code itself — it delegates entirely to specialized workers based on task classification.
 
@@ -25,7 +25,6 @@ The command never writes or modifies code itself — it delegates entirely to sp
 - Delegates to `task-classifier` skill
 - Skill determines if task is:
   - `"feature"` — New feature or enhancement
-  - `"fix-flow"` — Known-broken integration flow
   - `"debugger"` — Non-obvious/state-dependent bug
   - `"repair"` — Lightweight targeted change
 - If classification is ambiguous: sends PushNotification, awaits AskUserQuestion response
@@ -55,9 +54,6 @@ Routes based on classification:
     - Any other status → cleanup, report unexpected status, STOP
   - There is NO multi-turn loop — feature-agent handles all user approvals internally via AskUserQuestion.
   - Never falls through to sub-planning-agent or any other agent if feature-agent returns unexpected output.
-  
-- **"fix-flow"** → `fix-flow-orchestrator`
-  - Investigates broken flow, generates fix scripts, applies targeted fixes
   
 - **"debugger"** → `debugger-orchestrator` (3-agent pattern: orchestrator, reproduce-test-agent, debugger-fix-agent)
   - Systematic debugging for non-obvious bugs
@@ -139,7 +135,7 @@ Called on any error path after worktree creation:
 ## Dependencies
 
 - **Skills**: task-classifier, brain-state-manager
-- **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-orchestrator (+ reproduce-test-agent, debugger-fix-agent), repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
+- **Sub-agents**: feature-agent, debugger-orchestrator (+ reproduce-test-agent, debugger-fix-agent), repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
 - **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh
 
 ## Tools

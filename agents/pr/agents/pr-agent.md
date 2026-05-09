@@ -57,7 +57,7 @@ pr-agent(planFilePath or description):
     Find the file matching taskName (exact or prefix match), or most recent by date
     description_content = read matching bug file verbatim
   
-  ELSE IF classification == "repair" OR classification == "fix-flow":
+  ELSE IF classification == "repair":
     # Fallback to planFilePath if provided, else generate from git diff
     IF planFilePath is provided:
       description_content = read file at planFilePath verbatim

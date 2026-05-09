@@ -18,7 +18,6 @@ flowchart TD
   dark-factory-agent --> task-classifier[skill: task-classifier]
   dark-factory-agent --> brain-state-manager[skill: brain-state-manager]
   dark-factory-agent -->|route=feature| feature-agent
-  dark-factory-agent -->|route=fix-flow| fix-flow-orchestrator
   dark-factory-agent -->|route=debugger| debugger-orchestrator
   dark-factory-agent -->|route=repair| repair-agent
   dark-factory-agent --> code-review-orchestrator-agent
@@ -37,11 +36,6 @@ flowchart TD
   execution-agent --> skeleton-agent
   execution-agent --> testing-agent
   execution-agent --> implementation-agent
-
-  fix-flow-orchestrator --> investigation-agent
-  fix-flow-orchestrator --> setup-wizard
-  fix-flow-orchestrator --> ralph-fix-and-push
-  ralph-fix-and-push --> debug-flow-agent --> debugger-orchestrator
 
   debugger-orchestrator --> reproduce-test-agent
   debugger-orchestrator --> debugger-fix-agent
@@ -80,13 +74,13 @@ Top-level user-facing entry point. Routes a task description through the full da
 - Model: haiku
 - User-invocable: true (via `manufacture` command)
 - Role: Top-level orchestrator. Classifies the task, preps an isolated worktree, routes to a worker agent, runs code review, updates documentation, updates skills, opens a PR, then cleans up.
-- Invokes: `task-classifier` (skill), `brain-state-manager` (skill), `feature-agent`, `fix-flow-orchestrator`, `debugger-orchestrator`, `repair-agent`, `code-review-orchestrator-agent`, `update-documentation-agent`, `skill-update-agent`, `pr-agent`
+- Invokes: `task-classifier` (skill), `brain-state-manager` (skill), `feature-agent`, `debugger-orchestrator`, `repair-agent`, `code-review-orchestrator-agent`, `update-documentation-agent`, `skill-update-agent`, `pr-agent`
 - Scripts: `prep-feature-dir.sh`, `cleanup-worktree.sh`
 
 **task-classifier** (`skills/task-classifier/SKILL.md`)
 - Model: n/a (skill read by dark-factory-agent)
 - User-invocable: false
-- Role: Classifies a task description into one of four routes: `feature`, `fix-flow`, `debugger`, `repair`. Returns a classification string or prompts for clarification on ambiguity.
+- Role: Classifies a task description into one of three routes: `feature`, `debugger`, `repair`. Returns a classification string or prompts for clarification on ambiguity.
 
 **brain-state-manager** (`skills/brain-state-manager/SKILL.md`)
 - User-invocable: false
@@ -151,44 +145,13 @@ Handles new feature development end-to-end with human plan approval at each phas
 
 ---
 
-### Flow: `fix-flow`
-
-Autonomously drives a failing integration flow to green by generating scripts, triggering, debugging, and PRing in a loop.
-
-**fix-flow-orchestrator** (`agents/fix-flow/agents/fix-flow-orchestrator.md`)
-- Model: haiku
-- User-invocable: false (spawned by dark-factory-agent for `route=fix-flow`)
-- Role: Three-phase orchestrator: (1) understand the system via investigation-agent, (2) generate scripts via setup-wizard, (3) fix and push via ralph-fix-and-push.
-- Invokes: `investigation-agent`, `setup-wizard`, `ralph-fix-and-push`
-
-**setup-wizard** (`agents/fix-flow/agents/setup-wizard.md`)
-- Model: sonnet
-- User-invocable: false
-- Role: Reads `docs/plans/system-diagram.md` and generates the shell scripts needed to trigger, monitor, and fetch logs for an integration flow (`trigger.sh`, `wait-for-completion.sh`, `fetch-logs.sh`, optionally `deploy.sh`).
-- Skills: `generate-trigger`, `generate-wait-for-completion`, `generate-fetch-logs`, `generate-deploy`
-- SubagentStop hook: `commit-on-subagent-stop.sh`
-
-**ralph-fix-and-push** (`agents/fix-flow/agents/ralph-fix-and-push.md`)
-- Model: haiku
-- User-invocable: false
-- Role: Owns the fix loop. Spawns debug-flow-agent repeatedly until the integration flow passes green, accumulating fixes as commits on a single branch. Creates one PR for all accumulated fixes.
-- Invokes: `debug-flow-agent`
-
-**debug-flow-agent** (`agents/fix-flow/agents/debug-flow-agent.md`)
-- Model: sonnet
-- User-invocable: false
-- Role: Runs the integration flow (`trigger.sh`), waits for completion (`wait-for-completion.sh`), fetches logs on failure (`fetch-logs.sh`), then hands off to debugger-orchestrator with the logs.
-- Invokes: `debugger-orchestrator`
-
----
-
 ### Flow: `debugger`
 
 Systematic debugging of non-obvious bugs using a three-phase structured orchestrator.
 
 **debugger-orchestrator** (`agents/debugger/agents/debugger-orchestrator.md`)
 - Model: haiku
-- User-invocable: false (spawned by dark-factory-agent for `route=debugger`, or by debug-flow-agent)
+- User-invocable: false (spawned by dark-factory-agent for `route=debugger`)
 - Role: Top-level orchestrator for systematic debugging. Coordinates investigation, triage, test reproduction, and fix application across three specialized sub-agents with structural commit enforcement via SubagentStop hooks.
 - Invokes: `reproduce-test-agent`, `debugger-fix-agent`
 - Skills: `investigation-delegate`
@@ -261,7 +224,7 @@ Updates and validates system documentation after work is done.
 
 **investigation-agent** (`agents/documentation/agents/investigation-agent.md`)
 - Model: sonnet
-- User-invocable: false (spawned by investigation-orchestrator, fix-flow-orchestrator, debugger-orchestrator, repair-agent)
+- User-invocable: false (spawned by investigation-orchestrator, debugger-orchestrator, repair-agent)
 - Role: General-purpose investigation agent. Given a system or topic, checks for existing docs, investigates the codebase if needed, creates or updates `docs/docs/<system>.md`, and returns the path.
 - Skills: `investigate`, `documentation`
 - SubagentStop hook: `commit-investigation-docs.sh`
@@ -363,17 +326,13 @@ Skills are instruction files read at runtime by agents. They are not agents them
 | `detect-drift` | `skills/detect-drift/SKILL.md` | `detect-drift-agent` |
 | `create-pr` | `skills/create-pr/SKILL.md` | `pr-agent` |
 | `systematic-debugging` | `skills/debug/SKILL.md` | `debugger-agent` |
-| `generate-trigger` | `skills/generate-trigger/SKILL.md` | `setup-wizard` |
-| `generate-wait-for-completion` | `skills/generate-wait-for-completion/SKILL.md` | `setup-wizard` |
-| `generate-fetch-logs` | `skills/generate-fetch-logs/SKILL.md` | `setup-wizard` |
-| `generate-deploy` | `skills/generate-deploy/SKILL.md` | `setup-wizard` |
 
 ---
 
 ## Usage / Reference Notes
 
 - All agents marked `user-invocable: false` are internal and only reachable through the orchestration tree.
-- `debugger-orchestrator` is the top-level debugger router invoked by `dark-factory-agent` for `route=debugger`, or by `debug-flow-agent` for integration flow failures. It orchestrates `reproduce-test-agent` and `debugger-fix-agent` with structural commit enforcement.
+- `debugger-orchestrator` is the top-level debugger router invoked by `dark-factory-agent` for `route=debugger`. It orchestrates `reproduce-test-agent` and `debugger-fix-agent` with structural commit enforcement.
 - `detect-drift-agent` has no direct caller in the manufacture flow — it runs standalone or is triggered separately for documentation auditing.
 - `manage-issues-file` command is declared but not referenced in agent frontmatter in the current codebase; usage may be inline within orchestration logic.
 - The `metrics` command is user-facing only and not part of any automated flow.

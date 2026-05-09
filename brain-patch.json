@@ -1,7 +1,7 @@
 {
   "skillsWritten": [
-    "skills/declare-tools-in-agent-frontmatter/SKILL.md",
-    "skills/flock-shared-file-in-hooks/SKILL.md"
+    "skills/add-or-remove-pipeline-route/SKILL.md",
+    "skills/phase-agent-allowlist/SKILL.md"
   ],
-  "summary": "Updated 2 skills: clarified that skills: frontmatter must list skill slugs only (not agent names), and added consecutive-flock-race-window and tmp-file-cleanup patterns to flock skill"
+  "summary": "Created route-addition/removal checklist skill; updated phase-agent-allowlist example to remove deleted fix-flow-orchestrator"
 }

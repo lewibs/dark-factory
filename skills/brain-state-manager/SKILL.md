@@ -19,7 +19,7 @@ Creates a new brain.json in the work directory and sets up environment integrati
 - `taskName` — short slug for the feature (string, e.g., "add-oauth")
 - `workDir` — absolute path to git worktree (string)
 - `projectDir` — absolute path to original project root (string)
-- `classification` — one of "feature" | "fix-flow" | "debugger" | "repair" (string)
+- `classification` — one of "feature" | "debugger" | "repair" (string)
 
 **Output**:
 ```json

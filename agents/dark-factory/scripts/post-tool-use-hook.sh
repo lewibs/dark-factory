@@ -74,7 +74,7 @@ fi
 # ---------------------------------------------------------------------------
 TOOL_NAME=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_name // ""')
 
-PHASE_AGENTS="feature-agent|debugger-agent|fix-flow-orchestrator|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
+PHASE_AGENTS="feature-agent|debugger-agent|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
 
 if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
   if [ "$TOOL_NAME" = "Agent" ]; then

@@ -14,7 +14,7 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 
 ## Input
 
-- `planFilePath` (string, nullable) — Path to the plan file; used by feature and repair/fix-flow routes; if null and route is repair/fix-flow, falls back to git summary
+- `planFilePath` (string, nullable) — Path to the plan file; used by feature and repair routes; if null and route is repair, falls back to git summary
 - Or `taskDescription` (string) — Plain description of the work if no plan exists (fallback route only)
 - If neither: uses git diff (fallback route only)
 
@@ -38,7 +38,7 @@ The description content sourced for the PR body depends on `brain.classification
 3. **Populates Description section** based on work route:
    - **`feature`**: reads planFilePath verbatim
    - **`debugger`**: searches `$PROJECT_DIR/docs/bugs/` for a `.md` file matching `taskName` (exact or prefix match, or most recent by date); reads verbatim
-   - **`repair` / `fix-flow`**: reads planFilePath verbatim if provided; otherwise generates a summary from `git log main..HEAD --oneline` + `git diff main...HEAD --name-only`
+   - **`repair`**: reads planFilePath verbatim if provided; otherwise generates a summary from `git log main..HEAD --oneline` + `git diff main...HEAD --name-only`
    - **Fallback (unknown classification)**: uses planFilePath if provided, else uses taskDescription string
 4. **Runs tests** (if test suite exists):
    - Detects test runner (pytest, npm test, go test, etc.)
@@ -137,7 +137,7 @@ The PR body is built from `agents/pr/templates/pr-template.md`, which has exactl
 **Description source**: The `## Description` section is populated based on the work route (read from `brain.classification`):
 - **feature**: full verbatim contents of planFilePath
 - **debugger**: full verbatim contents of the matching bug doc from `docs/bugs/`
-- **repair / fix-flow**: verbatim planFilePath if provided; otherwise a generated summary from `git log` + `git diff --name-only`
+- **repair**: verbatim planFilePath if provided; otherwise a generated summary from `git log` + `git diff --name-only`
 - **fallback**: planFilePath, taskDescription, or git diff — in that priority order
 
 Content is never summarised; verbatim source text is always preferred.
