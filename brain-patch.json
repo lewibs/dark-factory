@@ -3,5 +3,17 @@
     "skills/add-or-remove-pipeline-route/SKILL.md",
     "skills/phase-agent-allowlist/SKILL.md"
   ],
-  "summary": "Created route-addition/removal checklist skill; updated phase-agent-allowlist example to remove deleted fix-flow-orchestrator"
+  "docsWritten": [
+    "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/repair-agent.md",
+    "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/manufacture.md",
+    "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/dark-factory-agents.md"
+  ],
+  "summary": "Updated repair-agent docs with WORK_DIR resolution, absolute path, and staging requirements; added F23 failure point to manufacture.md; updated repair-agent description in dark-factory-agents.md",
+  "artifacts": {
+    "modified": [
+      "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/repair-agent.md",
+      "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/manufacture.md",
+      "/home/lewibs/github/dark_factory/dark_factory-fix-repair-agent-worktree/docs/docs/dark-factory-agents.md"
+    ]
+  }
 }
