@@ -5,7 +5,7 @@ description: Manages the PR lifecycle for a code fix. Opens a PR, watches CI via
 tools: Read, Bash, Write, Edit, Command, Skill
 skills: create-pr
 commands: ci-watch-runner, comment-resolution-runner
-allowed-tools: Bash(gh pr create *), Bash(gh pr view *), Bash(gh api graphql *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * status *), Bash(git -C * log *), Bash(cat > /tmp/pr-body.md *)
+allowed-tools: Bash(gh pr create *), Bash(gh pr view *), Bash(gh pr list *), Bash(gh pr comment *), Bash(gh api graphql *), Bash(git -C * push *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * status *), Bash(git -C * log *), Bash(cat > /tmp/pr-body.md *)
 model: haiku
 PostToolUse: "${CLAUDE_PLUGIN_ROOT}/agents/pr/hooks/append-footer-hook.sh"
 # Hook Coordination: The append-footer-hook reads pr-body.md (created in Step 1)
@@ -29,11 +29,15 @@ pr-agent(planFilePath or description):
   
   # Step 0b — Check for existing PR on feature branch in the worktree
   branchName = brain.taskName (from injected brain context)
-  existingPr = bash("gh pr view feature/" + branchName + " --json url --jq '.url' 2>/dev/null") || null
-  if existingPr is not null:
+  existingPr = bash("gh pr list --head feature/" + branchName + " --state open --json url --jq '.[0].url' 2>/dev/null") || null
+  if existingPr is not null and existingPr is not empty:
+    # PR already exists — push new commits and leave a comment summarizing what changed
     git -C "$WORK_DIR" add --all
+    newCommits = bash("git -C \"$WORK_DIR\" log main..HEAD --oneline")
     git -C "$WORK_DIR" diff --cached --quiet || git -C "$WORK_DIR" commit -m "<short description of fix>"
     git -C "$WORK_DIR" push
+    changedFiles = bash("git -C \"$WORK_DIR\" diff main...HEAD --name-only")
+    bash("gh pr comment " + existingPr + " --body \"## Update\n\nNew commits pushed:\n\`\`\`\n" + newCommits + "\n\`\`\`\n\nChanged files:\n" + changedFiles + "\"")
     pr_url = existingPr
   # (if no existing PR, pr_url will be set in Step 2 below)
 
