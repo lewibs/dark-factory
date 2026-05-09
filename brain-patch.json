@@ -1,0 +1,8 @@
+{
+  "artifacts": {
+    "created": ["/home/lewibs/github/dark_factory/dark_factory-pr-reuse-existing/agents/dark-factory/scripts/find-related-pr.sh"],
+    "modified": ["/home/lewibs/github/dark_factory/dark_factory-pr-reuse-existing/commands/manufacture.md"]
+  },
+  "skillsWritten": ["skills/gpu-readiness-debugging/SKILL.md"],
+  "summary": "Implemented PR reuse feature: added find-related-pr.sh script for fuzzy-matching task descriptions against open PRs, and modified manufacture.md Step 2 to check for related PRs before creating new branches. Users can now reuse existing branches for related tasks."
+}

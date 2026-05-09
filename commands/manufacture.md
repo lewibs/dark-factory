@@ -58,10 +58,45 @@ manufacture(taskDescription, taskName):
   
   If PLUGIN_ROOT is empty: report "Failed to resolve dark-factory plugin root. Checked installed_plugins.json at ~/.claude/plugins/installed_plugins.json using key 'dark-factory@dark-factory'. Ensure the plugin is installed by running /dark-factory:install." and STOP
 
-  prepOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh\" <taskName>")
-  WORK_DIR = extract WORK_DIR=<value> line from prepOutput
+  # NEW: check for related open PR before creating a new branch
+  relatedPrOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/find-related-pr.sh\" \"$taskDescription\"") || ""
+  EXISTING_BRANCH = extract BRANCH=<value> from relatedPrOutput  (or empty)
+  EXISTING_URL    = extract URL=<value>    from relatedPrOutput  (or empty)
+  EXISTING_TITLE  = extract TITLE=<value>  from relatedPrOutput (or empty)
 
-  If script fails: report error and STOP (worktree was never created)
+  if EXISTING_BRANCH is not empty:
+    answer = AskUserQuestion(
+      header: "Reuse Existing PR?",
+      question: "Found a related open PR that may match your task.\n\nPR: \"" + EXISTING_TITLE + "\"\nBranch: " + EXISTING_BRANCH + "\nURL: " + EXISTING_URL + "\n\nReuse this branch (new commits will be pushed to the existing PR) or create a fresh branch?",
+      options: ["Reuse existing branch", "Create new branch"]
+    )
+    if answer == "Reuse existing branch":
+      USE_EXISTING = true
+    else:
+      USE_EXISTING = false
+  else:
+    USE_EXISTING = false
+
+  if USE_EXISTING:
+    # Derive WORK_DIR path (mirrors prep-feature-dir.sh naming convention)
+    GIT_ROOT = PROJECT_DIR
+    PROJECT_NAME = basename(GIT_ROOT)
+    # EXISTING_BRANCH is e.g. "feature/add-oauth"; taskName for worktree dir is the slug after "feature/"
+    existingTaskName = EXISTING_BRANCH after stripping leading "feature/"
+    WORKTREE_NAME = PROJECT_NAME + "-" + existingTaskName
+    WORK_DIR = GIT_ROOT + "/../" + WORKTREE_NAME
+
+    # Check if worktree already exists for this branch
+    worktreeExists = bash("git -C \"$GIT_ROOT\" worktree list | grep -qF \"$WORKTREE_NAME\" && echo yes || echo no")
+    if worktreeExists == "no":
+      bash("git -C \"$GIT_ROOT\" pull origin main || true")
+      bash("git -C \"$GIT_ROOT\" worktree add \"$WORK_DIR\" \"$EXISTING_BRANCH\"")
+    # taskName for brain.json should reflect the existing branch slug
+    taskName = existingTaskName
+  else:
+    prepOutput = bash("\"$PLUGIN_ROOT/agents/dark-factory/scripts/prep-feature-dir.sh\" \"$taskName\"")
+    WORK_DIR = extract WORK_DIR=<value> line from prepOutput
+    If script fails: report error and STOP
 
   # Step 3 — create brain.json (delegate to brain-state-manager skill)
   invoke brain-state-manager({
