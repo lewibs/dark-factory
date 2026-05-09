@@ -17,7 +17,7 @@ flowchart TD
   DFA["dark-factory-agent\n(haiku orchestrator)"]
 
   DFA -->|"invoke skill"| TC["task-classifier\n(skill)"]
-  TC -->|"classification: feature | fix-flow | debugger | repair"| DFA
+  TC -->|"classification: feature | debugger | repair"| DFA
 
   DFA -->|"find-related-pr.sh"| FindPR{"Related open PR\nfound?"}
   FindPR -->|"yes"| AskUser["AskUserQuestion\n(Reuse or New?)"]
@@ -31,14 +31,12 @@ flowchart TD
   DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
 
   DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
-  DFA -->|"classification == fix-flow"| FFO["fix-flow-orchestrator\n(haiku orchestrator)"]
   DFA -->|"classification == debugger"| DA["debugger-agent\n(sonnet)"]
   DFA -->|"classification == repair"| RA["repair-agent"]
 
   FA -->|"phases: draft → mermaid → flows → execute"| EA["execution-agent"]
   EA -->|"code written, committed"| DFA
 
-  FFO -->|"investigate → setup → fix-and-push loop"| DFA
   DA -->|"systematic debug, bug audit log"| DFA
 
   DFA -->|"branch-drift guard"| DFA
@@ -100,14 +98,6 @@ The feature route is a single-invocation human-in-the-loop planning flow. `dark-
 | `manufacture.feature.success` | `taskDescription` | PR URL | happy path | all planning phases approved, code written, review clean, PR opened |
 | `manufacture.feature.hard-stop` | `taskDescription` | error + cleanup | error | execution-agent hits a hard stop; worktree cleaned up |
 | `manufacture.feature.aborted` | `taskDescription` | aborted message | error | user selects Abort at final approval gate |
-
----
-
-### Flow: `manufacture.fix-flow`
-
-- Core files: `agents/fix-flow/agents/fix-flow-orchestrator.md`
-
-Routes to `fix-flow-orchestrator`, which runs three phases in strict sequence: (1) investigation via `investigation-agent` to understand the broken flow, (2) script generation via `setup-wizard`, (3) an iterative fix-trigger-debug loop via `ralph-fix-and-push` until CI is green. All fixes accumulate on a single branch and are merged into one PR.
 
 ---
 

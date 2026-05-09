@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The manufacture pipeline always runs `update-documentation-agent` (Step 8) and `skill-update-agent` (Step 9) on every successful manufacture task, regardless of the classification route (feature, fix-flow, debugger, repair) or the scope of the change. There is no conditional gate that skips them for small or trivial changes.
+- What this is: The manufacture pipeline always runs `update-documentation-agent` (Step 8) and `skill-update-agent` (Step 9) on every successful manufacture task, regardless of the classification route (feature, debugger, repair) or the scope of the change. There is no conditional gate that skips them for small or trivial changes.
 
 ## How update-documentation-agent is invoked
 
