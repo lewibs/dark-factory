@@ -117,6 +117,7 @@ Execution paused; user must review and resume.
 8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 9. **Accept free-text affirmative responses as approval** — At each approval gate, common keywords like "yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", and "done" are automatically mapped to the appropriate approval option for that gate
 10. **ALWAYS return structured JSON** — Every return path must produce `{ status: "..." }`. Valid statuses: `done`, `hard-stop`, `aborted`. Never return free text or intermediate analysis.
+11. **NON-STOP EXECUTION (Haiku model requirement)** — feature-agent MUST call `AskUserQuestion` at every approval gate (Phases 1–4) without exception. After the user answers, immediately continue to the next phase without stopping or returning control. Haiku's default behavior is to pause after each logical unit; the Non-Stop Execution constraint in the agent prompt overrides this. Skipping an approval gate is a critical bug — the user never gets to review the plan and execution proceeds without approval.
 
 ## Dependencies
 

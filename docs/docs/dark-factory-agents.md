@@ -95,7 +95,7 @@ Handles new feature development end-to-end with human plan approval at each phas
 **feature-agent** (`agents/featurework/agents/feature-agent.md`)
 - Model: haiku
 - User-invocable: false (spawned by dark-factory-agent for `route=feature`)
-- Role: End-to-end feature orchestrator. Drives planning phases in sequence (draft plan → mermaid diagram → flows), gates on human AskUserQuestion approval between phases, then invokes execution-agent.
+- Role: End-to-end feature orchestrator. Drives planning phases in sequence (draft plan → mermaid diagram → flows), gates on human AskUserQuestion approval between phases, then invokes execution-agent. Contains a **NON-STOP EXECUTION** constraint (mandatory Haiku model requirement): the agent must call `AskUserQuestion` at every approval gate (Phases 1–4) without pausing or returning control between phases. After each user answer, execution continues immediately to the next phase. This ensures users always see approval gates before execution proceeds.
 - Invokes: `planning-agent`, `execution-agent`
 - Skills: `flow-state-manager`
 - Commands: `render-plan-section`
@@ -110,7 +110,7 @@ Handles new feature development end-to-end with human plan approval at each phas
 - Model: sonnet
 - User-invocable: false
 - Role: Heavy-lifting worker for the planning system. Researches codebase, writes plan files, runs scripts, generates mermaid diagrams. Handles all three phases: `draft_plan`, `mermaid`, `flows`.
-- Skills: `create-mermaid-diagram`
+- Skills: `create-mermaid-diagram` — **mandatory and explicitly required** during the `mermaid` phase when feedback is not "none". The agent must read this skill at `skills/create-mermaid-diagram/SKILL.md` before modifying any diagram to ensure node color conventions (Gray=unchanged, Yellow=updated, Red=deleted, Green=created), edge labels, and syntax validation are applied correctly. This is enforced in the agent prompt via a MANDATORY instruction.
 - SubagentStop hook: `commit-on-subagent-stop.sh`
 
 **execution-agent** (`agents/featurework/execution/agents/execution-agent.md`)
