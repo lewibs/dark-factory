@@ -98,7 +98,7 @@ MetricsKey: string
   — for Agent tool calls: subagent_type field, or agent name extracted from prompt path
   — for Skill tool calls: skill field
 
-PhaseAgents: feature-agent | debugger-agent | fix-flow-orchestrator | repair-agent |
+PhaseAgents: feature-agent | debugger-agent | repair-agent |
              code-review-orchestrator-agent | update-documentation-agent |
              skill-update-agent | pr-agent
 ```

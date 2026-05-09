@@ -1,5 +1,5 @@
 ---
-description: "Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager."
+description: "Top-level dark-factory orchestrator. Preps an isolated work dir, routes to the right worker agent (feature/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager."
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill, SendMessage
 model: haiku
 scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh
@@ -157,7 +157,6 @@ manufacture(taskDescription, taskName):
           report "feature-agent returned unexpected status: " + result.status
           STOP
     
-    - "fix-flow"  → invoke fix-flow-orchestrator({ taskDescription })
     - "debugger"  → invoke debugger-orchestrator({ taskDescription })
     - "repair"    → invoke repair-agent({ taskDescription })
     

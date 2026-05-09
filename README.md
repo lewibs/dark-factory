@@ -19,7 +19,7 @@ Dark Factory is a fully autonomous coding plugin for Claude Code. One command. N
 |---|---|
 | **Build features** | Designs, implements, reviews, and ships new functionality end-to-end |
 | **Fix bugs** | Diagnoses failures, applies fixes, and verifies — without you touching the code |
-| **Repair broken flows** | Detects broken integrations, loops through fixes, and restores green CI |
+| **Repair code** | Fixes small, targeted changes without planning |
 
 All three run 100% autonomously — Dark Factory handles planning, implementation, code review, PR, and cleanup from start to finish.
 
@@ -63,6 +63,6 @@ These two templates are the source of truth that every downstream agent — plan
 
 | Command | Input | Description |
 |---|---|---|
-| `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or fix-flow) end-to-end, runs code review, opens a PR, and cleans up |
+| `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or repair) end-to-end, runs code review, opens a PR, and cleans up |
 | `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |

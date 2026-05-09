@@ -6,18 +6,17 @@
 
 ## System Intent
 
-- What this is: dark-factory is a fully autonomous coding plugin for Claude Code. It builds features, fixes bugs, and repairs broken integration flows end-to-end — from planning through code review, PR, and merge — with no manual intervention.
+- What this is: dark-factory is a fully autonomous coding plugin for Claude Code. It builds features, fixes bugs, and repairs code end-to-end — from planning through code review, PR, and merge — with no manual intervention.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  User["User\n/dark-factory:manufacture"] --> Classify["task-classifier\n(feature | fix-flow | debugger | repair)"]
+  User["User\n/dark-factory:manufacture"] --> Classify["task-classifier\n(feature | debugger | repair)"]
   Classify -->|feature| Feature["feature-agent\n(plan → execute)"]
-  Classify -->|fix-flow| Fix["fix-flow-orchestrator\n(investigate → fix loop)"]
   Classify -->|debugger| Debug["debugger-agent\n(reproduce → fix → audit)"]
   Classify -->|repair| Repair["repair-agent"]
-  Feature & Fix & Debug & Repair --> Review["code-review-orchestrator\n(high-level + low-level → resolver)"]
+  Feature & Debug & Repair --> Review["code-review-orchestrator\n(high-level + low-level → resolver)"]
   Review --> PR["pr-agent\n(open PR → CI → comments)"]
   PR --> Done["PR ready"]
 ```

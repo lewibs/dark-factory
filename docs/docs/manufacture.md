@@ -17,7 +17,7 @@ flowchart TD
   DFA["dark-factory-agent\n(haiku orchestrator)"]
 
   DFA -->|"invoke skill"| TC["task-classifier\n(skill)"]
-  TC -->|"classification: feature | fix-flow | debugger | repair"| DFA
+  TC -->|"classification: feature | debugger | repair"| DFA
 
   DFA -->|"find-related-pr.sh"| FindPR{"Related open PR\nfound?"}
   FindPR -->|"yes"| AskUser["AskUserQuestion\n(Reuse or New?)"]
@@ -31,14 +31,12 @@ flowchart TD
   DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
 
   DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
-  DFA -->|"classification == fix-flow"| FFO["fix-flow-orchestrator\n(haiku orchestrator)"]
   DFA -->|"classification == debugger"| DA["debugger-agent\n(sonnet)"]
   DFA -->|"classification == repair"| RA["repair-agent"]
 
   FA -->|"phases: draft → mermaid → flows → execute"| EA["execution-agent"]
   EA -->|"code written, committed"| DFA
 
-  FFO -->|"investigate → setup → fix-and-push loop"| DFA
   DA -->|"systematic debug, bug audit log"| DFA
 
   DFA -->|"branch-drift guard"| DFA
