@@ -1,10 +1,10 @@
 {
-  "taskDescription": "When manufacture sets up a worktree near the start of a run, check open GitHub PRs for a related one by fuzzy-matching the task description against existing PR titles and branch names. If a likely match is found, ask the user to confirm before reusing that branch in the worktree instead of creating a new feature branch. If confirmed, check out the existing branch so that pr-agent existing Step 0b detection will push new commits to the existing PR rather than opening a new one. If no match is found or the user declines, proceed with the normal new-branch flow.",
-  "taskName": "pr-reuse-existing",
-  "workDir": "/home/lewibs/github/dark_factory/dark_factory-pr-reuse-existing",
+  "taskDescription": "Can you please check that all agents have tool access to the skills and sub agents that they use? I suspect some agents cant spin up sub agents since they lack permissions",
+  "taskName": "audit-agent-tool-access",
+  "workDir": "/home/lewibs/github/dark_factory/dark_factory-audit-agent-tool-access",
   "projectDir": "/home/lewibs/github/dark_factory/dark_factory",
-  "classification": "feature",
-  "planFilePath": "/home/lewibs/github/dark_factory/dark_factory-pr-reuse-existing/docs/plans/2026-05-09-pr-reuse-existing.md",
+  "classification": "repair",
+  "planFilePath": null,
   "bugFiles": null,
   "prUrl": null,
   "docsWritten": null,
@@ -16,8 +16,8 @@
   "phases": {
     "prep-running": false,
     "prep-complete": true,
-    "worker-running": false,
-    "worker-complete": true,
+    "worker-running": true,
+    "worker-complete": false,
     "review-running": false,
     "review-complete": false,
     "docs-running": false,
@@ -31,8 +31,8 @@
   },
   "notes": [],
   "metrics": {
-    "execution-agent": {
-      "start_ms": 1778357448191
+    "repair-agent": {
+      "start_ms": 1778358408017
     }
   }
 }

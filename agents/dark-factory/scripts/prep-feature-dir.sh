@@ -30,8 +30,11 @@ if git -C "$GIT_ROOT" branch --list "$BRANCH_NAME" | grep -qF "$BRANCH_NAME"; th
         echo "Error: Branch $BRANCH_NAME is already checked out in a worktree. Remove the existing worktree first or choose a different taskName." >&2
         exit 1
     fi
-    # Branch exists but is not checked out; safe to delete
-    git -C "$GIT_ROOT" branch -D "$BRANCH_NAME" || { echo "Error: Failed to delete existing branch $BRANCH_NAME." >&2; exit 1; }
+    # Branch exists but is not checked out; use safe delete to avoid losing unmerged commits
+    if ! git -C "$GIT_ROOT" branch -d "$BRANCH_NAME" 2>/dev/null; then
+        echo "Error: Branch $BRANCH_NAME has unmerged commits and cannot be safely deleted. Merge or manually delete the branch before retrying." >&2
+        exit 1
+    fi
 fi
 
 git -C "$GIT_ROOT" pull origin main || { echo "Error: git pull failed." >&2; exit 1; }

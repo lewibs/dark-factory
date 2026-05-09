@@ -17,13 +17,19 @@ if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] && [ -f "$DARK_FACTORY_POINTER_FILE" ]; t
   echo "post-tool-use-hook | pointer-file | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR}" >&2
 fi
 
-BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
-PATCH_PATH="${DARK_FACTORY_WORK_DIR:-}/brain-patch.json"
+# post-hook.no-brain: not a dark-factory session — exit silently
+# Guard covers both unset and empty-string to prevent BRAIN_PATH resolving to /brain.json
+if [ -z "${DARK_FACTORY_WORK_DIR:-}" ]; then
+  echo "post-tool-use-hook | no-brain | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR:-unset}" >&2
+  exit 0
+fi
+
+BRAIN_PATH="${DARK_FACTORY_WORK_DIR}/brain.json"
+PATCH_PATH="${DARK_FACTORY_WORK_DIR}/brain-patch.json"
 BRAIN_LOCK="${BRAIN_PATH}.lock"
 
-# post-hook.no-brain: not a dark-factory session — exit silently
-if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] || [ ! -f "$BRAIN_PATH" ]; then
-  echo "post-tool-use-hook | no-brain | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR:-unset}" >&2
+if [ ! -f "$BRAIN_PATH" ]; then
+  echo "post-tool-use-hook | no-brain | brain.json not found at ${BRAIN_PATH}" >&2
   exit 0
 fi
 
@@ -49,10 +55,12 @@ if [ -f "$PATCH_PATH" ]; then
         .artifacts.created = $art_created |
         .artifacts.modified = $art_modified
       ' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
-        && mv "$POST_TMP" "$BRAIN_PATH"
+        && mv "$POST_TMP" "$BRAIN_PATH" \
+        || rm -f "$POST_TMP"
     else
       jq -s '.[0] * .[1]' "$BRAIN_PATH" "$PATCH_PATH" > "$POST_TMP" \
-        && mv "$POST_TMP" "$BRAIN_PATH"
+        && mv "$POST_TMP" "$BRAIN_PATH" \
+        || rm -f "$POST_TMP"
     fi
     rm -f "$PATCH_PATH"
   ) 200>"$BRAIN_LOCK"
@@ -98,6 +106,13 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
 
   echo "post-tool-use-hook | metrics-accumulate | key=${METRICS_KEY_SHORT} elapsed_ms=${ELAPSED} tokens=${TOKENS} runs=+1" >&2
 
+  # Merge metrics update and optional phase-complete into a single flock block
+  # to eliminate the race window between two consecutive subshell flock acquisitions.
+  IS_PHASE_AGENT=0
+  if [[ "$METRICS_KEY_SHORT" =~ ^($PHASE_AGENTS)$ ]]; then
+    IS_PHASE_AGENT=1
+  fi
+
   (
     flock -x 200
     METRICS_TMP=$(mktemp /tmp/brain-metrics-post-XXXXXX.json)
@@ -108,13 +123,10 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
       del(.metrics[$key].start_ms)
     ' "$BRAIN_PATH" > "$METRICS_TMP" \
       && mv "$METRICS_TMP" "$BRAIN_PATH"
-  ) 200>"$BRAIN_LOCK"
 
-  # post-hook.set-phase-complete: mark the currently-running phase complete,
-  # but only when the completing agent is a top-level orchestration phase agent.
-  if [[ "$METRICS_KEY_SHORT" =~ ^($PHASE_AGENTS)$ ]]; then
-    (
-      flock -x 200
+    # post-hook.set-phase-complete: mark the currently-running phase complete,
+    # but only when the completing agent is a top-level orchestration phase agent.
+    if [ "$IS_PHASE_AGENT" -eq 1 ]; then
       RUNNING_PHASE=$(jq -r '
         .phases | to_entries |
         map(select((.key | endswith("-running")) and (.value == true))) |
@@ -127,14 +139,15 @@ if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Skill" ]; then
         POST_TMP2=$(mktemp /tmp/brain-post-XXXXXX.json)
         jq ".phases[\"${RUNNING_PHASE}\"] = false | .phases[\"${COMPLETE_PHASE}\"] = true" \
           "$BRAIN_PATH" > "$POST_TMP2" \
-          && mv "$POST_TMP2" "$BRAIN_PATH"
+          && mv "$POST_TMP2" "$BRAIN_PATH" \
+          || rm -f "$POST_TMP2"
       else
         echo "post-tool-use-hook | set-phase-complete | no running phase found" >&2
       fi
-    ) 200>"$BRAIN_LOCK"
-  else
-    echo "post-tool-use-hook | set-phase-complete | skipped (agent=${METRICS_KEY_SHORT} not a phase agent)" >&2
-  fi
+    else
+      echo "post-tool-use-hook | set-phase-complete | skipped (agent=${METRICS_KEY_SHORT} not a phase agent)" >&2
+    fi
+  ) 200>"$BRAIN_LOCK"
 else
   # Non-Agent/Skill tool: still check for phase completion (shouldn't normally happen, but keep safe)
   echo "post-tool-use-hook | set-phase-complete | skipped (tool=${TOOL_NAME} not Agent or Skill)" >&2

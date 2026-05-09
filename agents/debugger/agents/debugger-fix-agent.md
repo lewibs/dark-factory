@@ -4,6 +4,17 @@ user-invocable: false
 description: Identifies root cause from evidence, applies minimal fix, verifies causality, and stages fixed files. Triggers SubagentStop commit.
 tools: Read, Edit, Bash, Glob
 model: sonnet
+allowed-tools:
+  - Bash(pytest *)
+  - Bash(python *)
+  - Bash(python3 *)
+  - Bash(npm test *)
+  - Bash(git -C * add *)
+  - Bash(git -C * diff --cached)
+  - Bash(git -C * commit *)
+  - Bash(git -C * ls-files *)
+  - Bash(find *)
+  - Bash(grep -r *)
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 

@@ -38,23 +38,27 @@ def read_csv(csv_path):
     with open(csv_path, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append(
-                {
-                    "agent": row["agent"],
-                    "skill": row["skill"],
-                    "avg_runtime": float(row["avg_runtime"]),
-                    "avg_tokens": float(row["avg_tokens"]),
-                    "runs": int(row["runs"]),
-                    "sum_runtime": float(row["sum_runtime"]),
-                    "sum_tokens": float(row["sum_tokens"]),
-                }
-            )
+            try:
+                rows.append(
+                    {
+                        "agent": row.get("agent", ""),
+                        "skill": row.get("skill", ""),
+                        "avg_runtime": float(row.get("avg_runtime", 0) or 0),
+                        "avg_tokens": float(row.get("avg_tokens", 0) or 0),
+                        "runs": int(row.get("runs", 0) or 0),
+                        "sum_runtime": float(row.get("sum_runtime", 0) or 0),
+                        "sum_tokens": float(row.get("sum_tokens", 0) or 0),
+                    }
+                )
+            except (ValueError, TypeError) as e:
+                print(f"update-metrics | warning | skipping malformed CSV row: {e}", file=sys.stderr)
     return rows
 
 
 def write_csv(csv_path, rows):
     """Write rows to csv_path, creating parent dirs if needed."""
-    os.makedirs(os.path.dirname(csv_path) if os.path.dirname(csv_path) else ".", exist_ok=True)
+    parent_dir = os.path.dirname(os.path.abspath(csv_path))
+    os.makedirs(parent_dir, exist_ok=True)
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
         writer.writeheader()

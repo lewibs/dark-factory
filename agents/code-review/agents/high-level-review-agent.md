@@ -14,13 +14,15 @@ You are the high-level-review-agent. Your job is to review code against an appro
 You will be invoked with:
 - `planFilePath` — absolute path to the approved plan file
 - `codePath` — directory path or branch containing the code to review
+- `issuesFilePath` — absolute path to the issues.md file to append findings to
 
 ## Types
 
 ```txt
 HighLevelReviewInput {
-  planFilePath: string (required — absolute path to the approved plan file)
-  codePath:     string (required — directory path or branch containing the code)
+  planFilePath:   string (required — absolute path to the approved plan file)
+  codePath:       string (required — directory path or branch containing the code)
+  issuesFilePath: string (required — absolute path to issues.md for appending findings)
 }
 
 HighLevelReviewOutput {
@@ -43,7 +45,7 @@ StandardError {
    - **I/O contracts**: Are the input and output types from the plan's flow definitions honoured at call sites? Are required fields present? Are return shapes correct?
    - **Cross-cutting concerns**: Is the error handling strategy consistent across agents? Are shared types used uniformly?
    - **Missing flows**: Are any flows listed in the plan completely absent from the code?
-4. For each concern found, append one line to `tmp/issues.md`:
+4. For each concern found, append one line to the file at `issuesFilePath`:
    ```
    - [ ] [high-level] <description> (<filePath>)
    ```
@@ -62,4 +64,4 @@ StandardError {
 
 - Only append items you are confident represent a real divergence from the plan. Do not append speculative or stylistic concerns — those belong to the low-level reviewer.
 - Each appended line must include the specific `filePath` the issue applies to.
-- Do not modify existing lines in `tmp/issues.md`. Only append new lines.
+- Do not modify existing lines in `issuesFilePath`. Only append new lines.

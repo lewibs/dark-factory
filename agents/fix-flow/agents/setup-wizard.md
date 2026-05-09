@@ -1,7 +1,7 @@
 ---
 name: setup-wizard
 description: Generates the scripts needed to trigger, monitor, and fetch logs for an integration flow. Use after understand-agent has written docs/plans/system-diagram.md. Reads the system document and produces trigger.sh, wait-for-completion.sh, fetch-logs.sh, and optionally deploy.sh.
-tools: Read, Write, Bash
+tools: Read, Write, Bash, Skill
 model: sonnet
 user-invocable: false
 skills: generate-trigger, generate-wait-for-completion, generate-fetch-logs, generate-deploy

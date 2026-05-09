@@ -34,7 +34,10 @@ PROJECT_DIR=$(dirname "$WORK_DIR")
 # Checkout main in the project directory
 if [ -d "$PROJECT_DIR/.git" ]; then
     echo "Checking out main in project directory: $PROJECT_DIR" >&2
-    git -C "$PROJECT_DIR" checkout main 2>/dev/null || echo "WARNING: Failed to checkout main" >&2
+    if ! git -C "$PROJECT_DIR" checkout main 2>/dev/null; then
+        echo "ERROR: Failed to checkout main in $PROJECT_DIR. Aborting cleanup to prevent corruption." >&2
+        exit 1
+    fi
 else
     echo "WARNING: Project directory $PROJECT_DIR is not a git repo. Skipping checkout." >&2
 fi

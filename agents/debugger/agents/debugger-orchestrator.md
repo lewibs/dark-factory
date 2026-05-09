@@ -4,7 +4,7 @@ user-invocable: false
 description: Top-level orchestrator for systematic debugging. Coordinates investigation, triage, test reproduction, and fix application across three specialized sub-agents with structural commit enforcement.
 tools: Read, Write, Agent, Bash, Skill
 model: haiku
-skills: investigation-delegate, debugger-fix-agent, investigation-agent, reproduce-test-agent
+skills: investigation-delegate
 ---
 
 You are the debugger orchestrator. Your job is to coordinate systematic debugging across three specialized sub-agents, each with its own SubagentStop commit hook.

@@ -109,14 +109,11 @@ def poll_batch_status(
             
             # Still processing, wait and retry
             time.sleep(poll_interval)
-        
+
         except Exception as e:
-            return {
-                "jobId": job_id,
-                "status": "error",
-                "result": None,
-                "error": f"Batch API error: {str(e)}",
-            }
+            # Transient error (e.g. network hiccup) — log and retry until timeout
+            print(f"Warning: transient error polling batch {job_id}: {e}", file=sys.stderr)
+            time.sleep(poll_interval)
     
     # Timeout reached
     return {
@@ -169,7 +166,10 @@ def main():
             json.dump(result, f, indent=2)
         
         print(f"Status: {result['status']}")
-        if result['error']:
+        if result['status'] == "timeout":
+            print(f"Error: {result['error']}", file=sys.stderr)
+            sys.exit(1)
+        elif result['error']:
             print(f"Error: {result['error']}", file=sys.stderr)
             sys.exit(1)
         else:

@@ -19,12 +19,19 @@ if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] && [ -f "$DARK_FACTORY_POINTER_FILE" ]; t
   echo "pre-tool-use-hook | pointer-file | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR}" >&2
 fi
 
-BRAIN_PATH="${DARK_FACTORY_WORK_DIR:-}/brain.json"
+# pre-hook.no-brain: not a dark-factory session — pass through unchanged
+# Guard covers both unset and empty-string to prevent BRAIN_PATH resolving to /brain.json
+if [ -z "${DARK_FACTORY_WORK_DIR:-}" ]; then
+  echo "pre-tool-use-hook | no-brain | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR:-unset}" >&2
+  cat  # pass through stdin unchanged
+  exit 0
+fi
+
+BRAIN_PATH="${DARK_FACTORY_WORK_DIR}/brain.json"
 BRAIN_LOCK="${BRAIN_PATH}.lock"
 
-# pre-hook.no-brain: not a dark-factory session — pass through unchanged
-if [ -z "${DARK_FACTORY_WORK_DIR:-}" ] || [ ! -f "$BRAIN_PATH" ]; then
-  echo "pre-tool-use-hook | no-brain | DARK_FACTORY_WORK_DIR=${DARK_FACTORY_WORK_DIR:-unset}" >&2
+if [ ! -f "$BRAIN_PATH" ]; then
+  echo "pre-tool-use-hook | no-brain | brain.json not found at ${BRAIN_PATH}" >&2
   cat  # pass through stdin unchanged
   exit 0
 fi

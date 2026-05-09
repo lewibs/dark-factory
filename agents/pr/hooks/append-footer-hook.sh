@@ -22,7 +22,7 @@ append_footer_to_pr_body() {
 
     # Idempotency guard: check if footer is already present
     # This prevents duplicate footers if hook is invoked multiple times
-    if grep -q "Generated with \[dark factory\]" "$pr_body_file"; then
+    if grep -qF "Generated with [dark factory]" "$pr_body_file"; then
         echo "Footer already present in PR body, skipping append" >&2
         return 0
     fi

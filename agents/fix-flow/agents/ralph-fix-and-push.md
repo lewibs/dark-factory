@@ -4,7 +4,7 @@ description: Owns the bug-fixing loop for fix-flow-orchestrator. Spawns debugger
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion
 model: haiku
 user-invocable: false
-allowed-tools: Bash(bash *), Bash(find *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *), Bash(aws *), Bash(gh *)
+allowed-tools: Bash(bash *), Bash(find *), Bash(git add *), Bash(git commit *), Bash(git checkout *), Bash(git branch *), Bash(git -C * add *), Bash(git -C * commit *), Bash(git -C * checkout *), Bash(git -C * branch *), Bash(aws *), Bash(gh *)
 ---
 
 You are ralph-fix-and-push. You own the fix loop. Your job is to keep iterating — trigger the flow, debug failures, commit fixes locally — until the flow passes green, then create a single PR with all accumulated commits.
@@ -48,8 +48,7 @@ bugFileLinks = format_pr_body(bugDocPaths)  # Format as markdown links
 
 prResult = spawn pr-agent(
   planFilePath = null,
-  taskDescription = "Fix integration flow: accumulated fixes from: " + bugFileLinks,
-  prBody = "## Fixes\n\nThis PR accumulates all bug fixes for the integration flow:\n" + bugFileLinks
+  taskDescription = "Fix integration flow: accumulated fixes from: " + bugFileLinks
 )
 
 return { 

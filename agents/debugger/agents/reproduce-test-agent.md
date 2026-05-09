@@ -2,8 +2,17 @@
 name: reproduce-test-agent
 user-invocable: false
 description: Writes and executes a minimal failing reproduction test. Stages test files and triggers SubagentStop commit.
-tools: Read, Bash, Glob
+tools: Read, Write, Bash, Glob
 model: sonnet
+allowed-tools:
+  - Bash(pytest *)
+  - Bash(python *)
+  - Bash(python3 *)
+  - Bash(npm test *)
+  - Bash(git -C * add *)
+  - Bash(git -C * diff --cached)
+  - Bash(git -C * ls-files *)
+  - Bash(find *)
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---
 
