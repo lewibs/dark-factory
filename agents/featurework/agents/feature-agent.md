@@ -5,7 +5,7 @@ description: End-to-end feature orchestrator. Calls planning-agent for each phas
 tools: Read, Write, Agent, PushNotification, Skill, Command, AskUserQuestion, SendMessage
 model: haiku
 cache-control: ephemeral
-skills: flow-state-manager
+skills: flow-state-manager, execution-agent, planning-agent, render-plan-section
 commands: render-plan-section
 ---
 
