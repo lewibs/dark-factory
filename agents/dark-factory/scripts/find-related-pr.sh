@@ -38,7 +38,7 @@ best = None
 best_score = 0
 for pr in data:
     candidate = (pr['title'] + ' ' + pr['headRefName']).lower()
-    score = sum(1 for kw in keywords if kw in candidate and len(kw) > 2)
+    score = sum(1 for kw in keywords if kw in candidate and len(kw) > 1)
     if score >= 2 and score > best_score:
         best_score = score
         best = pr

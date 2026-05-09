@@ -2,7 +2,7 @@
 name: feature-agent
 user-invocable: false
 description: End-to-end feature orchestrator. Calls planning-agent for each phase (draft, mermaid, flows), gates on human approval between phases via AskUserQuestion (runs at depth 2, can reach the user directly), then calls execution-agent. The approval gate lives here — neither planning-agent nor execution-agent are modified.
-tools: Read, Write, Agent, PushNotification, Skill, Command, AskUserQuestion, SendMessage
+tools: Read, Write, Agent, PushNotification, Skill, Command, AskUserQuestion
 model: haiku
 cache-control: ephemeral
 skills: flow-state-manager, execution-agent, planning-agent, render-plan-section

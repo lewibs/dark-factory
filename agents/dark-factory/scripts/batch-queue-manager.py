@@ -128,7 +128,7 @@ def poll_batch_job(
                 poll_result = json.load(f)
             
             return {
-                "success": poll_result.get("status") in ["completed", "timeout"],
+                "success": poll_result.get("status") == "completed",
                 "status": poll_result.get("status"),
                 "result": poll_result.get("result"),
                 "error": poll_result.get("error"),

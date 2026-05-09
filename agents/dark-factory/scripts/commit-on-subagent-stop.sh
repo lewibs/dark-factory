@@ -65,11 +65,6 @@ if git -C "$work_dir" diff --cached --quiet 2>/dev/null; then
   exit 0
 fi
 
-git -C "$work_dir" add --all 2>/dev/null || {
-  echo "git add failed in $work_dir" >&2
-  exit 0
-}
-
 if ! git -C "$work_dir" commit -m "$commit_msg" 2>/dev/null; then
   echo "git commit failed in $work_dir" >&2
   exit 0

@@ -58,12 +58,18 @@ SESSION_FILES=(
 )
 
 # Clean up each file
+# Temporarily disable set -e within the loop so individual rm failures
+# do not abort the script; failures are logged as warnings but never block cleanup.
+set +e
 for file in "${SESSION_FILES[@]}"; do
   if [ -f "$file" ]; then
-    rm -f "$file" 2>/dev/null && \
-      echo "cleanup-session-files | deleted | $file" >&2 || \
+    if rm -f "$file" 2>/dev/null; then
+      echo "cleanup-session-files | deleted | $file" >&2
+    else
       echo "WARNING: cleanup-session-files | failed to delete | $file" >&2
+    fi
   fi
 done
+set -e
 
 exit 0

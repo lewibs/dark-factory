@@ -208,7 +208,7 @@ Writes `$WORK_DIR/brain-patch.json`:
 
 ## Dependencies
 
-- **Skills**: investigation-delegate (for orchestrator's investigation-agent call)
+- **Skills**: debug, investigation-delegate (for orchestrator's investigation-agent call)
 - **Templates**: bug-audit-log-template (for bug file structure)
 - **Sub-agents**: reproduce-test-agent, debugger-fix-agent
 - **Hooks**: commit-on-subagent-stop.sh (for sub-agent commits)
@@ -220,14 +220,14 @@ Writes `$WORK_DIR/brain-patch.json`:
 - Model: haiku
 
 **Test Writer (reproduce-test-agent)**:
-- Read, Bash, Glob
+- Read, Write, Bash, Glob
 - Model: sonnet
-- Allowed: `Bash(bash *)`, `Bash(pytest *)`, `Bash(npm test *)`, `Bash(python *)`, `Bash(grep -r *)`, `Bash(find *)`
+- Allowed: `Bash(pytest *)`, `Bash(python *)`, `Bash(python3 *)`, `Bash(npm test *)`, `Bash(git -C * add *)`, `Bash(git -C * diff --cached)`, `Bash(git -C * ls-files *)`, `Bash(find *)`
 
 **Fixer (debugger-fix-agent)**:
 - Read, Edit, Bash, Glob
 - Model: sonnet
-- Allowed: `Bash(bash *)`, `Bash(pytest *)`, `Bash(npm test *)`, `Bash(python *)`, `Bash(grep -r *)`, `Bash(find *)`, `Bash(git -C * add *)`, `Bash(git -C * commit *)`
+- Allowed: `Bash(pytest *)`, `Bash(python *)`, `Bash(python3 *)`, `Bash(npm test *)`, `Bash(git -C * add *)`, `Bash(git -C * diff --cached)`, `Bash(git -C * commit *)`, `Bash(git -C * ls-files *)`, `Bash(find *)`, `Bash(grep -r *)`
 
 ## Artifacts Produced
 

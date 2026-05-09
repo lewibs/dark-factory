@@ -4,7 +4,7 @@ user-invocable: false
 description: Runs systematic debugging on a non-obvious bug by following the debug skill checklist step by step.
 tools: Read, Write, Bash, Glob, Agent, Skill
 model: sonnet
-skills: systematic-debugging, investigation-delegate, investigation-agent
+skills: debug, investigation-delegate
 allowed-tools: Bash(bash *), Bash(pytest *), Bash(python *), Bash(npm test *), Bash(grep -r *), Bash(find *), Bash(aws *), Bash(gh *), Bash(docker *), Bash(curl *)
 SubagentStop: "${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/commit-on-subagent-stop.sh"
 ---

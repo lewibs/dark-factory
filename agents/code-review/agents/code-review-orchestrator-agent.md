@@ -35,17 +35,18 @@ StandardError {
 
 ## Your task
 
-1. Use `manage-issues-file` command with `operation: "create"` to initialize the issues file with an empty review points array.
+1. Construct the absolute issues file path: `issuesFilePath = <codePath>/tmp/issues.md`.
+   Use `manage-issues-file` command with `operation: "create"` and `issuesFilePath` to initialize an empty issues file.
 2. Spawn in parallel using the Agent tool with subagent_type:
-   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:high-level-review-agent` with inputs `planFilePath` and `codePath`
-   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:low-level-review-agent` with input `codePath`
-3. Wait for both to complete.
+   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:high-level-review-agent` with inputs `planFilePath`, `codePath`, and `issuesFilePath`
+   - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:low-level-review-agent` with inputs `codePath` and `issuesFilePath`
+4. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
-4. Enter the resolver loop (up to 10 iterations):
+5. Enter the resolver loop (up to 10 iterations):
    - Initialize `noProgressCount = 0`.
    - For each iteration:
      - Read the current issues.md file and count the number of unresolved issues. Store this as `issueCountBefore`.
-     - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:resolver-agent` with `issuesFilePath` set to the absolute path of `<codePath>/issues.md`.
+     - Invoke Agent tool with subagent_type `dark-factory:code-review:agents:resolver-agent` with `issuesFilePath` set to `issuesFilePath` (the absolute path constructed in step 2).
      - Wait for it to return.
      - If it returns an error: surface the error and halt.
      - Read the updated issues.md file and count the number of unresolved issues. Store this as `issueCountAfter`.
@@ -54,8 +55,8 @@ StandardError {
      - If `noProgressCount >= 2`: exit the loop early and return a `StandardError` with message: "Code review resolver is stuck — issue count unchanged for 2 consecutive iterations. Unresolvable issues likely require human review: [list the remaining unresolved issues here]."
      - If `anyRemaining` is false: exit the loop (all issues resolved).
      - If `anyRemaining` is true and `noProgressCount < 2`: continue to next iteration.
-5. Use `manage-issues-file` command with `operation: "delete"` to remove the issues file.
-6. Return `{ status: "complete" }`.
+6. Use `manage-issues-file` command with `operation: "delete"` and `issuesFilePath` to remove the issues file.
+7. Return `{ status: "complete" }`.
 
 ## Paths
 

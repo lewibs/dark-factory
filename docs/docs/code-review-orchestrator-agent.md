@@ -21,8 +21,10 @@ The code-review-orchestrator-agent manages the full automated code review workfl
 
 ### Step 1: Initialize Issues File
 
-Uses `manage-issues-file` command with `operation: "create"`:
-- Creates `<codePath>/issues.md` with empty review points array
+Constructs the absolute issues file path: `issuesFilePath = <codePath>/tmp/issues.md`.
+
+Uses `manage-issues-file` command with `operation: "create"` and `issuesFilePath`:
+- Creates the issues file with an empty review points (markdown checklist) structure
 - Ready for reviewers to append findings
 
 ### Step 2: Spawn Parallel Reviewers
@@ -30,14 +32,14 @@ Uses `manage-issues-file` command with `operation: "create"`:
 Spawns two reviewers in parallel:
 
 **High-Level Review Agent**:
-- Inputs: `planFilePath`, `codePath`
+- Inputs: `planFilePath`, `codePath`, `issuesFilePath`
 - Checks: architectural decisions, design patterns, code organization, adherence to plan
 
 **Low-Level Review Agent**:
-- Input: `codePath`
+- Inputs: `codePath`, `issuesFilePath`
 - Checks: code style, readability, potential bugs, test coverage, performance
 
-Both append their findings to `issues.md` as checklist items.
+Both append their findings to `issuesFilePath` as markdown checklist items.
 
 ### Step 3: Wait for Reviewers & Handle Errors
 
@@ -54,7 +56,7 @@ Both append their findings to `issues.md` as checklist items.
 Enters iterative resolution loop:
 
 1. Spawns `resolver-agent` with:
-   - `issuesFilePath: <codePath>/issues.md` (absolute path)
+   - `issuesFilePath` (the absolute path constructed in Step 1)
 
 2. Waits for resolver to return
 
@@ -74,8 +76,8 @@ Enters iterative resolution loop:
 
 ### Step 5: Delete Issues File
 
-Uses `manage-issues-file` command with `operation: "delete"`:
-- Removes `<codePath>/issues.md` (cleanup)
+Uses `manage-issues-file` command with `operation: "delete"` and `issuesFilePath`:
+- Removes the issues file (cleanup)
 - Confirms successful completion
 
 ### Step 6: Return Success

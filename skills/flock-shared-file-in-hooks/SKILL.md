@@ -37,3 +37,19 @@ Without locking, the mktemp+mv write pattern is not atomic across multiple proce
 - Using fd 200 is a convention; any unused fd number works, but 200 is safely above normal stdio/stderr.
 - This pattern is safe even when the hook fires at only one depth; the subshell overhead is negligible for file operations.
 - Do NOT lock across a `jq` read that happens outside the subshell and then a write inside — re-read the file inside the locked section if the value is needed for the mutation.
+- **Merge consecutive flock blocks into one to eliminate race windows.** If a single script needs to do two writes that are logically related (e.g., update metrics AND mark phase-complete based on the same condition), placing them in two consecutive flock subshells creates a race window between release and re-acquisition where another process can interleave. Compute all branching conditions outside the lock (e.g., `IS_PHASE_AGENT=1`), then perform both mutations inside a single flock block:
+  ```bash
+  IS_PHASE_AGENT=0
+  [[ "$KEY" =~ ^($PHASE_AGENTS)$ ]] && IS_PHASE_AGENT=1
+
+  (
+    flock -x 200
+    # first mutation
+    jq '...' "$BRAIN_PATH" > "$TMP" && mv "$TMP" "$BRAIN_PATH" || rm -f "$TMP"
+    # second mutation, guarded by pre-computed flag
+    if [ "$IS_PHASE_AGENT" -eq 1 ]; then
+      jq '...' "$BRAIN_PATH" > "$TMP2" && mv "$TMP2" "$BRAIN_PATH" || rm -f "$TMP2"
+    fi
+  ) 200>"$BRAIN_LOCK"
+  ```
+- **Always clean up temp files on failure.** Use `jq ... > "$TMP" && mv "$TMP" "$DEST" || rm -f "$TMP"` so a failed `jq` or `mv` does not leave an orphaned tmp file that could mislead future runs.
