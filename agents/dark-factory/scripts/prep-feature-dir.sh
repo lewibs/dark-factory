@@ -22,7 +22,17 @@ if git -C "$GIT_ROOT" worktree list | grep -qF "$WORKTREE_NAME"; then
     exit 0
 fi
 
-git -C "$GIT_ROOT" pull origin main || { echo "Error: git pull failed." >&2; exit 1; }
-git -C "$GIT_ROOT" worktree add "$WORK_DIR" -b "feature/${TASK_NAME}" || { echo "Error: git worktree add failed." >&2; exit 1; }
+# Determine the upstream default branch (main, master, develop, etc.).
+# Order: env override -> origin/HEAD symbolic-ref -> fallback to "main".
+DEFAULT_BRANCH="${DARK_FACTORY_BASE_BRANCH:-}"
+if [ -z "$DEFAULT_BRANCH" ]; then
+    DEFAULT_BRANCH=$(git -C "$GIT_ROOT" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+fi
+if [ -z "$DEFAULT_BRANCH" ]; then
+    DEFAULT_BRANCH="main"
+fi
+
+git -C "$GIT_ROOT" fetch origin "$DEFAULT_BRANCH" || { echo "Error: git fetch origin $DEFAULT_BRANCH failed." >&2; exit 1; }
+git -C "$GIT_ROOT" worktree add "$WORK_DIR" -b "feature/${TASK_NAME}" "origin/$DEFAULT_BRANCH" || { echo "Error: git worktree add failed." >&2; exit 1; }
 
 echo "WORK_DIR=${WORK_DIR}"
