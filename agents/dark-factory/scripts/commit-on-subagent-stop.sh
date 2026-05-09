@@ -41,6 +41,10 @@ case "$agent_type" in
     bug_slug=$(cat /tmp/dark-factory-bug-slug 2>/dev/null || echo "bug")
     commit_msg="fix: $bug_slug"
     ;;
+  debugger-agent)
+    bug_slug=$(cat /tmp/dark-factory-bug-slug 2>/dev/null || echo "debug")
+    commit_msg="fix: $bug_slug"
+    ;;
   repair-agent)
     commit_msg="fix: repair"
     ;;
