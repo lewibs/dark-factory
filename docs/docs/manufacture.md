@@ -19,7 +19,15 @@ flowchart TD
   DFA -->|"invoke skill"| TC["task-classifier\n(skill)"]
   TC -->|"classification: feature | fix-flow | debugger | repair"| DFA
 
-  DFA -->|"prep-feature-dir.sh"| WT["isolated git worktree\n(feature/taskName branch)"]
+  DFA -->|"find-related-pr.sh"| FindPR{"Related open PR\nfound?"}
+  FindPR -->|"yes"| AskUser["AskUserQuestion\n(Reuse or New?)"]
+  AskUser -->|"Reuse existing branch"| CheckoutWT["git worktree add\nexisting branch"]
+  AskUser -->|"Create new branch"| PrepNew["prep-feature-dir.sh\nnew branch"]
+  FindPR -->|"no"| PrepNew
+
+  CheckoutWT --> Brain
+  PrepNew -->|"prep-feature-dir.sh"| WT["isolated git worktree\n(feature/taskName branch)"]
+  WT --> Brain
   DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
 
   DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
@@ -54,6 +62,28 @@ flowchart TD
 ```
 
 ## Flows
+
+### Flow: `manufacture.prReuseCheck`
+
+- Core files: `commands/manufacture.md`, `agents/dark-factory/scripts/find-related-pr.sh`
+
+Before creating a new branch, Step 2 of `dark-factory-agent` runs `find-related-pr.sh` with `taskDescription` as input. The script fuzzy-matches the description against all open PRs (title + branch name) via `gh pr list`. If a match is found (score >= 2 keyword hits, each keyword > 2 chars), the user is prompted via `AskUserQuestion` to reuse the existing branch or create a fresh one.
+
+If the user selects "Reuse existing branch," `dark-factory-agent` computes the worktree path from the existing branch name (stripping any `<prefix>/` leading segment), then either attaches the existing worktree or creates a new one via `git worktree add`. It validates that if the worktree already exists, its checked-out branch matches `EXISTING_BRANCH`. The `taskName` is set to the slug portion of the existing branch for brain.json and cleanup. `pr-agent` Step 0b detects the existing PR automatically via branch presence, so no special pr-agent configuration is required.
+
+If no match is found, or the `gh` CLI errors, or the user selects "Create new branch," the flow falls through to `prep-feature-dir.sh` unchanged.
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `manufacture.prReuseCheck.match-confirmed` | `taskDescription` | worktree on existing branch, WORK_DIR set | happy path | commits pushed to existing PR via pr-agent Step 0b |
+| `manufacture.prReuseCheck.match-declined` | `taskDescription` | prep-feature-dir.sh runs, new branch | alternate | user saw match but chose "Create new branch" |
+| `manufacture.prReuseCheck.no-match` | `taskDescription` | prep-feature-dir.sh runs, new branch | alternate | find-related-pr.sh returned empty |
+| `manufacture.prReuseCheck.worktree-branch-mismatch` | `taskDescription` | error + STOP | error | existing worktree checked out on wrong branch |
+| `manufacture.prReuseCheck.gh-unavailable` | `taskDescription` | prep-feature-dir.sh runs, new branch | alternate | gh CLI error silently treated as no-match |
+
+---
 
 ### Flow: `manufacture.feature`
 
@@ -183,6 +213,14 @@ This allows manufacture to recover from interrupted runs by reusing task names w
 ### F17: Review comments unresolvable (Step 10 / pr-agent Step 4)
 - `comment-resolution-runner` iterates up to 5 times. If reviewer comments require human judgment or code that the agent cannot produce, the runner cannot resolve all threads.
 - Effect: pr-agent returns failure; dark-factory-agent continues to cleanup (PR remains open with unresolved threads).
+
+### F21: PR reuse worktree branch mismatch (Step 2)
+- When a user confirms PR reuse and an existing worktree already exists for the derived `WORKTREE_NAME`, `dark-factory-agent` checks that the worktree's checked-out branch matches `EXISTING_BRANCH`. If they differ (e.g., the worktree was previously used for a different task), the agent stops with an error requiring manual cleanup.
+- Effect: Pipeline halts before brain.json is created; no worktree cleanup needed since it pre-existed.
+
+### F22: find-related-pr.sh false positive (Step 2)
+- The fuzzy matcher requires a score >= 2 keyword hits (each keyword > 2 chars). Short or generic task descriptions (e.g., "fix bug") may match unrelated PRs or fail to match related ones.
+- Effect: User is shown a misleading reuse prompt; declining falls through to new-branch flow without harm. A false negative (no match shown) causes a duplicate branch to be created.
 
 ### F18: Metrics flush failure (Step 12)
 - `update-metrics.py` and the subsequent `git commit/push` are non-fatal (`|| true`). However, if the metrics commit fails, the PR diff will not include updated metrics, and the local `metrics.csv` copy may also fail.
