@@ -93,9 +93,9 @@ Top-level user-facing entry point. Routes a task description through the full da
 Handles new feature development end-to-end with human plan approval at each phase.
 
 **feature-agent** (`agents/featurework/agents/feature-agent.md`)
-- Model: haiku
+- Model: sonnet
 - User-invocable: false (spawned by dark-factory-agent for `route=feature`)
-- Role: End-to-end feature orchestrator. Drives planning phases in sequence (draft plan → mermaid diagram → flows), gates on human AskUserQuestion approval between phases, then invokes execution-agent. Contains a **NON-STOP EXECUTION** constraint (mandatory Haiku model requirement): the agent must call `AskUserQuestion` at every approval gate (Phases 1–4) without pausing or returning control between phases. After each user answer, execution continues immediately to the next phase. This ensures users always see approval gates before execution proceeds.
+- Role: End-to-end feature orchestrator. Drives planning phases in sequence (draft plan → mermaid diagram → flows), gates on human AskUserQuestion approval between phases, then invokes execution-agent. **Owns all approval gates** — feature-agent runs at depth 2 (dark-factory-agent → feature-agent), which is the deepest level where `AskUserQuestion` reliably reaches the human user. Agents at depth ≥ 3 (planning-agent, sub-planning-agent) must never call `AskUserQuestion`. Uses sonnet (haiku lacks the instruction-following capacity for this multi-phase orchestration with AskUserQuestion approval gates). Contains a **NON-STOP EXECUTION** constraint: the agent must call `AskUserQuestion` at every approval gate (Phases 1–4) without pausing or returning control between phases. After each user answer, execution continues immediately to the next phase. This ensures users always see approval gates before execution proceeds.
 - Invokes: `planning-agent`, `execution-agent`
 - Skills: `flow-state-manager`
 - Commands: `render-plan-section`
@@ -103,7 +103,7 @@ Handles new feature development end-to-end with human plan approval at each phas
 **planning-agent** (`agents/featurework/planning/agents/planning-agent.md`)
 - Model: haiku
 - User-invocable: false
-- Role: Lightweight phase-delegator. Receives a phase + context from feature-agent, delegates to sub-planning-agent, returns structured output. Does NOT interact with users.
+- Role: Lightweight phase-delegator. Receives a phase + context from feature-agent, delegates to sub-planning-agent, returns structured output. Does NOT interact with users and never calls `AskUserQuestion` — this is intentional: planning-agent runs at depth 3, where `AskUserQuestion` does not reach humans. All approval gates are owned by feature-agent (depth 2).
 - Invokes: `sub-planning-agent`
 
 **sub-planning-agent** (`agents/featurework/planning/agents/sub-planning-agent.md`)
