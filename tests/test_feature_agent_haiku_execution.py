@@ -1,5 +1,5 @@
 """
-Test to verify that feature-agent (Haiku model) reliably executes the
+Test to verify that feature-agent (Sonnet model) reliably executes the
 AskUserQuestion calls in its orchestration.
 
 Background: feature-agent is responsible for calling AskUserQuestion for:
@@ -8,17 +8,15 @@ Background: feature-agent is responsible for calling AskUserQuestion for:
 3. Per-flow approvals (lines 92-104 for each flow)
 4. Final plan approval (lines 111-120)
 
-Issue: User reports that planning-agent "has stopped asking the user questions."
-The feature-agent.md contains the correct AskUserQuestion calls (verified by
-test_planning_approval_gate.py), but they may not be reliably executed by the
-Haiku model at runtime due to:
-- Haiku inability to handle complex orchestration loops
-- Instructions being at the wrong depth in the agent file (CRITICAL: must be
-  at top of orchestration section)
-- Haiku prematurely ending execution before all AskUserQuestion calls fire
+Root cause fix: feature-agent uses Sonnet instead of Haiku because Sonnet
+provides sufficient instruction-following capacity to:
+- Handle complex multi-phase orchestration loops reliably
+- Execute all AskUserQuestion calls without premature termination
+- Properly parse and follow multi-step orchestration sequences
+- Return structured JSON as specified
 
-This test validates that feature-agent.md has Non-Stop Execution constraint
-and other requirements that enable Haiku to execute complex orchestration reliably.
+This test validates that feature-agent.md is configured correctly for
+Sonnet and has the orchestration structure that enables reliable execution.
 
 See: docs/bugs/2026-05-08-planning-agent-no-user-questions.md
 See: skills/orchestration-spec-layout/SKILL.md
@@ -36,15 +34,16 @@ FEATURE_AGENT_PATH = os.path.join(
 )
 
 
-class TestFeatureAgentHaikuExecution:
+class TestFeatureAgentSonnetExecution:
     """
-    feature-agent runs on Haiku (smaller model) with a complex multi-turn
-    orchestration. These tests verify the agent is structured correctly to
-    enable Haiku to execute it reliably.
+    feature-agent runs on Sonnet with a complex multi-turn orchestration.
+    These tests verify the agent is structured correctly to enable Sonnet
+    to execute the orchestration reliably, including all AskUserQuestion
+    calls and proper JSON return protocol.
     """
 
-    def test_feature_agent_uses_haiku_model(self):
-        """feature-agent must declare model: haiku in front-matter."""
+    def test_feature_agent_uses_sonnet_model(self):
+        """feature-agent must declare model: sonnet in front-matter."""
         with open(FEATURE_AGENT_PATH) as f:
             content = f.read()
 
@@ -52,9 +51,10 @@ class TestFeatureAgentHaikuExecution:
         assert fm_match, "feature-agent.md must have YAML front-matter"
         front_matter = fm_match.group(1)
 
-        assert re.search(r"^model:\s*haiku", front_matter, re.MULTILINE), (
-            "feature-agent.md must declare model: haiku. "
-            "Verified by test_feature_agent_uses_haiku_model."
+        assert re.search(r"^model:\s*sonnet", front_matter, re.MULTILINE), (
+            "feature-agent.md must declare model: sonnet. "
+            "Sonnet provides sufficient instruction-following capacity for complex "
+            "multi-phase orchestration with multiple AskUserQuestion approval gates."
         )
 
     def test_feature_agent_has_rules_section(self):
