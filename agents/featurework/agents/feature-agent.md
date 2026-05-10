@@ -58,7 +58,7 @@ feature-agent(taskDescription):
   LOOP:
     answer = AskUserQuestion(
       header: "Draft Plan Review",
-      question: "System Intent:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
+      question: "System Intent:\n\n" + rendered.rendered + "\n\nHow would you like to proceed?",
       options: ["Looks good — continue to Mermaid diagram", "Request Changes"]
     )
     # Normalize free-text approval response
@@ -84,7 +84,7 @@ feature-agent(taskDescription):
   LOOP:
     answer = AskUserQuestion(
       header: "Mermaid Diagram Review",
-      question: "Mermaid diagram:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
+      question: "Mermaid diagram:\n\n" + rendered.rendered + "\n\nHow would you like to proceed?",
       options: ["Approve — continue to flows", "Request Changes"]
     )
     # Normalize free-text approval response
@@ -111,7 +111,7 @@ feature-agent(taskDescription):
     LOOP:
       answer = AskUserQuestion(
         header: "Flow Review: " + flow,
-        question: "Flow `" + flow + "`:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
+        question: "Flow `" + flow + "`:\n\n" + rendered.rendered + "\n\nHow would you like to proceed?",
         options: ["Approve — continue to next flow", "Request Changes"]
       )
       # Normalize free-text approval response
