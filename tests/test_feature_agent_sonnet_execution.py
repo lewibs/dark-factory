@@ -1,5 +1,5 @@
 """
-Test to verify that feature-agent (Haiku model) reliably executes the
+Test to verify that feature-agent (Sonnet model) reliably executes the
 AskUserQuestion calls in its orchestration.
 
 Background: feature-agent is responsible for calling AskUserQuestion for:
@@ -8,17 +8,17 @@ Background: feature-agent is responsible for calling AskUserQuestion for:
 3. Per-flow approvals (lines 92-104 for each flow)
 4. Final plan approval (lines 111-120)
 
-Issue: User reports that planning-agent "has stopped asking the user questions."
-The feature-agent.md contains the correct AskUserQuestion calls (verified by
-test_planning_approval_gate.py), but they may not be reliably executed by the
-Haiku model at runtime due to:
-- Haiku inability to handle complex orchestration loops
-- Instructions being at the wrong depth in the agent file (CRITICAL: must be
-  at top of orchestration section)
-- Haiku prematurely ending execution before all AskUserQuestion calls fire
+feature-agent uses Sonnet, which provides sufficient instruction-following
+capacity for complex multi-phase orchestration. The orchestration constraints
+here are general best practices to ensure continuous execution through all
+phases without premature pausing:
+- Handle complex multi-phase orchestration loops reliably
+- Execute all AskUserQuestion calls without premature termination
+- Properly parse and follow multi-step orchestration sequences
+- Return structured JSON as specified
 
-This test validates that feature-agent.md has Non-Stop Execution constraint
-and other requirements that enable Haiku to execute complex orchestration reliably.
+This test validates that feature-agent.md is configured correctly for
+Sonnet and has the orchestration structure that enables reliable execution.
 
 See: docs/bugs/2026-05-08-planning-agent-no-user-questions.md
 See: skills/orchestration-spec-layout/SKILL.md
@@ -36,15 +36,17 @@ FEATURE_AGENT_PATH = os.path.join(
 )
 
 
-class TestFeatureAgentHaikuExecution:
+class TestFeatureAgentSonnetExecution:
     """
-    feature-agent runs on Haiku (smaller model) with a complex multi-turn
-    orchestration. These tests verify the agent is structured correctly to
-    enable Haiku to execute it reliably.
+    feature-agent runs on Sonnet with a complex multi-turn orchestration.
+    These tests verify the agent is structured correctly to enable reliable
+    execution of the orchestration, including all AskUserQuestion calls and
+    proper JSON return protocol. The constraints enforced here reflect general
+    orchestration continuity best practices.
     """
 
-    def test_feature_agent_uses_haiku_model(self):
-        """feature-agent must declare model: haiku in front-matter."""
+    def test_feature_agent_uses_sonnet_model(self):
+        """feature-agent must declare model: sonnet in front-matter."""
         with open(FEATURE_AGENT_PATH) as f:
             content = f.read()
 
@@ -52,9 +54,10 @@ class TestFeatureAgentHaikuExecution:
         assert fm_match, "feature-agent.md must have YAML front-matter"
         front_matter = fm_match.group(1)
 
-        assert re.search(r"^model:\s*haiku", front_matter, re.MULTILINE), (
-            "feature-agent.md must declare model: haiku. "
-            "Verified by test_feature_agent_uses_haiku_model."
+        assert re.search(r"^model:\s*sonnet", front_matter, re.MULTILINE), (
+            "feature-agent.md must declare model: sonnet. "
+            "Sonnet provides sufficient instruction-following capacity for complex "
+            "multi-phase orchestration with multiple AskUserQuestion approval gates."
         )
 
     def test_feature_agent_has_rules_section(self):
@@ -73,12 +76,14 @@ class TestFeatureAgentHaikuExecution:
     def test_feature_agent_orchestration_uses_non_stop_execution_constraint(self):
         """
         feature-agent.md orchestration must start with an explicit constraint
-        about Haiku execution flow.
+        about continuous execution flow.
 
-        CRITICAL: Haiku models stop execution at logical breakpoints (after completing
-        a logical unit like an agent invocation or AskUserQuestion). To ensure feature-agent
-        executes through all phases (draft → mermaid → flows → execution), the
-        orchestration pseudocode must declare upfront that execution is continuous.
+        CRITICAL: Orchestrating agents may pause execution at logical breakpoints
+        (after completing a logical unit like an agent invocation or AskUserQuestion).
+        To ensure feature-agent executes through all phases (draft → mermaid → flows →
+        execution), the orchestration pseudocode must declare upfront that execution
+        is continuous. This is a general orchestration best practice, not specific
+        to any model.
 
         See: skills/orchestration-spec-layout/SKILL.md
         """
@@ -96,7 +101,7 @@ class TestFeatureAgentHaikuExecution:
 
         orchestration = body[orchestration_start:] if orchestration_start != -1 else body
 
-        # Haiku requires explicit guidance about non-stop execution BEFORE
+        # Explicit guidance about non-stop execution must appear BEFORE
         # the pseudocode starts. It should appear early in the Orchestration section
         # or in the intro text before the pseudocode block.
         has_explicit_guidance = (
@@ -117,7 +122,7 @@ class TestFeatureAgentHaikuExecution:
             )
 
         # For now, we note this as a potential concern but don't hard-fail
-        # because Haiku may execute sequentially by default if each phase is
+        # because the agent may execute sequentially by default if each phase is
         # an agent invocation.
         assert (
             "AskUserQuestion" in orchestration
@@ -126,11 +131,11 @@ class TestFeatureAgentHaikuExecution:
     def test_feature_agent_returns_json_with_status(self):
         """
         feature-agent must RETURN a structured JSON object with status field
-        to the manufacture command. This is critical for Haiku to properly
-        signal completion and prevent the orchestrator from attempting a
+        to the manufacture command. This is critical for properly signaling
+        completion and preventing the orchestrator from attempting a
         multi-turn loop.
 
-        See: skills/haiku-structured-return-protocol/SKILL.md
+        See: skills/orchestration-spec-layout/SKILL.md
         """
         with open(FEATURE_AGENT_PATH) as f:
             content = f.read()

@@ -2,7 +2,7 @@
 
 **Role**: End-to-end feature orchestrator for interactive planning and execution.
 
-**Model**: Haiku (lightweight orchestration, no heavy reasoning).
+**Model**: Sonnet (required for multi-phase orchestration with AskUserQuestion approval gates; haiku lacks the instruction-following capacity for this flow).
 
 **Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
 
@@ -107,7 +107,7 @@ Execution paused; user must review and resume.
 
 ## Key Design Rules
 
-1. **Call AskUserQuestion directly for all user interaction** — feature-agent runs at depth 2; AskUserQuestion calls reach the human user directly. Never return `status: "question"` to the caller.
+1. **Call AskUserQuestion directly for all user interaction** — feature-agent runs at depth 2 (dark-factory-agent → feature-agent); this is the deepest level where `AskUserQuestion` reliably reaches the human user. Agents at depth ≥ 3 (planning-agent at depth 3, sub-planning-agent at depth 4) must never call `AskUserQuestion` — calls from those depths do not reach humans. Never return `status: "question"` to the caller.
 2. **Single invocation contract** — dark-factory-agent invokes feature-agent exactly once. All approval loops are handled internally.
 3. **Never invoke pr-agent** — Caller (dark-factory-agent) handles the PR
 4. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
@@ -117,7 +117,7 @@ Execution paused; user must review and resume.
 8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 9. **Accept free-text affirmative responses as approval** — At each approval gate, common keywords like "yes", "ok", "good", "approve", "looks good", "go ahead", "proceed", "continue", "ship it", "lgtm", "1", and "done" are automatically mapped to the appropriate approval option for that gate
 10. **ALWAYS return structured JSON** — Every return path must produce `{ status: "..." }`. Valid statuses: `done`, `hard-stop`, `aborted`. Never return free text or intermediate analysis.
-11. **NON-STOP EXECUTION (Haiku model requirement)** — feature-agent MUST call `AskUserQuestion` at every approval gate (Phases 1–4) without exception. After the user answers, immediately continue to the next phase without stopping or returning control. Haiku's default behavior is to pause after each logical unit; the Non-Stop Execution constraint in the agent prompt overrides this. Skipping an approval gate is a critical bug — the user never gets to review the plan and execution proceeds without approval.
+11. **NON-STOP EXECUTION** — feature-agent MUST call `AskUserQuestion` at every approval gate (Phases 1–4) without exception. After the user answers, immediately continue to the next phase without stopping or returning control. Skipping an approval gate is a critical bug — the user never gets to review the plan and execution proceeds without approval.
 
 ## Dependencies
 

@@ -1,7 +1,7 @@
 {
   "name": "dark-factory",
   "description": "Reusable skills and agents for feature work, debugging, PR management, documentation, and fix flows.",
-  "version": "1.2.63",
+  "version": "1.2.64",
   "author": {
     "name": "lewibs",
     "email": "benjaminsl2000@gmail.com"
