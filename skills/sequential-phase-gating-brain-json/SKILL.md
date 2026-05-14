@@ -26,7 +26,6 @@ This is distinct from the boolean `*-running` / `*-complete` phase flags (see `b
    declare -A PHASE_MAP
    PHASE_MAP["dark-factory-agent"]=7
    PHASE_MAP["update-documentation-agent"]=3
-   PHASE_MAP["fix-flow-orchestrator"]=3
    ```
    Agents not in the map pass through unconditionally.
 

@@ -13,7 +13,7 @@ Without an allowlist, every `Agent` tool call — including deeply nested ones �
 
 1. Define the allowlist as a pipe-delimited regex string in both `pre-tool-use-hook.sh` and `post-tool-use-hook.sh`:
    ```bash
-   PHASE_AGENTS="feature-agent|debugger-agent|fix-flow-orchestrator|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
+   PHASE_AGENTS="feature-agent|debugger-agent|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
    ```
    List only the top-level orchestration agents — the ones that map 1:1 to phases in `brain.json`.
 
