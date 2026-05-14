@@ -17,7 +17,7 @@ Any time a new route is added to `dark-factory-agent.md` where the target agent 
 ## Notes
 
 - Self-managed routes also intentionally skip code review, skill-update-agent, and the full doc cycle. Document these omissions explicitly in the route comment so future readers know the skips are deliberate, not accidental.
-- Agents that do NOT manage their own worktree (feature-agent, debugger-agent, fix-flow-orchestrator, repair-agent) should not be placed before Step 2, because they rely on the orchestrator's worktree and cleanup.
+- Agents that do NOT manage their own worktree (feature-agent, debugger-agent, repair-agent) should not be placed before Step 2, because they rely on the orchestrator's worktree and cleanup.
 - **Historical note:** repair-agent was previously a self-managed route (called `prep-feature-dir.sh` internally and short-circuited the orchestrator). It was unified into the full orchestrator flow in April 2026. The repair-agent is no longer a self-managed route — it is invoked in Step 3 like any other worker and relies on the orchestrator for worktree, review, docs, skills, PR, and cleanup.
 
 ## Inverse: unifying a self-managed route back into the orchestrator

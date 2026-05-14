@@ -5,7 +5,7 @@ user-invocable: false
 ---
 ## When to use
 
-Whenever writing or reviewing a sub-agent (feature-agent, debugger-agent, repair-implementation-agent, fix-flow-orchestrator, or any agent invoked by dark-factory-agent) that issues git commands — add, commit, push, checkout, log, status, etc.
+Whenever writing or reviewing a sub-agent (feature-agent, debugger-agent, repair-implementation-agent or any agent invoked by dark-factory-agent) that issues git commands — add, commit, push, checkout, log, status, etc.
 
 The Bash tool in a sub-agent does not inherit the orchestrator's working directory. If a sub-agent's CWD resolves to the original project root (main worktree) instead of WORK_DIR, any `git commit` will land on the branch that is currently checked out there — typically `main` — not the feature branch.
 

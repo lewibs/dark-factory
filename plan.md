@@ -1,50 +1,48 @@
-# Plan: Refactor Agent Output to Terse Structured JSON
+# Remove Fix-Flow Route from Dark-Factory
 
-## System Intent
-update-documentation-agent and skill-update-agent currently generate multi-paragraph explanations during their execution. These verbose outputs consume output tokens (billed at full price even with prompt caching) and are rarely read. The refactor reduces output tokens by 40-70% by instructing both agents to return minimal JSON-style summaries listing only:
-- Files written/updated (absolute paths)
-- One-line summary of what was done
+## Summary
+
+Delete the `fix-flow` route entirely from dark-factory since only the debugger is needed going forward. This involves:
+1. Removing the `fix-flow-orchestrator` agent and all its dependencies
+2. Removing the `fix-flow` classification route from `dark-factory-agent`
+3. Cleaning up any orphaned skills, agents, or scripts that only `fix-flow` used
+4. Updating tests and documentation to remove fix-flow references
 
 ## Scope
 
-### Files Modified
-1. `agents/documentation/agents/update-documentation-agent.md`
-2. `agents/skill-update/agents/skill-update-agent.md`
+### Files/Directories to Delete
+- `agents/fixflow/` — entire fix-flow orchestrator and sub-agents
+- Any skills that are ONLY used by fix-flow
+- Any scripts that are ONLY used by fix-flow
+- Test files specific to fix-flow
 
-### Changes per Agent
+### Files to Modify
+- `agents/dark-factory/agents/dark-factory-agent.md` — remove fix-flow route (lines 81)
+- `task-classifier.md` (or skills) — remove fix-flow classification option
+- `plugin.json` — if fix-flow agents are registered
+- README.md — remove fix-flow mentions
+- Any integration test files
 
-#### update-documentation-agent
-**Current behavior**: Writes multi-paragraph Phase descriptions, progress updates, checklist output during execution
+### Investigation Needed
+1. Grep for all `fix-flow` references in codebase
+2. Identify which agents/skills/commands are ONLY used by fix-flow
+3. Verify debugger-agent covers all necessary use cases
 
-**New behavior**:
-- Suppress all prose output during Phase 1, 2, 3 execution
-- At completion: return minimal structured output (JSON format or list)
-- Output format: `{ "docsWritten": [...paths...], "summary": "one-liner" }`
-- Example summary: "Updated 3 docs, created 1 new doc for auth-flow"
+## Implementation Checklist
 
-#### skill-update-agent  
-**Current behavior**: Already has structured output defined (SkillUpdateOutput), but likely generates verbose prose during Steps 1-5
+- [ ] Investigate all fix-flow references
+- [ ] Identify orphaned dependencies
+- [ ] Delete fix-flow-orchestrator agent directory
+- [ ] Remove fix-flow route from dark-factory-agent
+- [ ] Remove fix-flow option from task-classifier
+- [ ] Delete orphaned skills and scripts
+- [ ] Update plugin.json if needed
+- [ ] Update README and docs
+- [ ] Remove fix-flow tests
+- [ ] Test dark-factory with remaining routes
+- [ ] Commit all changes
 
-**New behavior**:
-- Suppress all narrative output during Steps 1-5
-- Return only: `{ "skillsWritten": [...paths...], "summary": "one-liner" }`
-- Example summary: "Extracted 2 new patterns, created 1 skill file"
+## Flows
 
-### Implementation Pattern
-For each agent instruction file:
-1. Keep the frontmatter (name, tools, model, etc.) unchanged
-2. Keep the orchestration pseudocode structure but add instructions to suppress prose
-3. Add explicit instruction: "Do NOT output progress messages, explanations, or prose — return only the final JSON summary"
-4. Define concise output format upfront (before the orchestration section)
-5. Update any completion/brain-patch sections to match the terse format
-
-## Files Written
-- `agents/documentation/agents/update-documentation-agent.md` — refactored instructions
-- `agents/skill-update/agents/skill-update-agent.md` — refactored instructions
-
-## Testing
-After merging, verify in a test manufacture run:
-1. Run /dark-factory:manufacture on a small feature task
-2. Check that update-documentation-agent and skill-update-agent produce single-line JSON output
-3. Verify output tokens are reduced (check Claude API usage logs if available)
+This is a system deletion flow with no branching.
 

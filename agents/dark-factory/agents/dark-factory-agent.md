@@ -1,7 +1,7 @@
 ---
 name: dark-factory-agent
 user-invocable: true
-description: Top-level dark-factory orchestrator. Classifies tasks via task-classifier, preps an isolated work dir, routes to the right worker agent (feature/fix-flow/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager.
+description: Top-level dark-factory orchestrator. Classifies tasks via task-classifier, preps an isolated work dir, routes to the right worker agent (feature/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager.
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
 model: haiku
 scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
@@ -78,7 +78,6 @@ dark-factory-agent(taskDescription, taskName):
           result = invoke feature-agent({ answer, planPath: result.planPath, taskDescription: null })
           CONTINUE LOOP
 
-    - "fix-flow"  → invoke fix-flow-orchestrator({ taskDescription })
     - "debugger"  → invoke debugger-agent({ taskDescription })
     - "repair"    → invoke repair-agent({ taskDescription })
 

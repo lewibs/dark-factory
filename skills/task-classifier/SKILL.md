@@ -1,6 +1,6 @@
 ---
 name: task-classifier
-description: "Classifies a task description into one of four work routes (feature, fix-flow, debugger, repair) using signal matching. Returns classification string or asks clarifying question on ambiguity."
+description: "Classifies a task description into one of three work routes (feature, debugger, repair) using signal matching. Returns classification string or asks clarifying question on ambiguity."
 user-invocable: false
 ---
 
@@ -19,7 +19,7 @@ Returns a JSON object with one of two structures:
 ### Classification Result (no ambiguity)
 ```json
 {
-  "classification": "feature" | "fix-flow" | "debugger" | "repair",
+  "classification": "feature" | "debugger" | "repair",
   "ambiguous": false,
   "signal": "matched signal text",
   "confidence": 0.9
@@ -35,7 +35,6 @@ Returns a JSON object with one of two structures:
   "options": [
     { "label": "New Feature", "value": "feature" },
     { "label": "Bug Fix", "value": "debugger" },
-    { "label": "Broken Flow / End-to-End", "value": "fix-flow" },
     { "label": "Small Change / Tweak", "value": "repair" }
   ]
 }
@@ -59,9 +58,6 @@ Route here only if the task is small, targeted, and self-contained — the kind 
 
 ### debugger
 Route here if the task is about diagnosing and fixing a bug, crash, or unexpected behavior. The symptom is clear but the root cause isn't.
-
-### fix-flow
-Route here if an end-to-end integration flow or pipeline is broken and needs to be debugged and repaired systematically.
 
 ### ambiguous
 If you genuinely cannot tell — e.g. "fix the auth stuff" could be a bug or a refactor — return the ambiguous structure and ask the user to clarify.

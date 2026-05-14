@@ -64,7 +64,7 @@ fi
 
 # pre-hook.set-phase-running: find the first phase that is not yet started
 # and set its *-running=true — only for top-level orchestration phase agents
-PHASE_AGENTS="feature-agent|debugger-agent|fix-flow-orchestrator|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
+PHASE_AGENTS="feature-agent|debugger-agent|repair-agent|code-review-orchestrator-agent|update-documentation-agent|skill-update-agent|pr-agent"
 
 # Extract agent name for phase-agent check (TOOL_NAME and TOOL_INPUT already set above)
 PHASE_AGENT_NAME=""
