@@ -1,11 +1,11 @@
-# destroy-factories
+# destroy-factory
 
 Terminates all other running Claude / dark-factory terminal sessions and spawns one fresh factory terminal, leaving the user with exactly one active terminal.
 
 ## Usage
 
 ```
-/dark-factory:destroy-factories [name]
+/dark-factory:destroy-factory [name]
 ```
 
 ## Description
@@ -27,12 +27,12 @@ Linux only. Requires at least one of: `gnome-terminal`, `x-terminal-emulator`, `
 ## Implementation
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factories.sh" "dark factory"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factory.sh" "dark factory"
 ```
 
 ## Flows
 
-- `destroy-factories.success` — Claude terminals found and killed; new factory terminal spawned.
-- `destroy-factories.none-found` — No Claude terminals found; new factory terminal spawned (no kills).
-- `destroy-factories.kill-failed` — Kill fails for one or more PIDs; warns to stderr, continues to spawn.
-- `destroy-factories.spawn-failed` — Terminal spawn fails; prints error to stderr and exits non-zero.
+- `destroy-factory.success` — Claude terminals found and killed; new factory terminal spawned.
+- `destroy-factory.none-found` — No Claude terminals found; new factory terminal spawned (no kills).
+- `destroy-factory.kill-failed` — Kill fails for one or more PIDs; warns to stderr, continues to spawn.
+- `destroy-factory.spawn-failed` — Terminal spawn fails; prints error to stderr and exits non-zero.

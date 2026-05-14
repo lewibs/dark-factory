@@ -1,4 +1,4 @@
-# destroy-factories Skips All Factory Terminals Due to Shared gnome-terminal-server Ancestor
+# destroy-factory Skips All Factory Terminals Due to Shared gnome-terminal-server Ancestor
 
 ## Metadata
 
@@ -11,8 +11,8 @@
 ## About
 
 **Overview**:
-- When `destroy-factories.sh` runs, it calls `find_claude_terminals()` which first identifies the calling terminal's own ancestor PID via `find_terminal_ancestor($$)`. On GNOME desktops, `gnome-terminal` windows are all managed by a single shared daemon `gnome-terminal-server`. Because both the calling terminal AND all factory terminals opened by `build-factory.sh` are children of the same `gnome-terminal-server` PID, `find_terminal_ancestor($$)` returns the `gnome-terminal-server` PID as the "own ancestor." Then in the kill loop, every terminal emulator PID found by `all_terminal_emulator_pids()` matches `own_ancestor_pid` and is skipped. Result: zero terminals are killed.
-- The bug is high severity because the primary purpose of `destroy-factories` — to close all other factory terminals — never executes on GNOME desktops (the primary platform).
+- When `destroy-factory.sh` runs, it calls `find_claude_terminals()` which first identifies the calling terminal's own ancestor PID via `find_terminal_ancestor($$)`. On GNOME desktops, `gnome-terminal` windows are all managed by a single shared daemon `gnome-terminal-server`. Because both the calling terminal AND all factory terminals opened by `build-factory.sh` are children of the same `gnome-terminal-server` PID, `find_terminal_ancestor($$)` returns the `gnome-terminal-server` PID as the "own ancestor." Then in the kill loop, every terminal emulator PID found by `all_terminal_emulator_pids()` matches `own_ancestor_pid` and is skipped. Result: zero terminals are killed.
+- The bug is high severity because the primary purpose of `destroy-factory` — to close all other factory terminals — never executes on GNOME desktops (the primary platform).
 
 **Technical Questions**:
 - `all_terminal_emulator_pids()` searches for `gnome-terminal-server` by name. On GNOME, there is only one PID for this daemon.
@@ -21,16 +21,16 @@
 - The fix must distinguish between gnome-terminal-server (shared daemon) and individual terminal windows/tabs. Individual windows can be identified by their VTE cgroup scopes (`vte-spawn-<uuid>.scope`).
 
 **Resources**:
-- `scripts/destroy-factories.sh` — `find_claude_terminals()`, `has_claude_descendant()`, `all_terminal_emulator_pids()`, `find_terminal_ancestor()`
+- `scripts/destroy-factory.sh` — `find_claude_terminals()`, `has_claude_descendant()`, `all_terminal_emulator_pids()`, `find_terminal_ancestor()`
 - `scripts/build-factory.sh` — opens new gnome-terminal windows (which share the same `gnome-terminal-server` daemon)
-- `commands/destroy-factories.md` — command entrypoint
+- `commands/destroy-factory.md` — command entrypoint
 - `tests/test_destroy_factories.py` — existing tests (all static content checks, none simulate gnome-terminal-server shared PID scenario)
 
 ## Steps to cause failure
 
 ```mermaid
 flowchart LR
-  User -->|runs /dark-factory:destroy-factories| Script[destroy-factories.sh]
+  User -->|runs /dark-factory:destroy-factory| Script[destroy-factory.sh]
   Script -->|find_terminal_ancestor$$| Ancestor[gnome-terminal-server PID e.g. 1234]
   Script -->|all_terminal_emulator_pids| TermList[pgrep gnome-terminal-server = 1234]
   TermList -->|for each pid| Loop[terminal_pid = 1234]
@@ -45,8 +45,8 @@ flowchart TD
   BuildFactory[build-factory.sh] -->|gnome-terminal daemon| GnomeServer[gnome-terminal-server PID 1234]
   GnomeServer -->|manages| FactoryWindow1[Factory Window A: bash > claude]
   GnomeServer -->|manages| FactoryWindow2[Factory Window B: bash > claude]
-  GnomeServer -->|manages| CallerWindow[Caller Window: bash > destroy-factories.sh]
-  DestroyFactories[destroy-factories.sh] -->|find_terminal_ancestor$$| GnomeServer
+  GnomeServer -->|manages| CallerWindow[Caller Window: bash > destroy-factory.sh]
+  DestroyFactories[destroy-factory.sh] -->|find_terminal_ancestor$$| GnomeServer
   DestroyFactories -->|all_terminal_emulator_pids finds| GnomeServer
   DestroyFactories -->|terminal_pid == own_ancestor_pid| SkipAll[SKIP ALL - no kills happen]
 ```
@@ -56,7 +56,7 @@ flowchart TD
 ## Reproduction Details
 
 1. Open two or more gnome-terminal windows, each running `claude "/remote-control dark factory"` (factory sessions).
-2. From one of those terminals, run `bash scripts/destroy-factories.sh "dark factory"`.
+2. From one of those terminals, run `bash scripts/destroy-factory.sh "dark factory"`.
 3. Expected: all OTHER factory terminal windows close, leaving only the new one.
 4. Actual: no terminals are closed; a new terminal is spawned; all original terminals remain open.
 
@@ -81,8 +81,8 @@ This replaces the unreliable process-tree ancestry walk with scope-based targeti
 
 | ID | Action | Note | Context |
 | --- | --- | --- | --- |
-| 1 | Create audit log | Initialize bug investigation | destroy-factories doesn't close factory terminals |
-| 2 | Read scripts/destroy-factories.sh | Confirmed gnome-terminal-server shared PID is root cause | find_claude_terminals skips all PIDs because they equal own_ancestor_pid |
+| 1 | Create audit log | Initialize bug investigation | destroy-factory doesn't close factory terminals |
+| 2 | Read scripts/destroy-factory.sh | Confirmed gnome-terminal-server shared PID is root cause | find_claude_terminals skips all PIDs because they equal own_ancestor_pid |
 | 3 | Read scripts/build-factory.sh | Confirmed build-factory opens gnome-terminal (child of gnome-terminal-server) | terminal opener confirmed |
 | 4 | Read tests/test_destroy_factories.py | Existing tests are all static content checks; none simulate runtime PID scenario | no existing runtime tests |
 | 5 | Write repro test | tests/test_destroy_factories_kills_other_windows.py — 3 tests fail pre-fix | before fix |

@@ -1,12 +1,12 @@
-# Add `destroy-factories` Command
+# Add `destroy-factory` Command
 
 ## System Intent
 
-- What is being built: A new slash command `destroy-factories` that terminates all other running Claude / dark-factory terminal sessions and spawns one fresh factory terminal, leaving the user with exactly one active terminal.
-- Primary consumer(s): Developers who want to reset all running dark-factory sessions back to a single clean state. Invoked via `/dark-factory:destroy-factories`.
+- What is being built: A new slash command `destroy-factory` that terminates all other running Claude / dark-factory terminal sessions and spawns one fresh factory terminal, leaving the user with exactly one active terminal.
+- Primary consumer(s): Developers who want to reset all running dark-factory sessions back to a single clean state. Invoked via `/dark-factory:destroy-factory`.
 - Boundary (black-box scope only):
-  - `commands/destroy-factories.md` — the slash command entrypoint
-  - `scripts/destroy-factories.sh` — the shell script that finds Claude terminals, kills them, and spawns a fresh one
+  - `commands/destroy-factory.md` — the slash command entrypoint
+  - `scripts/destroy-factory.sh` — the shell script that finds Claude terminals, kills them, and spawns a fresh one
   - Safety constraint: only terminals running `claude` processes are targeted; unrelated terminals are never touched.
   - Platform: Linux (same as `reopen-remote-control.sh`); documents supported platforms explicitly.
 
@@ -22,7 +22,7 @@
 
 ```mermaid
 graph TD
-  User["User: /dark-factory:destroy-factories"]:::unchanged -->|"bash scripts/destroy-factories.sh"| Script["destroy-factories.sh"]:::created
+  User["User: /dark-factory:destroy-factory"]:::unchanged -->|"bash scripts/destroy-factory.sh"| Script["destroy-factory.sh"]:::created
   Script --> FindClaude["find_claude_terminals(): scan terminal PIDs for claude ancestor"]:::created
   FindClaude -->|"claude terminals found"| KillAll["kill each terminal (SIGTERM)"]:::created
   FindClaude -->|"none found"| SpawnOnly["skip kill step"]:::unchanged
@@ -48,9 +48,9 @@ StandardError {
 }
 ```
 
-### Flow: `destroy-factories`
+### Flow: `destroy-factory`
 - Test files: `tests/test_destroy_factories.py`
-- Core files: `commands/destroy-factories.md`, `scripts/destroy-factories.sh`
+- Core files: `commands/destroy-factory.md`, `scripts/destroy-factory.sh`
 
 #### Types
 
@@ -72,10 +72,10 @@ StandardError {
 
 | path | input | output | path-type | notes | updated |
 | --- | --- | --- | --- | --- | --- |
-| `destroy-factories.success` | `DestroyFactoriesInput` | `DestroyFactoriesOutput` | `happy path` | All Claude terminals found and killed; new factory terminal spawned successfully | |
-| `destroy-factories.none-found` | `DestroyFactoriesInput` | `DestroyFactoriesOutput` | `happy path` | No other Claude terminals found; new factory terminal spawned (no kills needed) | |
-| `destroy-factories.kill-failed` | `DestroyFactoriesInput` | `StandardError` | `degraded` | One or more terminals could not be killed (permission error); warns to stderr, continues to spawn | |
-| `destroy-factories.spawn-failed` | `DestroyFactoriesInput` | `StandardError` | `error` | New terminal could not be opened (no terminal emulator found or emulator returned non-zero); exits non-zero | |
+| `destroy-factory.success` | `DestroyFactoriesInput` | `DestroyFactoriesOutput` | `happy path` | All Claude terminals found and killed; new factory terminal spawned successfully | |
+| `destroy-factory.none-found` | `DestroyFactoriesInput` | `DestroyFactoriesOutput` | `happy path` | No other Claude terminals found; new factory terminal spawned (no kills needed) | |
+| `destroy-factory.kill-failed` | `DestroyFactoriesInput` | `StandardError` | `degraded` | One or more terminals could not be killed (permission error); warns to stderr, continues to spawn | |
+| `destroy-factory.spawn-failed` | `DestroyFactoriesInput` | `StandardError` | `error` | New terminal could not be opened (no terminal emulator found or emulator returned non-zero); exits non-zero | |
 
 #### Pseudocode
 
@@ -108,16 +108,16 @@ open_terminal(NAME) || { echo error; exit 1 }
 
 | Source | Location |
 |--------|----------|
-| script stderr | terminal session running the destroy-factories command |
+| script stderr | terminal session running the destroy-factory command |
 
 ## Deployment
 
 - Mechanism: `local only`
 - Deploy command:
   ```bash
-  # Called automatically by the /dark-factory:destroy-factories slash command.
+  # Called automatically by the /dark-factory:destroy-factory slash command.
   # Can also be invoked directly:
-  bash scripts/destroy-factories.sh "dark factory"
+  bash scripts/destroy-factory.sh "dark factory"
   ```
 - Notes: Linux only (same platform support as `reopen-remote-control.sh`). Requires at least one of: gnome-terminal, x-terminal-emulator, xterm, or konsole. The script is safe by design — it only kills terminals whose process tree contains a `claude` descendant.
 
