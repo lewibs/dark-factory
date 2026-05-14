@@ -43,7 +43,7 @@ flowchart TD
   ReopenScript -->|open_terminal| NewTerminal[New gnome-terminal]
   ReopenScript -->|systemctl stop scope| SelfClose[Close current tab]
   ReopenScript -->|kill ancestor claude| SelfKill[Kill calling claude]
-  DestroyFactories[commands/destroy-factories.md] -->|calls| DestroyScript[scripts/destroy-factories.sh]
+  DestroyFactories[commands/destroy-factory.md] -->|calls| DestroyScript[scripts/destroy-factory.sh]
 ```
 
 `reopen-remote-control.sh` has two responsibilities: (1) open a new terminal and (2) close the current one. `build-factory` should only do (1).
