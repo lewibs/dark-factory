@@ -52,9 +52,10 @@ dark-factory-agent(taskDescription, taskName):
 
   # Check for related open PR before creating a new branch
   relatedPrOutput = bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh\" \"$taskDescription\"") || ""
-  EXISTING_BRANCH = extract BRANCH=<value> from relatedPrOutput  (or empty)
-  EXISTING_URL    = extract URL=<value>    from relatedPrOutput  (or empty)
-  EXISTING_TITLE  = extract TITLE=<value>  from relatedPrOutput (or empty)
+  # Extract key=value pairs from output lines (e.g., BRANCH=feature/add-oauth)
+  EXISTING_BRANCH = bash("echo \"$relatedPrOutput\" | grep -oP '^BRANCH=\\K.*' | head -1") || ""
+  EXISTING_URL    = bash("echo \"$relatedPrOutput\" | grep -oP '^URL=\\K.*' | head -1") || ""
+  EXISTING_TITLE  = bash("echo \"$relatedPrOutput\" | grep -oP '^TITLE=\\K.*' | head -1") || ""
 
   if EXISTING_BRANCH is not empty:
     answer = AskUserQuestion(
@@ -81,7 +82,10 @@ dark-factory-agent(taskDescription, taskName):
     worktreeExists = bash("git -C \"$GIT_ROOT\" worktree list | grep -qE \"(^|/)$WORKTREE_NAME( |$)\" && echo yes || echo no")
     if worktreeExists == "no":
       bash("git -C \"$GIT_ROOT\" pull origin main || true")
-      bash("git -C \"$GIT_ROOT\" worktree add \"$WORK_DIR\" \"$EXISTING_BRANCH\"")
+      worktreeAddResult = bash("git -C \"$GIT_ROOT\" worktree add \"$WORK_DIR\" \"$EXISTING_BRANCH\" 2>&1")
+      if worktreeAddResult contains error or exit code non-zero:
+        report error: "Failed to create worktree at " + WORK_DIR + " for branch " + EXISTING_BRANCH + ": " + worktreeAddResult
+        STOP
     else:
       actualBranch = bash("git -C \"$WORK_DIR\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ''")
       if actualBranch != EXISTING_BRANCH:
@@ -89,7 +93,7 @@ dark-factory-agent(taskDescription, taskName):
         STOP
     taskName = existingTaskName
   else:
-    prepOutput = bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh\" <taskName>")
+    prepOutput = bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh\" \"$taskName\"")
     WORK_DIR = extract WORK_DIR=<value> line from prepOutput
     If script fails: report error and STOP (worktree was never created)
 
@@ -135,7 +139,7 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 5 — branch-drift guard
   branchRef = USE_EXISTING ? EXISTING_BRANCH : ("feature/" + taskName)
-  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + branchRef + " --oneline")
+  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + branchRef + " --oneline 2>&1")
   if driftCheck is empty:
     run cleanup(WORK_DIR, taskName)
     report error: "Branch-drift guard failed: " + branchRef + " has no commits ahead of main."

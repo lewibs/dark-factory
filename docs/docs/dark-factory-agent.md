@@ -29,10 +29,13 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 - If classification is ambiguous: sends PushNotification, awaits AskUserQuestion response
 
 ### Step 2: Prep Isolated Work Directory
-- Calls bash: `prep-feature-dir.sh <taskName>`
-- Creates isolated git worktree for the task
+- Calls `find-related-pr.sh <taskDescription>` to search for a related open PR
+- If a match is found (score ≥ 2 keyword hits against PR title + branch), prompts user via AskUserQuestion:
+  - **"Reuse existing branch"** — mounts the existing worktree (or creates one) for the matched branch; sets `USE_EXISTING = true`
+  - **"Create new branch"** — proceeds with fresh worktree
+- If reusing: derives `existingTaskName` by stripping any `<prefix>/` from the branch name, then sets `WORK_DIR = GIT_ROOT/../<PROJECT_NAME>-<existingTaskName>`; verifies or creates the worktree
+- If creating fresh: calls `prep-feature-dir.sh <taskName>` and extracts `WORK_DIR` from script output
 - Stops immediately if worktree creation fails (no cleanup needed yet)
-- Extracts `WORK_DIR` from script output
 
 ### Step 3: Create brain.json State File
 - Delegates to `brain-state-manager` skill with `operation: "create"`
@@ -61,7 +64,8 @@ If non-feature worker returns error or hard-stop: runs cleanup, reports error, S
 
 ### Step 5: Branch-Drift Guard
 - Verifies feature branch has commits ahead of main
-- Bash: `git -C "$WORK_DIR" log main..feature/<taskName> --oneline`
+- Uses `EXISTING_BRANCH` when reusing a PR, or `feature/<taskName>` for fresh branches
+- Bash: `git -C "$WORK_DIR" log main..<branchRef> --oneline`
 - Halts with error if no new commits found (cleanup runs first)
 
 ### Step 6: Read Plan File Path
@@ -117,12 +121,13 @@ Called on any error path after worktree creation:
 6. **Read brain state after sub-agents** — Use brain-state-manager to extract outputs, don't parse agent return values directly
 7. **Rely on pre-hook injection** — The pre-hook injects brain context into every Agent tool call automatically; don't manually pass brain fields
 8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+9. **PR reuse check runs before branch creation** — find-related-pr.sh is invoked at the start of Step 2 so the user can opt into an existing open PR; the branch-drift guard and all downstream steps are branch-agnostic (use `EXISTING_BRANCH` or `feature/<taskName>` as appropriate)
 
 ## Dependencies
 
 - **Skills**: task-classifier, brain-state-manager
 - **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-agent, repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
-- **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh
+- **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh, find-related-pr.sh
 
 ## Tools
 
