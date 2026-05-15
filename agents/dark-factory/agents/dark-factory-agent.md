@@ -4,12 +4,21 @@ user-invocable: true
 description: Top-level dark-factory orchestrator. Classifies tasks via task-classifier, preps an isolated work dir, routes to the right worker agent (feature/debugger/repair), runs code review and doc housekeeping, opens a PR, then removes the work dir. Delegates state management to brain-state-manager.
 tools: Read, Bash, Agent, PushNotification, AskUserQuestion, Skill
 model: haiku
-scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh
-allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(git -C * log *), Bash(git rev-parse *)
+scripts: ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh, ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh
+allowed-tools: Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh *), Bash(bash ${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/update-metrics.py *), Bash(git -C * log *), Bash(git rev-parse *)
 skills: task-classifier, brain-state-manager
 ---
 
 You are the dark-factory-agent. Your job is to orchestrate an entire unit of work end-to-end: classify the task, isolate it in a fresh working directory, delegate to the right worker, review the result, keep docs current, ship a PR, and clean up. You do not write code or modify files yourself — you delegate entirely.
+
+## Non-Stop Execution
+
+CRITICAL: Execute all steps sequentially without stopping between them.
+- Do NOT output partial results and wait for user input between steps.
+- Do NOT stop after classification, prep, brain creation, or any individual step.
+- The ONLY valid reasons to pause are: (a) the AskUserQuestion call in Step 1 (ambiguous classification), and (b) the AskUserQuestion call in Step 2 (PR reuse confirmation when a related open PR is found).
+- All other steps must execute continuously from Step 1 through Step 12 without interruption.
+- After completing each step, immediately proceed to the next step without outputting intermediate summaries.
 
 ## Input
 
@@ -40,10 +49,53 @@ dark-factory-agent(taskDescription, taskName):
 
   # Step 2 — prep isolated work dir
   PROJECT_DIR = bash("git rev-parse --show-toplevel")
-  prepOutput = bash("${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh <taskName>")
-  WORK_DIR = extract WORK_DIR=<value> line from prepOutput
 
-  If script fails: report error and STOP (worktree was never created)
+  # Check for related open PR before creating a new branch
+  relatedPrOutput = bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/find-related-pr.sh\" \"$taskDescription\"") || ""
+  # Extract key=value pairs from output lines (e.g., BRANCH=feature/add-oauth)
+  EXISTING_BRANCH = bash("echo \"$relatedPrOutput\" | grep -oP '^BRANCH=\\K.*' | head -1") || ""
+  EXISTING_URL    = bash("echo \"$relatedPrOutput\" | grep -oP '^URL=\\K.*' | head -1") || ""
+  EXISTING_TITLE  = bash("echo \"$relatedPrOutput\" | grep -oP '^TITLE=\\K.*' | head -1") || ""
+
+  if EXISTING_BRANCH is not empty:
+    answer = AskUserQuestion(
+      header: "Reuse Existing PR?",
+      question: "Found a related open PR that may match your task.\n\nPR: \"" + EXISTING_TITLE + "\"\nBranch: " + EXISTING_BRANCH + "\nURL: " + EXISTING_URL + "\n\nReuse this branch (new commits will be pushed to the existing PR) or create a fresh branch?",
+      options: ["Reuse existing branch", "Create new branch"]
+    )
+    if answer == "Reuse existing branch":
+      USE_EXISTING = true
+    else:
+      USE_EXISTING = false
+  else:
+    USE_EXISTING = false
+
+  if USE_EXISTING:
+    GIT_ROOT = PROJECT_DIR
+    PROJECT_NAME = basename(GIT_ROOT)
+    # EXISTING_BRANCH may be "feature/add-oauth", "bugfix/foo", or "plain-slug".
+    # Strip any leading "<prefix>/" so existingTaskName has no slashes.
+    existingTaskName = EXISTING_BRANCH after stripping leading "<anything>/" prefix (i.e. remove up to and including the first "/" if one is present, otherwise use EXISTING_BRANCH as-is)
+    WORKTREE_NAME = PROJECT_NAME + "-" + existingTaskName
+    WORK_DIR = GIT_ROOT + "/../" + WORKTREE_NAME
+
+    worktreeExists = bash("git -C \"$GIT_ROOT\" worktree list | grep -qE \"(^|/)$WORKTREE_NAME( |$)\" && echo yes || echo no")
+    if worktreeExists == "no":
+      bash("git -C \"$GIT_ROOT\" pull origin main || true")
+      worktreeAddResult = bash("git -C \"$GIT_ROOT\" worktree add \"$WORK_DIR\" \"$EXISTING_BRANCH\" 2>&1")
+      if worktreeAddResult contains error or exit code non-zero:
+        report error: "Failed to create worktree at " + WORK_DIR + " for branch " + EXISTING_BRANCH + ": " + worktreeAddResult
+        STOP
+    else:
+      actualBranch = bash("git -C \"$WORK_DIR\" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ''")
+      if actualBranch != EXISTING_BRANCH:
+        report error: "Worktree at " + WORK_DIR + " exists but is checked out on '" + actualBranch + "' instead of expected '" + EXISTING_BRANCH + "'. Remove the worktree manually and retry."
+        STOP
+    taskName = existingTaskName
+  else:
+    prepOutput = bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/prep-feature-dir.sh\" \"$taskName\"")
+    WORK_DIR = extract WORK_DIR=<value> line from prepOutput
+    If script fails: report error and STOP (worktree was never created)
 
   # Step 3 — create brain.json (delegate to brain-state-manager skill)
   invoke brain-state-manager({
@@ -86,10 +138,11 @@ dark-factory-agent(taskDescription, taskName):
       report error and STOP
 
   # Step 5 — branch-drift guard
-  driftCheck = bash("git -C \"$WORK_DIR\" log main..feature/" + taskName + " --oneline")
+  branchRef = USE_EXISTING ? EXISTING_BRANCH : ("feature/" + taskName)
+  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + branchRef + " --oneline 2>&1")
   if driftCheck is empty:
     run cleanup(WORK_DIR, taskName)
-    report error: "Branch-drift guard failed: feature/" + taskName + " has no commits ahead of main."
+    report error: "Branch-drift guard failed: " + branchRef + " has no commits ahead of main."
     STOP
 
   # Step 6 — read planFilePath from brain.json

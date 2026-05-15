@@ -11,21 +11,21 @@ This guard catches the class of bug where a sub-agent runs `git commit` without 
 
 ## Steps
 
-1. After the worker agent returns, compute the feature branch name:
+1. After the worker agent returns, determine the branch reference. For new branches this is always `"feature/" + taskName`; when reusing an existing PR the branch may have any prefix (bugfix/, plain slug, etc.):
    ```
-   featureBranch = "feature/" + taskName
+   branchRef = USE_EXISTING ? EXISTING_BRANCH : ("feature/" + taskName)
    ```
 
 2. Run a scoped git log to check for commits ahead of main:
    ```bash
-   git -C "$WORK_DIR" log main..feature/<taskName> --oneline
+   git -C "$WORK_DIR" log main..<branchRef> --oneline 2>&1
    ```
 
 3. If the output is empty (no commits ahead), the worker either committed to the wrong branch or did not commit at all. Do not proceed:
    ```
    rm -f /tmp/dark-factory-work-dir
    run cleanup(WORK_DIR)
-   report error: "Branch-drift guard failed: feature/<taskName> has no commits ahead of main.
+   report error: "Branch-drift guard failed: <branchRef> has no commits ahead of main.
      The worker agent may have committed to the wrong branch or failed to commit at all.
      Halting before code review to prevent opening a PR with no changes."
    STOP
@@ -39,3 +39,4 @@ This guard catches the class of bug where a sub-agent runs `git commit` without 
 - This guard should run even when the worker returns `status == "done"` — a successful return does not guarantee the commit landed on the correct branch.
 - The root cause of branch drift is sub-agents issuing git commands without `-C WORK_DIR`, causing git to resolve the repo from the ambient shell CWD, which may point to the main worktree. See skill `git-c-worktree-subagent` for the companion fix.
 - If the project uses a different default branch name (e.g., `master`), substitute it for `main` in the log range.
+- When reusing an existing PR branch the branch name will not have the `feature/` prefix — always use the full `branchRef` variable, not a hardcoded `"feature/" + taskName` interpolation. Hardcoding the prefix causes the drift guard to check the wrong branch and always report failure.
