@@ -25,7 +25,9 @@ This is the architecture used by the six standalone commands: plan, execute, deb
    ```
    Commands are auto-discovered from `commands/` — no `plugin.json` edits are needed.
 
-2. Create `agents/dark-factory/agents/<name>-command-agent.md` with this skeleton:
+2. Create `agents/dark-factory/agents/<name>-command-agent.md` with this skeleton.
+
+   **For execute-type commands** (commands that produce code changes and a PR):
    ```
    <name>-command-agent(taskDescription, taskName):
 
@@ -52,17 +54,41 @@ This is the architecture used by the six standalone commands: plan, execute, deb
      STOP
    ```
 
+   **For plan-only commands** (commands that produce only a markdown plan file, no code changes — e.g. `/dark-factory:plan`):
+   ```
+   <name>-command-agent(taskDescription, taskName):
+
+     # Step 1 — derive taskName slug
+     ...
+
+     # Step 2 — capture project dir
+     PROJECT_DIR = bash("git rev-parse --show-toplevel")
+
+     # Step 3 — invoke feature-agent with planOnly: true
+     result = invoke feature-agent({ taskDescription, planOnly: true, ... })
+     if result.status != "done": report result.status; STOP
+
+     # Step 4 — plan-only: report planPath and stop.
+     #   DO NOT run the post-execution pipeline (code-review, docs, skills, PR).
+     #   Those steps apply only when code has actually changed.
+     Report: "Plan approved. File: " + result.planPath
+     STOP
+   ```
+
+   **For read-only/investigate commands** (no code changes, no plan file): delegate directly to the worker and report the output path. No pipeline steps.
+
 3. No brain.json is created, no hooks inject state, no `/tmp/dark-factory-work-dir` pointer is written. State flows directly through agent return values.
 
 4. The `skill-update-agent` step is non-fatal — always wrap in try/catch and continue on failure.
 
-5. For the `investigate` command (read-only, no code changes), skip steps 2-4 entirely: just delegate to `investigation-orchestrator` directly and report the doc path.
+5. For the `investigate` command (read-only, no code changes), skip the pipeline entirely: just delegate to `investigation-orchestrator` directly and report the doc path.
 
 6. There is no branch drift guard and no cleanup step — the command agent does not own the worktree lifecycle.
 
 ## Notes
 
 - `planFilePath` may be `null` for debug and repair routes (no plan file generated). When null, pass a human-readable string like `"Task: " + taskDescription` to code-review-orchestrator-agent and pr-agent so they have context.
+- **Do not add the post-execution pipeline to plan-only commands.** The pipeline (code-review → docs → skills → PR) only makes sense when code has actually changed. A plan-only command produces a single markdown file; adding the pipeline causes phantom code reviews, spurious PRs, and skill extractions against no real code change. The canonical division: `plan` command = feature-agent with planOnly:true, no pipeline. `execute` command = execution-agent + full pipeline.
 - Command agents no longer call `prep-feature-dir.sh`, `find-related-pr.sh`, `AskUserQuestion` for PR reuse, or `cleanup-worktree.sh`. All of that is handled by `gotoworktree-command-agent` when the user explicitly needs a worktree.
 - `codePath` and `workDir` passed to post-execution agents are `PROJECT_DIR` (the live cwd), not a separate `WORK_DIR`. If the user is already inside a worktree, `PROJECT_DIR` will resolve to the worktree root correctly.
 - Do not add the command to an agent allowlist or PHASE_MAP in any hook — this pattern uses no hooks.
