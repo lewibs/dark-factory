@@ -23,7 +23,6 @@ The agent never writes or modifies code itself — it delegates entirely to spec
 - Delegates to `task-classifier` skill
 - Skill determines if task is:
   - `"feature"` — New feature or enhancement
-  - `"fix-flow"` — Known-broken integration flow
   - `"debugger"` — Non-obvious/state-dependent bug
   - `"repair"` — Lightweight targeted change
 - If classification is ambiguous: sends PushNotification, awaits AskUserQuestion response
@@ -50,9 +49,6 @@ Routes based on classification:
   - May return `status: "question"` requiring user feedback (PushNotification + AskUserQuestion)
   - May return `status: "hard-stop"` (triggers cleanup before halting)
   - Returns `status: "done"` when feature implementation complete
-  
-- **"fix-flow"** → `fix-flow-orchestrator`
-  - Investigates broken flow, generates fix scripts, applies targeted fixes
   
 - **"debugger"** → `debugger-agent`
   - Systematic debugging for non-obvious bugs
@@ -126,7 +122,7 @@ Called on any error path after worktree creation:
 ## Dependencies
 
 - **Skills**: task-classifier, brain-state-manager
-- **Sub-agents**: feature-agent, fix-flow-orchestrator, debugger-agent, repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
+- **Sub-agents**: feature-agent, debugger-agent, repair-agent, code-review-orchestrator-agent, update-documentation-agent, skill-update-agent, pr-agent
 - **Scripts**: prep-feature-dir.sh, cleanup-worktree.sh, find-related-pr.sh
 
 ## Tools
