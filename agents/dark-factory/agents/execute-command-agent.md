@@ -52,8 +52,9 @@ execute-command-agent(planPath, taskName):
   try: invoke skill-update-agent({ planFilePath: planPath, workDir: PROJECT_DIR, taskSummary: "Execute: " + planPath })
   catch: warn and continue
 
-  # Step 7 — open PR; pr-agent returns prUrl directly
-  prResult = invoke pr-agent({ planPath })
+  # Step 7 — determine WORK_DIR (worktree root) and open PR
+  WORK_DIR = bash("git rev-parse --show-toplevel")
+  prResult = invoke pr-agent({ planFilePath: planPath, workDir: WORK_DIR })
   prUrl = prResult.prUrl
 
   Report: "Execution complete. PR: " + prUrl

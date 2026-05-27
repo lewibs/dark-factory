@@ -86,7 +86,7 @@ debug-command-agent(taskDescription, taskName):
   })
   invoke update-documentation-agent({ planFilePath, workDir: PROJECT_DIR })
   try: invoke skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
-  prResult = invoke pr-agent({ planFilePath ?? taskDescription })
+  prResult = invoke pr-agent({ planFilePath: planFilePath ?? taskDescription, workDir: PROJECT_DIR })
 
   Report: "Debug complete. PR: " + prResult.prUrl
   STOP

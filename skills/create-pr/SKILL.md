@@ -8,35 +8,37 @@ user-invocable: false
 
 Open a pull request on GitHub and manage it through to merge.
 
+## Input
+
+- `bodyFile` (string) — Path to a markdown file with the PR body content
+- `workDir` (string) — Absolute path to the worktree where changes were made
+
 ## Steps
 
 The worktree is already on the correct feature branch (`feature/<taskName>`). Do NOT create a
 new branch — committing from the main worktree CWD on a new `fix/` branch would cause commits
-to land on `main` instead of `feature/<taskName>`. All git commands must use `-C "$WORK_DIR"`
+to land on `main` instead of `feature/<taskName>`. All git commands must use `-C "$workDir"`
 to operate on the feature worktree.
 
 1. Confirm the current branch in the worktree:
    ```bash
-   git -C "$WORK_DIR" branch --show-current
+   git -C "$workDir" branch --show-current
    # Expected output: feature/<taskName>
    # If not on the correct feature branch, stop and report the error.
    ```
 
 2. Stage and commit all changes from the worktree:
    ```bash
-   git -C "$WORK_DIR" add --all
-   git -C "$WORK_DIR" commit -m "<short title from bug explanation>"
+   git -C "$workDir" add --all
+   git -C "$workDir" commit -m "<short title from bug explanation>"
    ```
 
 3. Push the feature branch and open the PR:
    ```bash
-   git -C "$WORK_DIR" push -u origin HEAD
-   # Always write the body to a temp file — never pass it inline with --body.
-   # Inline bodies fail with "Parser aborted" when the content is large.
-   cat > /tmp/pr-body.md << 'EOF'
-   <body content here>
-   EOF
-   gh pr create --title "<type>(<scope>): <description>" --body-file /tmp/pr-body.md --head feature/<taskName>
+   git -C "$workDir" push -u origin HEAD
+   # cd into workDir for gh commands so it recognizes the correct repository
+   cd "$workDir"
+   gh pr create --title "<type>(<scope>): <description>" --body-file /tmp/pr-body.md
    ```
 
 ## PR Title Format
