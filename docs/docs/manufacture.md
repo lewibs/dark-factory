@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The `/dark-factory:manufacture` command is the top-level entry point for the dark-factory autonomous coding pipeline. It accepts a task description, classifies the work type, isolates it in a fresh git worktree, routes to the appropriate worker agent, runs code review, updates documentation, opens a PR, and cleans up — all without manual intervention.
+- What this is: The `/dark-factory:manufacture` command is the legacy top-level entry point for the dark-factory autonomous coding pipeline. **This command is deprecated.** Use the focused standalone commands instead: `/dark-factory:plan`, `/dark-factory:execute`, `/dark-factory:debug`, `/dark-factory:repair`, or `/dark-factory:investigate`. The command continues to work for backward compatibility but will be removed in a future version.
 
 ## Mermaid Diagram
 
@@ -14,13 +14,12 @@
 flowchart TD
   User["User: /dark-factory:manufacture\ntaskDescription, taskName"] --> DFA
 
-  DFA["dark-factory-agent\n(haiku orchestrator)"]
+  DFA["dark-factory-agent\n(DEPRECATED orchestrator)"]
 
   DFA -->|"invoke skill"| TC["task-classifier\n(skill)"]
   TC -->|"classification: feature | fix-flow | debugger | repair"| DFA
 
   DFA -->|"prep-feature-dir.sh"| WT["isolated git worktree\n(feature/taskName branch)"]
-  DFA -->|"brain-state-manager: create"| Brain["brain.json\n(shared state)"]
 
   DFA -->|"classification == feature"| FA["feature-agent\n(haiku orchestrator)"]
   DFA -->|"classification == fix-flow"| FFO["fix-flow-orchestrator\n(haiku orchestrator)"]
@@ -105,8 +104,6 @@ Always runs after code review. `pr-agent` opens the PR using `create-pr` skill, 
 
 | Source | Location |
 |--------|----------|
-| metrics | `metrics.csv` in project root (written by `update-metrics.py` before cleanup) |
-| brain state | `$WORK_DIR/brain.json` (deleted after cleanup) |
 | bug audit logs | `docs/bugs/<date>-<slug>.md` (persisted) |
 
 ## Deployment
@@ -116,4 +113,4 @@ Always runs after code review. `pr-agent` opens the PR using `create-pr` skill, 
   ```bash
   /dark-factory:manufacture
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The worktree is created under the system temp directory and removed after the PR is opened.
+- Notes: **Deprecated.** Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. Use `/dark-factory:plan`, `/dark-factory:execute`, `/dark-factory:debug`, or `/dark-factory:repair` for new work.
