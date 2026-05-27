@@ -67,3 +67,4 @@ execute-command-agent(planPath, taskName):
 - Handle hard-stops from execution-agent gracefully (abort execution).
 - Never skip code review, docs, or PR steps.
 - This agent runs in-place; worktree setup is handled by gotoworktree-command-agent.
+- If the automated pipeline was skipped or the user wants to open a PR manually, they can run `/dark-factory:save` as a shortcut to commit and open/update a PR.

@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The complete set of user-invocable and internal commands exposed by the dark-factory Claude plugin. Commands are `.md` files in `commands/` that either run bash scripts directly or delegate to a named agent. User-facing commands cover the full manufacture lifecycle (plan, execute, debug, repair), worktree management, factory terminal management, plugin installation, and documentation investigation. Internal (non-user-invocable) commands are sub-commands called by agents during their own pipelines (ci-watch-runner, comment-resolution-runner, find-affected-docs, manage-issues-file, phase-gate-check, render-plan-section).
+- What this is: The complete set of user-invocable and internal commands exposed by the dark-factory Claude plugin. Commands are `.md` files in `commands/` that either run bash scripts directly or delegate to a named agent. User-facing commands cover the full manufacture lifecycle (plan, execute, debug, repair), a lightweight save shortcut (save), worktree management, factory terminal management, plugin installation, and documentation investigation. Internal (non-user-invocable) commands are sub-commands called by agents during their own pipelines (ci-watch-runner, comment-resolution-runner, find-affected-docs, manage-issues-file, phase-gate-check, render-plan-section).
 
 ## Mermaid Diagram
 
@@ -17,6 +17,7 @@ flowchart TD
     EXECUTE["/dark-factory:execute"]
     DEBUG["/dark-factory:debug"]
     REPAIR["/dark-factory:repair"]
+    SAVE["/dark-factory:save"]
     GOTOWORKTREE["/dark-factory:goto"]
     INVESTIGATE["/dark-factory:investigation"]
     BUILD["/dark-factory:build-factory"]
@@ -38,6 +39,7 @@ flowchart TD
   EXECUTE --> execute-command-agent
   DEBUG --> debug-command-agent
   REPAIR --> repair-command-agent
+  SAVE --> pr-agent
   GOTOWORKTREE --> gotoworktree-command-agent
   INVESTIGATE --> investigation-orchestrator
 
@@ -221,6 +223,31 @@ flowchart TD
 | --- | --- | --- | --- | --- |
 | `repair.success` | taskDescription | prUrl | happy path | Change applied, code-reviewed, PR open (new or existing) |
 | `repair.failed` | taskDescription | error message | error | repair-agent returned success=false after 5 iterations |
+
+---
+
+### Flow: `save`
+
+**Command file**: `commands/save.md`  
+**Entry agent**: none — delegates directly to `pr-agent`  
+**User-invocable**: yes
+
+#### Ordered Steps
+
+1. Resolve `workDir` via `git rev-parse --show-toplevel`.
+2. Invoke `pr-agent` with `taskDescription` (defaults to `"Save current changes"` if not provided) and `workDir`.
+   - pr-agent handles: commit, push, open/update PR, CI watch, comment resolution.
+   - If an existing PR is detected on the branch, it is updated with new commits.
+3. If `result.status != "ready"`: stop with `result.reason`.
+4. Report: "Saved. PR: `<result.prUrl>`".
+
+#### Paths
+
+| path | input | output | path-type | notes |
+| --- | --- | --- | --- | --- |
+| `save.success` | taskDescription (optional) | prUrl | happy path | pr-agent opens PR and returns ready |
+| `save.pr-exists` | taskDescription (optional) | prUrl | happy path | Existing PR on branch detected; pr-agent commits and pushes to it |
+| `save.pr-agent-error` | taskDescription (optional) | error message | error | pr-agent CI failure or comment resolution failure |
 
 ---
 
