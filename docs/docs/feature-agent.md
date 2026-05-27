@@ -6,7 +6,7 @@
 
 **Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
 
-**User-Invocable**: No (invoked by dark-factory-agent).
+**User-Invocable**: No (invoked by plan-command-agent or dark-factory-agent).
 
 ## Overview
 
@@ -19,6 +19,7 @@ The agent manages a multi-turn dialogue: users review each planning section (Sys
 - `taskDescription` (string, nullable) — User's request; null on re-invocation
 - `answer` (string, nullable) — User's response to a previous question; null on first invocation
 - `planPath` (string, nullable) — Path to existing plan file; null on first invocation, provided on re-invocation
+- `planOnly` (boolean, default false) — When true, skips execution-agent after final approval and returns `{ status: "done", planPath }` immediately. Used by `plan-command-agent` to stop after planning without running execution.
 
 ## Orchestration Flow (5 Phases)
 
@@ -79,13 +80,16 @@ Iterates through all flows in the plan, one per turn:
 
 ### Phase 5: Execute
 
-**Condition**: User selected "Approve and Execute" at final gate
+**Condition**: User selected "Approve and Execute" at final gate AND `planOnly` is false
 
+If `planOnly == true`:
+- **Returns** `{ status: "done", planPath }` immediately — execution-agent is never invoked.
+
+If `planOnly == false` (default):
 1. Invokes `execution-agent` with `planPath`
 2. If execution-agent returns `hardStop: true`:
    - **Returns** `status: "hard-stop"` with reason; does NOT re-invoke execution-agent
 3. If execution-agent succeeds:
-   - Writes `brain-patch.json` resolving work dir via pointer file fallback: `{ "planFilePath": planPath }`
    - **Returns** `status: "done"` with planPath
 
 ## Resume Logic via Stage Gate Tracker
@@ -119,7 +123,7 @@ Indicates dark-factory-agent should send PushNotification and await AskUserQuest
   "planPath": "<path to plan file>"
 }
 ```
-Feature work complete; brain-patch.json written.
+Feature work complete. When `planOnly: true`, returned after plan approval without executing. When `planOnly: false`, returned after execution-agent succeeds.
 
 ### status: "hard-stop"
 ```json
@@ -141,12 +145,12 @@ Execution paused; user must review and resume.
 
 ## Key Design Rules
 
-1. **Never call AskUserQuestion directly** — Return `status: "question"` instead; dark-factory-agent asks at depth-2
-2. **Never invoke pr-agent** — Caller (dark-factory-agent) handles the PR
+1. **Never call AskUserQuestion directly** — Return `status: "question"` instead; the calling command-agent asks at depth-2
+2. **Never invoke pr-agent** — Caller (plan-command-agent or dark-factory-agent) handles the PR
 3. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
-6. **Write brain-patch.json only after execution succeeds** — Resolve WORK_DIR from `$DARK_FACTORY_WORK_DIR`, then fall back to contents of `/tmp/dark-factory-work-dir`; skip silently if both are empty
+6. **Respect planOnly flag** — When `planOnly: true`, short-circuit Phase 5 and return `{ status: "done", planPath }` immediately after approval
 7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
