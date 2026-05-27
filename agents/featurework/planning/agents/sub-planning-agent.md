@@ -4,7 +4,7 @@ user-invocable: false
 description: "Worker agent for the two-agent planning system. Handles all research, writing, and heavy reasoning. Spawned by planning-agent orchestrator for each phase."
 tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
 skills:
-  - skills/create-mermaid-diagram/SKILL.md
+  - create-mermaid-diagram
 model: sonnet
 allowed-tools: "Bash(find *), Bash(grep -r *), Bash(ls *), Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py *)"
 ---
@@ -43,7 +43,7 @@ When `phase == "draft_plan"`:
    d. If `investigation-agent` returns an error for a given system, log the error as a comment in the plan's `## System Intent` section and continue with the remaining systems — do not halt.
 3. Read the plan template at `agents/featurework/planning/templates/plan-template.md`.
 4. Create a new plan file at `docs/plans/<YYYY-MM-DD>-<slug>.md` (use today's date, derive slug from the feature description).
-5. Fill in at minimum: `## System Intent`, `## Stage Gate Tracker`, and a placeholder `## Mermaid Diagram` section.
+5. Fill in at minimum: `## System Intent`, `## Stage Gate Tracker`, and a `## Mermaid Diagram` section. For the Mermaid diagram, invoke the skill at `skills/create-mermaid-diagram/SKILL.md` to produce a properly-formatted diagram with node color classes (`:::unchanged`, `:::created`, etc.), labeled edges, and black-box external services — do not copy the bare template placeholder verbatim.
 6. Return:
    ```json
    {
@@ -58,7 +58,7 @@ When `phase == "draft_plan"`:
 When `phase == "mermaid"`:
 
 1. Read the plan file at `planPath`.
-2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, follow the `create-mermaid-diagram` skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
+2. If `feedback` is not "none": apply the changes indicated by `feedback` to the Mermaid diagram section and write the updated plan file. When writing or updating the Mermaid diagram block, invoke the skill at `skills/create-mermaid-diagram/SKILL.md` — this defines the required node color standards (gray/yellow/red/green by file status), edge label requirements, black-box external services, and syntax validation with mmdc.
 3. Run the mermaid image script with validation skipped so the URL is always generated:
    ```bash
    MERMAID_SKIP_VALIDATE=1 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/mermaid_to_image.py" <planPath>
