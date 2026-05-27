@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The `plan-command-agent` backs the `/dark-factory:plan` slash command. It runs in-place in whatever working directory (worktree) it is invoked from — worktree setup is handled by `gotoworktree-command-agent` separately. It drives `feature-agent` through all planning phases (draft → mermaid → flows → final approval) with `planOnly: true` to skip execution, then runs the full post-execution pipeline (code review → docs → skills → PR). State is passed directly between steps as local variables — no `brain.json` is created.
+- What this is: The `plan-command-agent` backs the `/dark-factory:plan` slash command. It runs in-place in whatever working directory (worktree) it is invoked from — worktree setup is handled by `gotoworktree-command-agent` separately. It drives `feature-agent` through all planning phases (draft → mermaid → flows → final approval) with `planOnly: true` to skip execution and returns the approved plan path. State is passed directly between steps as local variables — no `brain.json` is created.
 
 ## Mermaid Diagram
 
@@ -25,12 +25,7 @@ flowchart TD
 
   FA -->|"status: aborted"| ABORT["STOP: aborted"]
   FA -->|"status: hard-stop"| HSTOP["STOP: hard-stop"]
-  FA -->|"status: done\nplanPath"| CRO["code-review-orchestrator-agent"]
-
-  CRO --> UDA["update-documentation-agent"]
-  UDA --> SUA["skill-update-agent\n(non-fatal)"]
-  SUA --> PRA["pr-agent"]
-  PRA -->|"prUrl"| Done["Done: PR URL"]
+  FA -->|"status: done\nplanPath"| Done["Done: planPath"]
 ```
 
 ## Flows
@@ -50,7 +45,6 @@ PlanCommandInput {
 
 PlanCommandOutput {
   planPath: string (absolute path to approved plan file)
-  prUrl:    string (URL of opened PR)
 }
 
 StandardError {
@@ -62,7 +56,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `planCommand.success` | `PlanCommandInput` | `PlanCommandOutput` | happy path | plan fully approved, committed, PR opened |
+| `planCommand.success` | `PlanCommandInput` | `PlanCommandOutput` | happy path | plan fully approved, planPath returned |
 | `planCommand.aborted` | `PlanCommandInput` | `StandardError` | error | user aborted at final approval gate |
 | `planCommand.hard-stop` | `PlanCommandInput` | `StandardError` | error | feature-agent returned hard-stop |
 
@@ -93,13 +87,7 @@ plan-command-agent(taskDescription, taskName):
 
   planFilePath = result.planPath
 
-  # Steps 3-6 — post-execution pipeline
-  invoke code-review-orchestrator-agent({ planFilePath, codePath: PROJECT_DIR })
-  invoke update-documentation-agent({ planFilePath, workDir: PROJECT_DIR })
-  try: invoke skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
-  prResult = invoke pr-agent({ planFilePath })
-
-  Report: "Plan approved and committed. PR: " + prResult.prUrl
+  Report: "Plan approved. File: " + planFilePath
   STOP
 ```
 
@@ -107,7 +95,7 @@ plan-command-agent(taskDescription, taskName):
 
 | Source | Location |
 |--------|----------|
-| command agent stdout | PR URL reported directly on completion |
+| command agent stdout | Plan path reported directly on completion |
 | bug audit logs | N/A (planning only — no code executed) |
 
 ## Deployment

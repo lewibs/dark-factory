@@ -42,10 +42,6 @@ flowchart TD
   INVESTIGATE --> investigation-orchestrator
 
   plan-command-agent --> feature-agent
-  plan-command-agent --> code-review-orchestrator-agent
-  plan-command-agent --> update-documentation-agent
-  plan-command-agent --> skill-update-agent
-  plan-command-agent --> pr-agent
 
   execute-command-agent --> execution-agent
   execute-command-agent --> code-review-orchestrator-agent
@@ -103,33 +99,13 @@ flowchart TD
    - **Final approval gate**: show full plan, ask user to "Approve and Execute" or "Abort".
    - When `planOnly: true`, return `{ status: "done", planPath }` instead of invoking `execution-agent`.
    - Repeat loop until `result.status == "done"` or `"aborted"` / `"hard-stop"`.
-4. Invoke `code-review-orchestrator-agent` with `planFilePath` and `codePath`.
-   - Initialize issues file via `manage-issues-file` (operation=create).
-   - Spawn `high-level-review-agent` and `low-level-review-agent` in parallel.
-   - Loop: invoke `resolver-agent` until `anyRemaining == false` (max 10 iterations).
-   - Calls `manage-issues-file` (operation=delete) — NOTE: "delete" is not a defined operation in manage-issues-file; this call has no defined behavior.
-5. Invoke `update-documentation-agent` with `planFilePath` and `workDir`.
-   - Phase 1: read plan, build flows checklist.
-   - Phase 2: invoke `find-affected-docs` to identify affected docs.
-   - Phase 3: edit existing docs and/or create new `docs/docs/<flow>.md` files.
-6. Invoke `skill-update-agent` (non-fatal; warn and continue on error).
-   - Gather context from `planFilePath` and `git log`.
-   - Identify recurring patterns, filter to generalizable ones.
-   - Write/update `skills/<slug>/SKILL.md` files.
-7. Invoke `pr-agent` with `planFilePath`.
-   - Check for existing PR on current branch; if found, add, commit, and push.
-   - Build PR body from `pr-template.md`, write to `/tmp/pr-body.md`.
-   - Open PR via `create-pr` skill (if no existing PR).
-   - Invoke `ci-watch-runner` (maxIterations=5): poll CI, spawn `resolve-pr-issue` per failure, loop until all pass.
-   - Invoke `comment-resolution-runner` (maxIterations=5): fetch unresolved threads via GraphQL, spawn `resolve-pr-issue` per thread, re-run `ci-watch-runner` after each round.
-   - Return `{ prUrl, status: "ready" }`.
-8. Report: "Plan approved and committed. PR: `<prUrl>`".
+4. Report: "Plan approved. File: `<planPath>`".
 
 #### Paths
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `plan.success` | taskDescription | prUrl | happy path | Plan approved, code-reviewed, docs updated, PR open |
+| `plan.success` | taskDescription | planPath | happy path | Plan approved, planPath returned |
 | `plan.aborted` | taskDescription | status=aborted message | user abort | User aborted at final approval gate |
 | `plan.hard-stop` | taskDescription | status=hard-stop message | error | feature-agent returned hard-stop |
 

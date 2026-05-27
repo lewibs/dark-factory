@@ -146,7 +146,7 @@ Execution paused; user must review and resume.
 ## Key Design Rules
 
 1. **Never call AskUserQuestion directly** — Return `status: "question"` instead; the calling command-agent asks at depth-2
-2. **Never invoke pr-agent** — Caller (plan-command-agent) handles the PR
+2. **Never invoke pr-agent** — PR handling is outside the scope of feature-agent; callers that need a PR (e.g. execute-command-agent) handle it themselves
 3. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry
