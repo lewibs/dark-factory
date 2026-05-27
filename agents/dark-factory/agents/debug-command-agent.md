@@ -53,8 +53,9 @@ debug-command-agent(taskDescription, taskName):
   try: invoke skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
   catch: warn and continue
 
-  # Step 7 — open PR; pr-agent returns prUrl directly
-  prResult = invoke pr-agent({ planFilePath ?? taskDescription })
+  # Step 7 — determine WORK_DIR (worktree root) and open PR
+  WORK_DIR = bash("git rev-parse --show-toplevel")
+  prResult = invoke pr-agent({ planFilePath ?? taskDescription, workDir: WORK_DIR })
   prUrl = prResult.prUrl
 
   Report: "Debug complete. PR: " + prUrl
