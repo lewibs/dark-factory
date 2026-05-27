@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The `/dark-factory:manufacture` command is the legacy top-level entry point for the dark-factory autonomous coding pipeline. **This command is deprecated.** Use the focused standalone commands instead: `/dark-factory:plan`, `/dark-factory:execute`, `/dark-factory:debug`, `/dark-factory:repair`, or `/dark-factory:investigate`. The command continues to work for backward compatibility but will be removed in a future version.
+- What this is: The `/dark-factory:manufacture` command is the legacy top-level entry point for the dark-factory autonomous coding pipeline. **This command is deprecated.** Use the focused standalone commands instead: `/dark-factory:plan`, `/dark-factory:execute`, `/dark-factory:debug`, `/dark-factory:repair`, or `/dark-factory:investigation`. The command continues to work for backward compatibility but will be removed in a future version.
 
 ## Mermaid Diagram
 
