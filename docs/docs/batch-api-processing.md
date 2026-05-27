@@ -107,7 +107,7 @@ Step 10: Open PR (with partial or no batch results)
 ### Component Architecture
 
 ```
-dark-factory-agent (orchestrator)
+command-agent (orchestrator)
   ↓ (Step 8-9)
 batch-queue-manager.py (CLI orchestrator)
   ├─ submit command → batch-request-builder.py
@@ -198,7 +198,7 @@ Control batching behavior via environment or `.claude/settings.json`:
 }
 ```
 
-### Integration with dark-factory-agent
+### Integration with command agents
 
 Steps 8-9 of the manufacture flow are updated:
 

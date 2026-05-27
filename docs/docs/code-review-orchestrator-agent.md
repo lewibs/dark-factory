@@ -6,7 +6,7 @@
 
 **Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
 
-**User-Invocable**: No (invoked by dark-factory-agent after feature implementation).
+**User-Invocable**: No (invoked by execute-command-agent, debug-command-agent, or repair-command-agent after implementation).
 
 ## Overview
 
@@ -158,9 +158,9 @@ Returns:
   - Format: markdown checklist of review points
   - Example: `- [ ] Function too long (line 45-67 in main.py)`
 
-## Integration with dark-factory-agent
+## Integration with command agents
 
-1. Called after feature-agent completes (or debugger/repair finish)
+1. Called by execute-command-agent, debug-command-agent, or repair-command-agent after the worker agent (feature-agent, debugger-agent, or repair-agent) completes
 2. Must complete before update-documentation-agent
-3. If returns error: dark-factory-agent halts, cleans up, reports failure
-4. If returns success: dark-factory-agent continues to documentation and PR
+3. If returns error: the calling command agent halts, cleans up, reports failure
+4. If returns success: the calling command agent continues to documentation and PR

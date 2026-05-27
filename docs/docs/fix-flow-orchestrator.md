@@ -4,7 +4,7 @@
 
 **Model**: Haiku (lightweight orchestration, no heavy reasoning).
 
-**User-Invocable**: No (invoked by dark-factory-agent).
+**User-Invocable**: No (invoked by execute-command-agent).
 
 ## Overview
 

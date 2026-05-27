@@ -6,7 +6,7 @@
 
 **Prompt Caching**: Yes — `cache-control: ephemeral` is set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs by ~90% for repeated invocations.
 
-**User-Invocable**: No (invoked by plan-command-agent or dark-factory-agent).
+**User-Invocable**: No (invoked by plan-command-agent).
 
 ## Overview
 
@@ -114,7 +114,7 @@ This allows users to re-invoke feature-agent mid-workflow if interrupted.
   "phase": "<phase name>"
 }
 ```
-Indicates dark-factory-agent should send PushNotification and await AskUserQuestion response.
+Indicates the calling command-agent should send PushNotification and await AskUserQuestion response.
 
 ### status: "done"
 ```json
@@ -146,7 +146,7 @@ Execution paused; user must review and resume.
 ## Key Design Rules
 
 1. **Never call AskUserQuestion directly** — Return `status: "question"` instead; the calling command-agent asks at depth-2
-2. **Never invoke pr-agent** — Caller (plan-command-agent or dark-factory-agent) handles the PR
+2. **Never invoke pr-agent** — Caller (plan-command-agent) handles the PR
 3. **Delegate flow state** — Use flow-state-manager skill for all flow approval tracking
 4. **Delegate rendering** — Use render-plan-section command to format plan sections
 5. **Handle hard-stop gracefully** — When execution-agent returns hard-stop, return it upstream; don't retry

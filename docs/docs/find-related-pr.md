@@ -81,4 +81,4 @@ if best:
   ```bash
   bash agents/dark-factory/scripts/find-related-pr.sh "<taskDescription>"
   ```
-- Notes: Requires `gh` CLI to be authenticated. Script is invoked by `dark-factory-agent` at Step 2, before any worktree is created. On any gh failure the script exits 0 with empty output so the caller falls through to creating a fresh branch.
+- Notes: Requires `gh` CLI to be authenticated. Script is invoked by `gotoworktree-command-agent` before any worktree is created. On any gh failure the script exits 0 with empty output so the caller falls through to creating a fresh branch.
