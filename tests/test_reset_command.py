@@ -12,15 +12,6 @@ import pytest
 class TestResetCommand:
     """Tests for the reset command functionality."""
 
-    def test_reset_script_exists(self):
-        """Test that the reset script exists and is executable."""
-        script_path = os.path.join(
-            os.path.dirname(__file__),
-            "../agents/dark-factory/scripts/reset.sh"
-        )
-        assert os.path.exists(script_path), "reset.sh script should exist"
-        assert os.access(script_path, os.X_OK), "reset.sh should be executable"
-
     def test_reset_command_file_exists(self):
         """Test that the reset command Markdown file exists."""
         command_path = os.path.join(
@@ -41,13 +32,13 @@ class TestResetCommand:
             assert "/reset" in content, "Command should document /reset usage"
             assert "main branch" in content, "Command should mention main branch"
 
-    def test_reset_script_has_flow_messages(self):
-        """Test that the reset script defines expected flow outputs."""
-        script_path = os.path.join(
+    def test_reset_command_has_flow_messages(self):
+        """Test that the reset command defines expected flow outputs."""
+        command_path = os.path.join(
             os.path.dirname(__file__),
-            "../agents/dark-factory/scripts/reset.sh"
+            "../commands/reset.md"
         )
-        with open(script_path, "r") as f:
+        with open(command_path, "r") as f:
             content = f.read()
             # Should have error flows
             assert "reset.not-git-repo" in content
@@ -57,53 +48,64 @@ class TestResetCommand:
             # Should have success flow
             assert "reset.success" in content
 
-    def test_reset_script_uses_proper_error_handling(self):
-        """Test that the reset script uses set -euo pipefail."""
-        script_path = os.path.join(
+    def test_reset_command_has_bash_implementation(self):
+        """Test that the reset command contains direct Bash implementation."""
+        command_path = os.path.join(
             os.path.dirname(__file__),
-            "../agents/dark-factory/scripts/reset.sh"
+            "../commands/reset.md"
         )
-        with open(script_path, "r") as f:
-            content = f.read()
-            assert "set -euo pipefail" in content, \
-                "Script should use proper bash error handling"
-
-    def test_reset_script_checks_git_root(self):
-        """Test that the reset script checks for git root."""
-        script_path = os.path.join(
-            os.path.dirname(__file__),
-            "../agents/dark-factory/scripts/reset.sh"
-        )
-        with open(script_path, "r") as f:
+        with open(command_path, "r") as f:
             content = f.read()
             assert "git rev-parse --show-toplevel" in content, \
-                "Script should check git root"
+                "Command should check git root"
+            assert "worktree list" in content, \
+                "Command should list worktrees"
 
-    def test_reset_script_finds_main_worktree(self):
-        """Test that the reset script attempts to find main worktree."""
-        script_path = os.path.join(
+    def test_reset_command_checks_git_root(self):
+        """Test that the reset command checks for git root."""
+        command_path = os.path.join(
             os.path.dirname(__file__),
-            "../agents/dark-factory/scripts/reset.sh"
+            "../commands/reset.md"
         )
-        with open(script_path, "r") as f:
+        with open(command_path, "r") as f:
+            content = f.read()
+            assert "git rev-parse --show-toplevel" in content, \
+                "Command should check git root"
+
+    def test_reset_command_finds_main_worktree(self):
+        """Test that the reset command attempts to find main worktree."""
+        command_path = os.path.join(
+            os.path.dirname(__file__),
+            "../commands/reset.md"
+        )
+        with open(command_path, "r") as f:
             content = f.read()
             assert "worktree list" in content, \
-                "Script should list git worktrees"
+                "Command should list git worktrees"
             assert "main" in content or "master" in content, \
-                "Script should check for main or master branch"
+                "Command should check for main or master branch"
 
-    def test_reset_script_uses_git_commands(self):
-        """Test that the reset script uses standard git commands."""
+    def test_reset_command_uses_git_commands(self):
+        """Test that the reset command uses standard git commands."""
+        command_path = os.path.join(
+            os.path.dirname(__file__),
+            "../commands/reset.md"
+        )
+        with open(command_path, "r") as f:
+            content = f.read()
+            assert "git checkout main" in content, \
+                "Command should check out main"
+            assert "git pull" in content, \
+                "Command should pull latest code"
+
+    def test_reset_script_does_not_exist(self):
+        """Test that the external reset.sh script no longer exists."""
         script_path = os.path.join(
             os.path.dirname(__file__),
             "../agents/dark-factory/scripts/reset.sh"
         )
-        with open(script_path, "r") as f:
-            content = f.read()
-            assert "git checkout main" in content, \
-                "Script should check out main"
-            assert "git pull" in content, \
-                "Script should pull latest code"
+        assert not os.path.exists(script_path), \
+            "reset.sh script should not exist (logic moved to command)"
 
 
 if __name__ == "__main__":
