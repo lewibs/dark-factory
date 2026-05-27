@@ -51,18 +51,20 @@ if ! cd "$MAIN_WORKTREE" 2>/dev/null; then
 fi
 
 # Check out main branch
-if ! git checkout main 2>&1 | grep -v "^Switched to branch\|^Already on"; then
+CHECKOUT_OUTPUT=$(git checkout main 2>&1) || {
   echo "reset.checkout-failed: Failed to check out main branch" >&2
+  echo "$CHECKOUT_OUTPUT" >&2
   exit 1
-fi
+}
 
 echo "reset | checkout | main" >&2
 
 # Pull latest code
-if ! git pull origin main 2>&1 | grep -v "^Already up to date\|^Fast-forward\|^Merge made"; then
+PULL_OUTPUT=$(git pull origin main 2>&1) || {
   echo "reset.pull-failed: Failed to pull latest code from origin main" >&2
+  echo "$PULL_OUTPUT" >&2
   exit 1
-fi
+}
 
 echo "reset | pull | success" >&2
 echo "reset.success: Reset complete. Returned to main branch in $MAIN_WORKTREE and pulled latest code." >&2
