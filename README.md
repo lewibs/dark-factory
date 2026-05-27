@@ -66,3 +66,4 @@ These two templates are the source of truth that every downstream agent — plan
 | `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or fix-flow) end-to-end, runs code review, opens a PR, and cleans up |
 | `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |
+| `/dark-factory:reset` | None | Switch back to the main branch in the main worktree and pull the latest code |
