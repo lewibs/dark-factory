@@ -16,11 +16,12 @@ You are the feature-agent. Your job is to orchestrate end-to-end feature work by
 - `taskDescription` — the user's request (may be null on re-invocation)
 - `answer` — user's answer to a previous question (null on first invocation)
 - `planPath` — path to an existing plan file (null on first invocation, provided on re-invocation)
+- `planOnly` — boolean (optional, default false; when true, skip execution-agent after plan approval)
 
 ## Orchestration
 
 ```
-feature-agent(taskDescription, answer, planPath):
+feature-agent(taskDescription, answer, planPath, planOnly=false):
 
   # ── Determine resume point ──────────────────────────────────────────────────
   if planPath exists:
@@ -105,6 +106,11 @@ feature-agent(taskDescription, answer, planPath):
 
   if answer == "Abort":
     RETURN { status: "aborted", reason: "User aborted at final approval gate", planPath }
+
+  # ── NEW: planOnly short-circuit ──────────────────────────────────────────────
+  if planOnly == true:
+    # Return planPath directly in the return value — no brain.json needed
+    RETURN { status: "done", planPath }
 
   # ── Phase 5: Execute ─────────────────────────────────────────────────────────
   invoke execution-agent({ planPath })

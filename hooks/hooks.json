@@ -1,5 +1,5 @@
 {
-  "description": "dark-factory plugin hooks — brain state management for agent orchestration",
+  "description": "dark-factory plugin hooks",
   "hooks": {
     "Stop": [
       {
@@ -8,28 +8,6 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-session-files.sh\""
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/pre-tool-use-hook.sh\""
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/post-tool-use-hook.sh\""
           }
         ]
       }
