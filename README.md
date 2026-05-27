@@ -63,7 +63,9 @@ Feature work uses a structured plan template before a single line of code is wri
 | `/dark-factory:debug` | Bug description | Diagnoses and fixes a non-obvious bug — fills out a bug audit log, applies the fix, runs code review, and opens a PR |
 | `/dark-factory:repair` | Change description | Applies a small targeted change — no plan required, runs tests in a loop until green, opens a PR |
 | `/dark-factory:investigation` | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
+| `/dark-factory:save` | Optional task description | Commits current changes and opens or updates a PR — lightweight shortcut that skips code review and docs pipeline |
 | `/dark-factory:goto` | PR number, task name, or description | Finds or creates the matching git worktree and pulls main/master — use this before running any other command |
 | `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
+| `/dark-factory:destroy-factory` | Optional terminal name | Terminates all other running Claude/dark-factory terminal sessions and spawns one fresh factory terminal |
+| `/dark-factory:gen-hooks` | None | Scans YAML frontmatter of skill/agent/command files for hook declarations and writes them to `.claude/settings.json` |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |
-| `/dark-factory:reset` | None | Switch back to the main branch in the main worktree and pull the latest code |

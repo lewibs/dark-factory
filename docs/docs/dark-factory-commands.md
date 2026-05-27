@@ -347,13 +347,19 @@ flowchart TD
 #### Ordered Steps
 
 1. Run bash script `${CLAUDE_PLUGIN_ROOT}/scripts/destroy-factory.sh "dark factory"`.
-2. `destroy-factory.sh` delegates entirely to `close-factory.sh` via `bash "$(dirname "$0")/close-factory.sh"`. `close-factory.sh` does not currently exist in the repo — this is a placeholder/stub with no implemented behavior.
+2. `destroy-factory.sh` delegates entirely to `close-factory.sh` via `bash "$(dirname "$0")/close-factory.sh"`.
+3. `close-factory.sh` (scripts/close-factory.sh):
+   - Identifies all running terminal emulator scopes (via systemd cgroup introspection) that have a `claude` process in their ancestry — excluding the calling terminal's own scope.
+   - Stops each identified scope via `systemctl --user stop`.
+   - Spawns a fresh factory terminal running `claude "/remote-control <NAME>"`, trying terminal emulators in priority order: gnome-terminal, x-terminal-emulator, xterm, konsole.
+   - Exits with error if no terminal emulator is found.
 
 #### Paths
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `destroy-factory.delegated` | optional name | Outcome of close-factory.sh | depends on close-factory.sh | close-factory.sh is missing; script will fail at delegation |
+| `destroy-factory.success` | optional name | Other Claude terminals killed; new factory terminal spawned | happy path | close-factory.sh kills claude-scoped terminals and reopens factory |
+| `destroy-factory.no-terminal` | optional name | error message | error | No supported terminal emulator found (gnome-terminal, x-terminal-emulator, xterm, konsole) |
 
 ---
 

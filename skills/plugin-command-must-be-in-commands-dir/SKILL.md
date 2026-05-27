@@ -34,6 +34,10 @@ Any time you create, move, or rename a slash-command (i.e. a file that should be
 
 5. After adding or moving a command file, reinstall the plugin with `/dark-factory:install` to pick up the change.
 
+6. If the command invokes a shell script (common pattern: the command delegates to `scripts/<name>.sh`), ensure that script actually exists. A missing script causes the command to silently fail at runtime — there is no registration-time error.
+
+7. Add (or update) the command's row in the README command table. The README table is not auto-generated; it must be kept in sync manually. Rows that exist in the table without a corresponding `commands/<name>.md` file are "ghost" entries and confuse users.
+
 ## Notes
 
 - The silent-ignore behavior is the key gotcha: if you put a command file in `agents/commands/` (a directory used for orchestrator instruction files), it will appear to be in the right place but will never be registered as a slash-command. There is no error or warning.
@@ -46,7 +50,7 @@ Marking a command file's body as `[DEPRECATED]` or adding deprecation prose to t
 
 To fully retire a command:
 1. Delete the file: `rm commands/<name>.md`
-2. Remove any references to it from `docs/docs/README.md` and other documentation.
+2. Remove its row from the README command table.
 3. Reinstall the plugin with `/dark-factory:install` to deregister the command.
 
 Do NOT leave the file in place with a deprecation notice if the goal is to stop the command from appearing — the file must be deleted.
