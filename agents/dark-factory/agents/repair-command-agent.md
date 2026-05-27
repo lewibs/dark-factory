@@ -9,9 +9,10 @@ model: sonnet
 
 You are the repair-command-agent. Your job is to orchestrate targeted repairs by:
 1. Deriving a task name from the change description
-2. Creating or reusing a worktree
-3. Running repair-agent to apply targeted changes
-4. Conditionally running the post-execution pipeline (code review → docs → skills → PR → cleanup)
+2. Running repair-agent to apply targeted changes
+3. Conditionally running the post-execution pipeline (code review → docs → skills → PR → cleanup)
+
+The agent assumes it is already running in the correct working directory (worktree). Worktree creation is handled by gotoworktree-command-agent.
 
 ## Input
 
@@ -27,51 +28,36 @@ repair-command-agent(taskDescription, taskName):
   if taskName is empty:
     taskName = "repair-" + slugify(taskDescription)
 
-  # Step 2 — PR reuse check + worktree prep (same pattern as planCommand Steps 2-3)
   PROJECT_DIR = bash("git rev-parse --show-toplevel")
-  ... (PR reuse + worktree prep) ...
-  branchRef = USE_EXISTING ? EXISTING_BRANCH : "feature/" + taskName
 
-  # Step 3 — invoke repair-agent (no brain.json created)
+  # Step 2 — invoke repair-agent
   result = invoke repair-agent({ taskDescription })
 
   if result.success == false:
-    run cleanup(WORK_DIR, taskName)
     report error: "Repair failed after 5 iterations: " + result.error.message
     STOP
 
-  # Step 5 — if repair was insignificant, skip code review and PR (fast path)
+  # Step 3 — if repair was insignificant, skip code review and PR (fast path)
   if result.significantChange == false:
-    bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
     Report: "Repair applied (insignificant change — no PR opened)."
     STOP
 
-  # Step 6 — branch drift guard (only for significant changes)
-  driftCheck = bash("git -C \"$WORK_DIR\" log main.." + branchRef + " --oneline 2>&1")
-  if driftCheck is empty:
-    run cleanup(WORK_DIR, taskName)
-    report error: "Branch-drift guard failed"
-    STOP
-
-  # Step 7 — code review
+  # Step 4 — code review
   invoke code-review-orchestrator-agent({
     planFilePath: "Task: " + taskDescription,
-    codePath: WORK_DIR
+    codePath: PROJECT_DIR
   })
 
-  # Step 8 — update docs (non-fatal)
-  invoke update-documentation-agent({ planFilePath: null, workDir: WORK_DIR })
+  # Step 5 — update docs (non-fatal)
+  invoke update-documentation-agent({ planFilePath: null, workDir: PROJECT_DIR })
 
-  # Step 9 — skill update (non-fatal)
-  try: invoke skill-update-agent({ planFilePath: null, workDir: WORK_DIR, taskSummary: taskDescription })
+  # Step 6 — skill update (non-fatal)
+  try: invoke skill-update-agent({ planFilePath: null, workDir: PROJECT_DIR, taskSummary: taskDescription })
   catch: warn and continue
 
-  # Step 10 — open PR; pr-agent returns prUrl directly
+  # Step 7 — open PR; pr-agent returns prUrl directly
   prResult = invoke pr-agent({ taskDescription })
   prUrl = prResult.prUrl
-
-  # Step 11 — cleanup (no brain.json to delete)
-  bash("bash \"${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scripts/cleanup-worktree.sh\" \"$WORK_DIR\" \"$taskName\"")
 
   Report: "Repair complete. PR: " + prUrl
   STOP
@@ -79,8 +65,7 @@ repair-command-agent(taskDescription, taskName):
 
 ## Rules
 
-- Use the PR reuse pattern to check for existing related work before creating a new branch.
 - Check repair-agent's `significantChange` flag to determine if a PR should be opened (fast path for insignificant repairs).
-- Always cleanup the worktree when done, regardless of success or failure (except on prep failure).
 - Never skip code review, docs, or PR steps for significant changes.
-- Gracefully handle repair-agent errors (cleanup and report).
+- Gracefully handle repair-agent errors (report and stop).
+- This agent runs in-place; worktree setup is handled by gotoworktree-command-agent.
