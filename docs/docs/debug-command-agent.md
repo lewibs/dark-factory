@@ -106,4 +106,4 @@ debug-command-agent(taskDescription, taskName):
   ```bash
   /dark-factory:debug
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. No plan file is generated — `taskDescription` is passed as fallback to code-review and pr-agent.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:goto` first to land in the correct worktree. No plan file is generated — `taskDescription` is passed as fallback to code-review and pr-agent.

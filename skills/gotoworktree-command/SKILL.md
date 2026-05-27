@@ -9,13 +9,13 @@ When you need to add a user-facing command that sets up a worktree without doing
 
 ## Pattern
 
-Worktree lifecycle management (find, create, pull) is handled by a dedicated `gotoworktree-command-agent`, invoked via `/dark-factory:gotoworktree`. The four command agents (plan, execute, debug, repair) run in-place — they do NOT call `prep-feature-dir.sh`, `find-related-pr.sh`, or `git worktree add`. They simply use `PROJECT_DIR = bash("git rev-parse --show-toplevel")`.
+Worktree lifecycle management (find, create, pull) is handled by a dedicated `gotoworktree-command-agent`, invoked via `/dark-factory:goto`. The four command agents (plan, execute, debug, repair) run in-place — they do NOT call `prep-feature-dir.sh`, `find-related-pr.sh`, or `git worktree add`. They simply use `PROJECT_DIR = bash("git rev-parse --show-toplevel")`.
 
 ## Steps
 
-### Creating the gotoworktree command
+### Creating the goto command
 
-1. Create `commands/gotoworktree.md`:
+1. Create `commands/goto.md`:
    ```markdown
    ---
    description: "Find or create a git worktree by PR number, task name, or description."
@@ -90,4 +90,4 @@ When refactoring a command agent that previously managed its own worktree:
 - Always pull main/master into the worktree before reporting the path — so the user starts from a fresh base.
 - `pull origin main || pull origin master || true` is the correct fallback pattern; repos vary in default branch name.
 - The worktree naming convention is `<PROJECT_NAME>-<taskName>` and is always located at `PROJECT_DIR/../<WORKTREE_NAME>` — consistent with `prep-feature-dir.sh`.
-- After the user runs `/dark-factory:gotoworktree`, they open a new Claude Code window in `WORK_DIR`, then invoke plan/execute/debug/repair from there.
+- After the user runs `/dark-factory:goto`, they open a new Claude Code window in `WORK_DIR`, then invoke plan/execute/debug/repair from there.

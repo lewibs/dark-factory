@@ -105,4 +105,4 @@ plan-command-agent(taskDescription, taskName):
   ```bash
   /dark-factory:plan
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. Passes `planOnly: true` to `feature-agent` so execution-agent is never called.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:goto` first to land in the correct worktree. Passes `planOnly: true` to `feature-agent` so execution-agent is never called.

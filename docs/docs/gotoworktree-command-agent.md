@@ -6,13 +6,13 @@
 
 ## System Intent
 
-- What this is: The `gotoworktree-command-agent` backs the `/dark-factory:gotoworktree` slash command. It finds or creates a git worktree for a PR, branch, or new task, pulls main/master into the worktree, and reports the path. It is the single place where worktree setup lives — all command agents (plan, execute, debug, repair) delegate worktree creation to this agent or expect the user to call it first.
+- What this is: The `gotoworktree-command-agent` backs the `/dark-factory:goto` slash command. It finds or creates a git worktree for a PR, branch, or new task, pulls main/master into the worktree, and reports the path. It is the single place where worktree setup lives — all command agents (plan, execute, debug, repair) delegate worktree creation to this agent or expect the user to call it first.
 
 ## Mermaid Diagram
 
 ```mermaid
 flowchart TD
-  User["User: /dark-factory:gotoworktree\nprNumber, taskName, or description"] --> GW
+  User["User: /dark-factory:goto\nprNumber, taskName, or description"] --> GW
 
   GW["gotoworktree-command-agent"]
 
@@ -40,7 +40,7 @@ flowchart TD
 ### Flow: `gotoworktreeCommand`
 
 - Test files: `N/A`
-- Core files: `commands/gotoworktree.md`, `agents/dark-factory/agents/gotoworktree-command-agent.md`
+- Core files: `commands/goto.md`, `agents/dark-factory/agents/gotoworktree-command-agent.md`
 
 #### Types
 
@@ -139,6 +139,6 @@ gotoworktree-command-agent(prNumber, taskName, description):
 - Mechanism: `local only`
 - Deploy command:
   ```bash
-  /dark-factory:gotoworktree
+  /dark-factory:goto
   ```
 - Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. Reuses `prep-feature-dir.sh` and `find-related-pr.sh` scripts. Does not delegate to other agents — stops after reporting the worktree path. All four command agents (plan, execute, debug, repair) assume the user has already run this command to enter the correct worktree before invoking them.

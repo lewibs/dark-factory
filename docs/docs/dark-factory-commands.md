@@ -17,7 +17,7 @@ flowchart TD
     EXECUTE["/dark-factory:execute"]
     DEBUG["/dark-factory:debug"]
     REPAIR["/dark-factory:repair"]
-    GOTOWORKTREE["/dark-factory:gotoworktree"]
+    GOTOWORKTREE["/dark-factory:goto"]
     INVESTIGATE["/dark-factory:investigation"]
     BUILD["/dark-factory:build-factory"]
     DESTROY["/dark-factory:destroy-factory"]
@@ -224,9 +224,9 @@ flowchart TD
 
 ---
 
-### Flow: `gotoworktree`
+### Flow: `goto`
 
-**Command file**: `commands/gotoworktree.md`  
+**Command file**: `commands/goto.md`  
 **Entry agent**: `agents/dark-factory/agents/gotoworktree-command-agent.md`  
 **User-invocable**: yes
 
@@ -252,10 +252,10 @@ flowchart TD
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `gotoworktree.existing-local` | prNumber/taskName/description | WORK_DIR path | happy path | Existing local worktree found |
-| `gotoworktree.existing-pr` | prNumber/description | WORK_DIR path | happy path | Open PR branch found; worktree created or reused |
-| `gotoworktree.new` | taskName/description | WORK_DIR path | happy path | New worktree created via prep-feature-dir.sh |
-| `gotoworktree.error` | any | error message | error | No input, failed worktree creation |
+| `goto.existing-local` | prNumber/taskName/description | WORK_DIR path | happy path | Existing local worktree found |
+| `goto.existing-pr` | prNumber/description | WORK_DIR path | happy path | Open PR branch found; worktree created or reused |
+| `goto.new` | taskName/description | WORK_DIR path | happy path | New worktree created via prep-feature-dir.sh |
+| `goto.error` | any | error message | error | No input, failed worktree creation |
 
 ---
 
