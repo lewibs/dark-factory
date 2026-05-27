@@ -87,7 +87,7 @@ execute-command-agent(planPath, taskName):
   invoke code-review-orchestrator-agent({ planFilePath: planPath, codePath: PROJECT_DIR })
   invoke update-documentation-agent({ planFilePath: planPath, workDir: PROJECT_DIR })
   try: invoke skill-update-agent({ planFilePath: planPath, workDir: PROJECT_DIR, taskSummary: "Execute: " + planPath })
-  prResult = invoke pr-agent({ planPath })
+  prResult = invoke pr-agent({ planFilePath: planPath, workDir: PROJECT_DIR })
 
   Report: "Execution complete. PR: " + prResult.prUrl
   STOP

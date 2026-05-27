@@ -39,7 +39,7 @@ pr-agent(planFilePath or taskDescription, workDir):
   Write body to /tmp/pr-body.md.
 
   # Step 2 — Open PR (delegate to create-pr skill) if no existing PR
-  if existingPr is null:
+  if existingPr is empty:
     pr_url = invoke create-pr({ bodyFile: "/tmp/pr-body.md", workDir: workDir })
   
   # Step 2b — Write brain-patch.json for downstream use

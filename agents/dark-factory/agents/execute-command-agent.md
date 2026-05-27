@@ -54,7 +54,7 @@ execute-command-agent(planPath, taskName):
 
   # Step 7 — determine WORK_DIR (worktree root) and open PR
   WORK_DIR = bash("git rev-parse --show-toplevel")
-  prResult = invoke pr-agent({ planPath, workDir: WORK_DIR })
+  prResult = invoke pr-agent({ planFilePath: planPath, workDir: WORK_DIR })
   prUrl = prResult.prUrl
 
   Report: "Execution complete. PR: " + prUrl

@@ -57,7 +57,7 @@ repair-command-agent(taskDescription, taskName):
 
   # Step 7 — determine WORK_DIR (worktree root) and open PR
   WORK_DIR = bash("git rev-parse --show-toplevel")
-  prResult = invoke pr-agent({ taskDescription, workDir: WORK_DIR })
+  prResult = invoke pr-agent({ planFilePath: taskDescription, workDir: WORK_DIR })
   prUrl = prResult.prUrl
 
   Report: "Repair complete. PR: " + prUrl

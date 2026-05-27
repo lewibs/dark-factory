@@ -91,7 +91,7 @@ repair-command-agent(taskDescription, taskName):
   })
   invoke update-documentation-agent({ planFilePath: null, workDir: PROJECT_DIR })
   try: invoke skill-update-agent({ planFilePath: null, workDir: PROJECT_DIR, taskSummary: taskDescription })
-  prResult = invoke pr-agent({ taskDescription })
+  prResult = invoke pr-agent({ planFilePath: taskDescription, workDir: PROJECT_DIR })
 
   Report: "Repair complete. PR: " + prResult.prUrl
   STOP

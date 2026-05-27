@@ -17,14 +17,15 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 - `planFilePath` (string, nullable) — Path to the plan file; if null, uses taskDescription
 - Or `taskDescription` (string) — Plain description of the work if no plan exists
 - If neither: uses git diff
+- `workDir` (string, required) — Absolute path to the worktree where code changes were made. Used for all git operations and for checking/reusing an existing open PR on the current branch.
 
 ## Orchestration Flow (6 Steps)
 
 ### Step 0: Check for Existing PR
 
-1. **Runs `gh pr view`** to check if a PR already exists for the current branch
+1. **Runs `gh pr view`** scoped to `workDir` to check if a PR already exists for the current branch (`cd "$workDir" && gh pr view --json url --jq '.url' 2>/dev/null || echo ''`)
 2. **If a PR exists**:
-   - Commits all staged changes with a short description (`git -C "$WORK_DIR" add --all && git -C "$WORK_DIR" commit && git -C "$WORK_DIR" push`)
+   - Commits all staged changes with a short description (`git -C "$workDir" add --all && git -C "$workDir" commit && git -C "$workDir" push`)
    - Sets `pr_url` to the existing PR URL
    - Does **not** return early — continues to Step 1
 3. **If no PR exists**: `pr_url` is left unset; will be set in Step 2
@@ -135,13 +136,13 @@ The PR body includes (from `agents/pr/templates/pr-template.md`):
 ## Key Design Rules
 
 1. **Code is already implemented** — Assume fix is complete; don't re-apply
-2. **Always use git -C "$WORK_DIR"** — WORK_DIR is injected by pre-hook
+2. **Always use git -C "$workDir"** — workDir is passed as a required input parameter by the calling command agent
 3. **Write body to /tmp/pr-body.md** — Use standard gh cli pattern
 4. **Delegate CI watching** — Use ci-watch-runner, don't implement watch loop inline
 5. **Delegate comment resolution** — Use comment-resolution-runner, don't implement loop inline
 6. **Do NOT merge** — Stop at "ready" status; human makes the merge decision
 7. **Write brain-patch after PR opens** — Captures prUrl for downstream use
-8. **Resolve WORK_DIR via pointer file fallback** — Check `$DARK_FACTORY_WORK_DIR` first; if unset, read `/tmp/dark-factory-work-dir`; skip silently if both empty
+8. **workDir is a required parameter** — Passed explicitly by the calling command agent (execute, debug, or repair). Used for all git operations and for scoping `gh pr view` to the correct worktree branch.
 9. **Step 0 does NOT return early** — When an existing PR is found, commit+push and set pr_url, then continue; CI watching and comment resolution always run on both the new-PR and existing-PR paths
 10. **gh pr create is conditional** — Only called when no existing PR was found in Step 0
 11. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
