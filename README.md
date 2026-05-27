@@ -62,7 +62,7 @@ Feature work uses a structured plan template before a single line of code is wri
 | `/dark-factory:execute` | Path to an approved plan file | Implements an approved plan — runs the full execution pipeline, code review, and opens a PR |
 | `/dark-factory:debug` | Bug description | Diagnoses and fixes a non-obvious bug — fills out a bug audit log, applies the fix, runs code review, and opens a PR |
 | `/dark-factory:repair` | Change description | Applies a small targeted change — no plan required, runs tests in a loop until green, opens a PR |
-| `/dark-factory:investigate` | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
+| `/dark-factory:investigation` | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
 | `/dark-factory:gotoworktree` | PR number, task name, or description | Finds or creates the matching git worktree and pulls main/master — use this before running any other command |
 | `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |

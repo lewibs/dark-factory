@@ -18,7 +18,7 @@ flowchart TD
     DEBUG["/dark-factory:debug"]
     REPAIR["/dark-factory:repair"]
     GOTOWORKTREE["/dark-factory:gotoworktree"]
-    INVESTIGATE["/dark-factory:investigate (or investigation)"]
+    INVESTIGATE["/dark-factory:investigation"]
     BUILD["/dark-factory:build-factory"]
     DESTROY["/dark-factory:destroy-factory"]
     INSTALL["/dark-factory:install"]
@@ -259,9 +259,9 @@ flowchart TD
 
 ---
 
-### Flow: `investigate` / `investigation`
+### Flow: `investigation`
 
-**Command file**: `commands/investigate.md` and `commands/investigation.md` (identical)  
+**Command file**: `commands/investigation.md`  
 **Entry agent**: `agents/commands/investigation-orchestrator.md`  
 **User-invocable**: yes
 
