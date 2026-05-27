@@ -102,4 +102,4 @@ repair-command-agent(taskDescription, taskName):
   ```bash
   /dark-factory:repair
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. All repairs go through the full post-execution pipeline (code review, docs, skills, PR). The pr-agent handles both new PR creation and reuse of existing PRs on the branch via `gh pr view`.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:goto` first to land in the correct worktree. All repairs go through the full post-execution pipeline (code review, docs, skills, PR). The pr-agent handles both new PR creation and reuse of existing PRs on the branch via `gh pr view`.

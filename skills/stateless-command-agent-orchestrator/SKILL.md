@@ -10,9 +10,9 @@ When creating a new user-facing slash-command that routes to a single worker age
 - You do not need cross-agent phase gating via hooks
 - State can be passed by direct return values rather than shared files
 
-This is the architecture used by the six standalone commands: plan, execute, debug, repair, investigate, gotoworktree.
+This is the architecture used by the six standalone commands: plan, execute, debug, repair, investigate, goto.
 
-**Important:** Command agents do NOT manage worktrees. They run in-place — in whatever directory Claude Code is opened in. If the user needs to be in a specific worktree first, they invoke `/dark-factory:gotoworktree` before running a command. See the `gotoworktree-command` skill for that pattern.
+**Important:** Command agents do NOT manage worktrees. They run in-place — in whatever directory Claude Code is opened in. If the user needs to be in a specific worktree first, they invoke `/dark-factory:goto` before running a command. See the `gotoworktree-command` skill for that pattern.
 
 ## Steps
 

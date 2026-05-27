@@ -2,7 +2,7 @@
 
 ## System Intent
 
-- **What is being built:** A new standalone `/dark-factory:gotoworktree` command that sets up a worktree and leaves the user there. It accepts a PR number, task name, or description — finds or creates the matching worktree and pulls main/master. Separately, the four command agents (plan, execute, debug, repair) have their inline worktree-prep logic removed; they simply run in whatever directory they are called from.
+- **What is being built:** A new standalone `/dark-factory:goto` command that sets up a worktree and leaves the user there. It accepts a PR number, task name, or description — finds or creates the matching worktree and pulls main/master. Separately, the four command agents (plan, execute, debug, repair) have their inline worktree-prep logic removed; they simply run in whatever directory they are called from.
 - **Primary consumer(s):** End users who want to get into a worktree before running a command. The command agents are not consumers — they no longer manage worktrees at all.
 - **Boundary:** No changes to worker agents (feature-agent, execution-agent, etc.) or existing scripts. Reuses `prep-feature-dir.sh` and `find-related-pr.sh`.
 
@@ -21,7 +21,7 @@
 graph TD
   U([User]):::unchanged
 
-  U -->|/dark-factory:gotoworktree| GW_CMD[gotoworktree-command-agent]:::created
+  U -->|/dark-factory:goto| GW_CMD[gotoworktree-command-agent]:::created
   GW_CMD --> PR_SEARCH["find-related-pr.sh or prep-feature-dir.sh"]:::unchanged
   PR_SEARCH --> WT["worktree on disk\n(user lands here)"]:::created
 
@@ -62,7 +62,7 @@ StandardError {
 
 - Test files: `N/A`
 - Core files:
-  - `commands/gotoworktree.md` (new)
+  - `commands/goto.md` (new)
   - `agents/dark-factory/agents/gotoworktree-command-agent.md` (new)
 
 #### Paths
@@ -173,7 +173,7 @@ Any remaining references to `WORK_DIR`, `branchRef`, `PROJECT_DIR`, `taskName` t
 
 | File | Purpose |
 |---|---|
-| `commands/gotoworktree.md` | User-facing slash-command; delegates to `gotoworktree-command-agent` |
+| `commands/goto.md` | User-facing slash-command; delegates to `gotoworktree-command-agent` |
 | `agents/dark-factory/agents/gotoworktree-command-agent.md` | Finds or creates worktree, pulls main/master, reports path |
 
 ## Files to Modify
