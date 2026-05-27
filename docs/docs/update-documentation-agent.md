@@ -6,7 +6,7 @@
 
 **Prompt Caching**: Yes — set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs.
 
-**User-Invocable**: No (invoked by dark-factory-agent after code review).
+**User-Invocable**: No (invoked by execute-command-agent, debug-command-agent, or repair-command-agent after code review).
 
 **Output Style**: Terse JSON — no progress prose.
 
@@ -123,13 +123,13 @@ Writes `$WORK_DIR/brain-patch.json`:
 - Modified existing doc files in `$WORK_DIR/docs/docs/`
 - `$WORK_DIR/brain-patch.json` — Paths of all files written/updated and one-line summary
 
-## Integration with dark-factory-agent
+## Integration with command agents
 
-1. Called after code-review-orchestrator-agent completes
+1. Called after code-review-orchestrator-agent completes (by execute-command-agent, debug-command-agent, or repair-command-agent)
 2. Must complete before skill-update-agent
-3. If returns error: dark-factory-agent halts, cleans up, reports failure
-4. If succeeds: dark-factory-agent continues to skill-update and PR
-5. Output (docsWritten) is used by dark-factory-agent for metrics and attribution
+3. If returns error: the calling command agent halts, cleans up, reports failure
+4. If succeeds: the calling command agent continues to skill-update and PR
+5. Output (docsWritten) is passed back to the calling command agent
 
 ## Error Handling
 

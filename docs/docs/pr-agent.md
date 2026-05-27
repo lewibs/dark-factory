@@ -4,7 +4,7 @@
 
 **Model**: Haiku (lightweight model for PR body composition and comment resolution).
 
-**User-Invocable**: No (invoked by dark-factory-agent after all work is complete).
+**User-Invocable**: No (invoked by execute-command-agent, debug-command-agent, or repair-command-agent after all work is complete).
 
 ## Overview
 
@@ -179,12 +179,12 @@ When pr-agent finishes, triggers: `${CLAUDE_PLUGIN_ROOT}/agents/dark-factory/scr
 
 This hook performs cleanup specific to PR operations (e.g., removing temporary files, updating metrics).
 
-## Integration with dark-factory-agent
+## Integration with command agents
 
-1. Called after all other steps (feature/debug, code review, documentation, skills) complete
+1. Called by execute-command-agent, debug-command-agent, or repair-command-agent after all other steps (code review, documentation, skills) complete
 2. Blocks on CI passing and review threads resolved
-3. If returns error: dark-factory-agent logs the PR URL and error, continues to cleanup
-4. If returns success: dark-factory-agent reports final success with PR URL
+3. If returns error: the calling command agent logs the PR URL and error, continues to cleanup
+4. If returns success: the calling command agent reports final success with PR URL
 
 ## Why No Merge?
 

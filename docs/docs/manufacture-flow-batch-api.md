@@ -4,7 +4,7 @@
 
 ## Overview
 
-The dark-factory manufacture flow (dark-factory-agent) orchestrates work end-to-end: classification → prep → planning → execution → review → docs → skills → PR → cleanup.
+The dark-factory manufacture flow orchestrates work end-to-end: prep → execution → review → docs → skills → PR → cleanup.
 
 As of v1.2.36, Steps 8 (update-documentation-agent) and 9 (skill-update-agent) optionally use Batch API for non-interactive processing.
 

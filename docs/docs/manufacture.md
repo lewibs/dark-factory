@@ -56,9 +56,9 @@ flowchart TD
 
 ### Flow: `manufacture.feature`
 
-- Core files: `commands/manufacture.md`, `agents/dark-factory/agents/dark-factory-agent.md`, `agents/featurework/agents/feature-agent.md`
+- Core files: `commands/manufacture.md`, `agents/featurework/agents/feature-agent.md`
 
-The feature route is a multi-turn human-in-the-loop planning flow. `dark-factory-agent` invokes `feature-agent` in a loop, receiving `{ status: "question" }` responses that it relays to the user via `AskUserQuestion`. The user approves each planning phase (draft → mermaid diagram → individual flows → final execution) before `feature-agent` calls `execution-agent` to write the code.
+The feature route is a multi-turn human-in-the-loop planning flow. The deprecated `manufacture` command invokes `feature-agent` via the removed `dark-factory-agent` orchestrator (see `plan-command-agent` for the current implementation), receiving `{ status: "question" }` responses that it relays to the user via `AskUserQuestion`. The user approves each planning phase (draft → mermaid diagram → individual flows → final execution) before `feature-agent` calls `execution-agent` to write the code.
 
 #### Paths
 
