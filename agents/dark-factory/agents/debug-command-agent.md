@@ -67,3 +67,4 @@ debug-command-agent(taskDescription, taskName):
 - Never skip code review, docs, or PR steps.
 - Gracefully handle debugger-agent errors (report and stop).
 - This agent runs in-place; worktree setup is handled by gotoworktree-command-agent.
+- If the automated pipeline was skipped or the user wants to open a PR manually, they can run `/dark-factory:save` as a shortcut to commit and open/update a PR.
