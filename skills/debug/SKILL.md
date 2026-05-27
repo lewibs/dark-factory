@@ -21,24 +21,20 @@ Follow this skill every time debugging is required and the issue is not simple o
    - Read all relevant stack traces, runtime logs, and debugger logs for the failing path.
    - Compare current logs with prior bug logs to find similar known failures and reuse validated guidance when applicable.
 4. Fill the bug file from `templates/bug-audit-log-template.md`. Do not invent alternate section order.
-5. Run the debugging checklist in order:
-   - Stop thinking - make an audit log.
-   - Read the bug.
-   - Make it fail by writing an automated reproduction test first (unit test preferred; integration/e2e when unit is not feasible), and record exact steps.
-   - Understand the system boundary and flow.
-   - Run the reproduction test to confirm it fails before the fix.
-   - Identify the cause of failure from evidence.
-   - Fix the root problem (never just symptoms).
-   - Re-run the reproduction test and failure steps to confirm the issue is resolved.
-   - Remove the fix and confirm the bug fails again (when safe) to prove causality.
-6. Verify and finalize:
-   - Keep the repro test as a regression guard when appropriate.
-   - Record final root cause, fix summary, and verification evidence in the bug file.
-   - Ensure one saved audit log per unique solved root cause; merge duplicates into the existing bug file.
-7. Run a final code review gate by invoking `.agent/skills/code-review/SKILL.md`:
-   - Validate the fix diff against plan contracts.
-   - Validate plan-flow test harness coverage for the fix paths.
-   - Validate DRY/YAGNI and maintainability before closing the bug.
+5. Make it fail by writing an automated reproduction test first (unit test preferred; integration/e2e when unit is not feasible), and record exact steps. Run the reproduction test to confirm it fails before any fix.
+6. Understand the system boundary and flow. Invoke investigation-agent to understand the system context in the context of your known, reproducible failure.
+7. Identify the cause of failure from evidence.
+8. Fix the root problem (never just symptoms).
+9. Re-run the reproduction test and failure steps to confirm the issue is resolved.
+10. Remove the fix and confirm the bug fails again (when safe) to prove causality.
+11. Verify and finalize:
+    - Keep the repro test as a regression guard when appropriate.
+    - Record final root cause, fix summary, and verification evidence in the bug file.
+    - Ensure one saved audit log per unique solved root cause; merge duplicates into the existing bug file.
+12. Run a final code review gate by invoking `.agent/skills/code-review/SKILL.md`:
+    - Validate the fix diff against plan contracts.
+    - Validate plan-flow test harness coverage for the fix paths.
+    - Validate DRY/YAGNI and maintainability before closing the bug.
 
 ## Resources
 - Related skill: `.agent/skills/code-review/SKILL.md` for end-of-fix quality gate.
