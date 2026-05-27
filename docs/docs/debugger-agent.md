@@ -4,7 +4,7 @@
 
 **Model**: Sonnet (heavy reasoning for bug investigation and analysis).
 
-**User-Invocable**: No (invoked by dark-factory-agent).
+**User-Invocable**: No (invoked by debug-command-agent).
 
 ## Overview
 

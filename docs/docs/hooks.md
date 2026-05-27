@@ -48,7 +48,7 @@ Resolution order:
 2. Else if `/tmp/dark-factory-work-dir` exists, read its contents and use that as the work directory.
 3. If neither yields a value, take the `no-brain` path (pass through silently).
 
-`dark-factory-agent` writes the pointer file immediately after `brain-state-manager` creates `brain.json`, and removes it in both the happy-path and every error-path cleanup:
+The pointer file is written by whichever agent sets up the worktree, and removed at cleanup:
 
 ```bash
 # written after brain.json creation
@@ -130,7 +130,7 @@ Fires after every Agent or Skill tool call returns. Steps (all skipped on `no-br
 |--------|----------|
 | hook stderr | Claude Code stderr / terminal running the manufacture session |
 | brain metrics | `$WORK_DIR/brain.json` `.metrics` key (flushed to `metrics.csv` at cleanup) |
-| pointer file | `/tmp/dark-factory-work-dir` (written by dark-factory-agent, removed at cleanup) |
+| pointer file | `/tmp/dark-factory-work-dir` (written by worktree setup flow, removed at cleanup) |
 
 ## Deployment
 

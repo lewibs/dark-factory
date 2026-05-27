@@ -4,13 +4,13 @@
 
 **Model**: Haiku (lightweight model; sufficient for targeted, minimal changes).
 
-**User-Invocable**: No (invoked by dark-factory-agent).
+**User-Invocable**: No (invoked by repair-command-agent).
 
 ## Overview
 
 The repair-agent applies targeted changes from plain-language task descriptions without requiring a full plan file. It is designed for simple, focused fixes: correcting a string, updating a configuration, fixing a broken import, or patching a known issue. The agent runs the test suite, fixes any breakage iteratively (up to 5 attempts), and reports success or failure.
 
-Unlike the debugging agent, repair-agent does not use a systematic debug methodology — it applies a minimal fix and validates it with tests. It is also non-fatal: if repair fails, dark-factory-agent continues to code review and PR instead of halting.
+Unlike the debugging agent, repair-agent does not use a systematic debug methodology — it applies a minimal fix and validates it with tests. It is also non-fatal: if repair fails, repair-command-agent continues to code review and PR instead of halting.
 
 ## Input
 
@@ -125,10 +125,10 @@ Sets `significantChange` flag based on whether any modified file is:
 - If target file doesn't exist: reports error and STOPS
 - If task description is ambiguous: returns error (repair requires clear, minimal scope)
 
-## Lifecycle in dark-factory-agent
+## Lifecycle in repair-command-agent
 
-1. Invoked by dark-factory-agent as non-fatal step
-2. If returns `success: false`: logged but dark-factory-agent continues to code review and PR
+1. Invoked by repair-command-agent as non-fatal step
+2. If returns `success: false`: logged but repair-command-agent continues to code review and PR
 3. If returns `success: true`: continues to code review
 4. No brain-patch.json written (repair-agent produces no artifacts for downstream use)
 

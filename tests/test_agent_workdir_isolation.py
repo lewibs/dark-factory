@@ -133,8 +133,13 @@ class TestUpdateDocumentationAgentWorkDir:
 # dark-factory-agent: must pass workDir to update-documentation-agent batch invocation
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not os.path.exists(DARK_FACTORY_AGENT_PATH), reason="dark-factory-agent.md removed (deprecated agent)")
 class TestDarkFactoryAgentPassesWorkDir:
-    """Flow: agentWorkdirIsolation — dark-factory-agent must pass workDir to update-documentation-agent."""
+    """Flow: agentWorkdirIsolation — dark-factory-agent must pass workDir to update-documentation-agent.
+
+    NOTE: dark-factory-agent was removed as it is deprecated and not referenced by any active command.
+    This test is skipped.
+    """
 
     def test_update_doc_batch_invocation_includes_work_dir(self):
         """

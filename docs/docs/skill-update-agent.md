@@ -6,7 +6,7 @@
 
 **Prompt Caching**: Yes — set in YAML frontmatter. Claude Code applies prompt caching when spawning this agent, reducing system prompt token costs.
 
-**User-Invocable**: No (invoked by dark-factory-agent as non-fatal step).
+**User-Invocable**: No (invoked by execute-command-agent, debug-command-agent, or repair-command-agent as a non-fatal step).
 
 **Output Style**: Terse JSON — no progress prose or reasoning output.
 
@@ -14,7 +14,7 @@
 
 The skill-update-agent reviews completed work and harvests non-obvious, recurring patterns into reusable skill files. Skills are micro-tutorials capturing "how to do X in this codebase" — they accelerate future agents by codifying knowledge learned during manufacture runs. However, the agent is strict about quality: it only writes skills when a pattern is genuinely non-obvious AND likely to recur. Prefer returning an empty list over writing noise.
 
-Unlike other agents, skill-update-agent is **non-fatal**: if it fails, dark-factory-agent logs a warning and continues to the PR step. This allows manufacturing to complete even if skill extraction fails.
+Unlike other agents, skill-update-agent is **non-fatal**: if it fails, the calling command agent logs a warning and continues to the PR step. This allows manufacturing to complete even if skill extraction fails.
 
 Returns minimal structured output listing skills created/updated and a one-line summary (e.g., "Extracted 2 new patterns: git conflict resolution and config merge strategy").
 
@@ -153,7 +153,7 @@ Examples:
 2. **Don't modify files outside skills/** — Leave agent files, plans, and code untouched
 3. **Merge when updating** — Preserve existing skill content and add new knowledge; don't overwrite
 4. **Always write to workDir** — Skill paths are always absolute: `workDir + "/skills/<slug>/SKILL.md"`. Never write to bare relative paths, which would land in CWD (typically the main repo) instead of the isolated worktree.
-5. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block dark-factory-agent
+5. **Non-fatal failures** — If plan file can't be read or git fails, report error but don't block the calling command agent
 6. **Always output structured JSON** — Even if no skills written, return JSON with summary
 7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
@@ -185,12 +185,12 @@ If any skills were written or updated, write `$WORK_DIR/brain-patch.json`:
 
 - Read, Write, Edit, Bash (for git commands)
 
-## Integration with dark-factory-agent
+## Integration with command agents
 
-1. Invoked after update-documentation-agent completes
-2. **Non-fatal**: if it returns error or times out, dark-factory-agent logs warning and continues to PR
+1. Invoked after update-documentation-agent completes (by execute-command-agent, debug-command-agent, or repair-command-agent)
+2. **Non-fatal**: if it returns error or times out, the calling command agent logs a warning and continues to PR
 3. No blocking — always proceeds to pr-agent regardless of skill-update result
-4. Output (skillsWritten) is used by dark-factory-agent for metrics and attribution
+4. Output (skillsWritten) is passed back to the calling command agent
 
 ## Error Handling
 
