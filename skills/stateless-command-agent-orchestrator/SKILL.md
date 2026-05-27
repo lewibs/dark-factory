@@ -47,7 +47,8 @@ This is the architecture used by the six standalone commands: plan, execute, deb
      invoke code-review-orchestrator-agent({ planFilePath, codePath: PROJECT_DIR })
      invoke update-documentation-agent({ planFilePath, workDir: PROJECT_DIR })
      try: invoke skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
-     prResult = invoke pr-agent({ planFilePath })
+     WORK_DIR = bash("git rev-parse --show-toplevel")  # must be passed explicitly for pr-agent reuse
+     prResult = invoke pr-agent({ planFilePath, workDir: WORK_DIR })
      prUrl = prResult.prUrl
 
      Report: "Done. PR: " + prUrl
@@ -89,6 +90,8 @@ This is the architecture used by the six standalone commands: plan, execute, deb
 
 - `planFilePath` may be `null` for debug and repair routes (no plan file generated). When null, pass a human-readable string like `"Task: " + taskDescription` to code-review-orchestrator-agent and pr-agent so they have context.
 - **Do not add the post-execution pipeline to plan-only commands.** The pipeline (code-review → docs → skills → PR) only makes sense when code has actually changed. A plan-only command produces a single markdown file; adding the pipeline causes phantom code reviews, spurious PRs, and skill extractions against no real code change. The canonical division: `plan` command = feature-agent with planOnly:true, no pipeline. `execute` command = execution-agent + full pipeline.
+- **Never gate the post-execution pipeline on a worker flag.** A worker agent must never return a `significantChange` (or similar boolean) that the command-agent uses to skip code review or PR steps. The pipeline always runs after a successful worker result — pr-agent internally decides whether to open a new PR or reuse an existing one on the current branch (via `gh pr view`). Adding a significance gate breaks PR reuse: re-runs on an existing branch will skip pr-agent and the existing PR will never be updated.
+- **Always pass `workDir` explicitly to pr-agent.** pr-agent uses `gh pr view` on the current branch to detect existing PRs and decide between creation and reuse. Without `workDir`, `gh` may resolve to the wrong repo context. Always resolve `WORK_DIR = bash("git rev-parse --show-toplevel")` immediately before the pr-agent invocation and pass it as the `workDir` argument.
 - Command agents no longer call `prep-feature-dir.sh`, `find-related-pr.sh`, `AskUserQuestion` for PR reuse, or `cleanup-worktree.sh`. All of that is handled by `gotoworktree-command-agent` when the user explicitly needs a worktree.
 - `codePath` and `workDir` passed to post-execution agents are `PROJECT_DIR` (the live cwd), not a separate `WORK_DIR`. If the user is already inside a worktree, `PROJECT_DIR` will resolve to the worktree root correctly.
 - Do not add the command to an agent allowlist or PHASE_MAP in any hook — this pattern uses no hooks.

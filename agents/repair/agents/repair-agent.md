@@ -37,16 +37,11 @@ You will be invoked with:
 
 3. **Apply** — Make the targeted change. Keep modifications minimal and focused.
 
-4. **Assess significance** — Set `significantChange = true` if any modified file is:
-   - An agent instruction file (`*.md` inside `agents/`)
-   - A skill definition (`SKILL.md`)
-   - A user-facing command (inside `commands/`)
-   - A public API or interface boundary
-   Otherwise `significantChange = false`.
+4. **Assess significance** — Note which files were modified, but do not check for significance (the caller will determine whether a PR is needed based on git diff).
 
-5. **Fix failures** — Run the test suite again. If tests fail, check which failures are new (not present in the pre-existing baseline from step 2). For new failures, diagnose and apply a targeted fix, then re-run. Repeat up to **5 times**. If new test failures are still present after 5 attempts, return `{ success: false, significantChange, error: { message: "<summary of last failure>" } }`. Note any pre-existing failures in the output but do not count them as failures caused by the repair.
+5. **Fix failures** — Run the test suite again. If tests fail, check which failures are new (not present in the pre-existing baseline from step 2). For new failures, diagnose and apply a targeted fix, then re-run. Repeat up to **5 times**. If new test failures are still present after 5 attempts, return `{ success: false, error: { message: "<summary of last failure>" } }`. Note any pre-existing failures in the output but do not count them as failures caused by the repair.
 
-6. **Return** — `{ success: true, significantChange }`.
+6. **Return** — `{ success: true }`.
 
 ## Rules
 

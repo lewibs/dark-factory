@@ -203,23 +203,23 @@ flowchart TD
    - Read relevant files; identify minimal change set.
    - Run baseline test suite; record pre-existing failures.
    - Apply the targeted change.
-   - Assess `significantChange` flag (true if agent/skill/command files or public API are modified).
    - Run tests again; iterate up to 5 times fixing new failures only.
-   - Return `{ success: true|false, significantChange }`.
+   - Return `{ success: true|false, error? }`.
 4. If `result.success == false`: report error and stop.
-5. If `result.significantChange == false`: report "Repair applied (insignificant change — no PR opened)" and stop.
-6. Invoke `code-review-orchestrator-agent` with `"Task: " + taskDescription` and `codePath`.
-7. Invoke `update-documentation-agent` with `planFilePath=null` and `workDir`.
-8. Invoke `skill-update-agent` (non-fatal).
-9. Invoke `pr-agent` with `taskDescription`.
-10. Report: "Repair complete. PR: `<prUrl>`".
+5. Invoke `code-review-orchestrator-agent` with `"Task: " + taskDescription` and `codePath`.
+6. Invoke `update-documentation-agent` with `planFilePath=null` and `workDir`.
+7. Invoke `skill-update-agent` (non-fatal).
+8. Invoke `pr-agent` with `taskDescription`.
+   - pr-agent checks for existing PR on current branch via `gh pr view`.
+   - If PR exists: commits and pushes to it.
+   - If no PR: creates a new one.
+9. Report: "Repair complete. PR: `<prUrl>`".
 
 #### Paths
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repair.success-significant` | taskDescription | prUrl | happy path | Significant change applied, code-reviewed, PR open |
-| `repair.success-insignificant` | taskDescription | status message | fast path | Insignificant change applied, no PR opened |
+| `repair.success` | taskDescription | prUrl | happy path | Change applied, code-reviewed, PR open (new or existing) |
 | `repair.failed` | taskDescription | error message | error | repair-agent returned success=false after 5 iterations |
 
 ---
