@@ -13,15 +13,14 @@
 ╚═╝     ╚═╝  ╚═╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-Dark Factory is a fully autonomous coding plugin for Claude Code. One command. No hand-holding. Done.
+Dark Factory is a fully autonomous coding plugin for Claude Code. Focused commands. No hand-holding. Done.
 
 | | |
 |---|---|
-| **Build features** | Designs, implements, reviews, and ships new functionality end-to-end |
+| **Build features** | Plans, implements, reviews, and ships new functionality end-to-end |
 | **Fix bugs** | Diagnoses failures, applies fixes, and verifies — without you touching the code |
-| **Repair broken flows** | Detects broken integrations, loops through fixes, and restores green CI |
-
-All three run 100% autonomously — Dark Factory handles planning, implementation, code review, PR, and cleanup from start to finish.
+| **Repair broken flows** | Applies targeted changes, loops through test failures, and restores green CI |
+| **Investigate systems** | Documents any system from source, validates every claim against the code |
 
 For a deeper look at how it works, see the [system documentation](https://github.com/lewibs/dark-factory/blob/main/docs/docs/README.md).
 
@@ -48,22 +47,23 @@ claude plugin list
 
 ## How does it work?
 
-Dark Factory requires your input exactly twice: once to describe the task, and once to approve the result. Everything in between is autonomous.
+Each command is a focused orchestrator that delegates to a single dedicated worker agent. You describe the task; the agent handles planning, implementation, code review, PR, and cleanup.
 
-Execution is enforced by two complementary primitives:
+Feature work uses a structured plan template before a single line of code is written:
 
-- **[Claude Code hooks](https://docs.anthropic.com/en/docs/claude-code/hooks)** — PreToolUse/PostToolUse scripts fire around every tool call, injecting shared state, enforcing phase order, and blocking agents from drifting outside their lane. Determinism isn't hoped for — it's mechanically enforced.
-- **Structured templates** — every task is grounded in one of two blueprints before a single line of code is written:
-  - **[Plan template](https://github.com/lewibs/dark-factory/blob/main/agents/featurework/planning/templates/plan-template.md)** — drives feature work. The plan captures system intent, a Mermaid architecture diagram, and an explicit flow checklist. Agents cannot advance past a phase until the previous one is checked off.
-  - **[Bug template](https://github.com/lewibs/dark-factory/blob/main/skills/debug/templates/bug-audit-log-template.md)** — drives debugging. Before touching any code, agents fill out a structured audit log: reproduction steps, system boundary, root cause, and fix hypothesis. No guessing, no thrashing.
-
-These two templates are the source of truth that every downstream agent — planner, implementer, reviewer, PR opener — reads from. They keep the factory on rails from the first commit to the final green CI check.
+- **[Plan template](https://github.com/lewibs/dark-factory/blob/main/agents/featurework/planning/templates/plan-template.md)** — captures system intent, a Mermaid architecture diagram, and an explicit flow checklist. The planner walks you through each section for approval before handing off to the implementation agent.
+- **[Bug template](https://github.com/lewibs/dark-factory/blob/main/skills/debug/templates/bug-audit-log-template.md)** — before touching any code, the debugger fills out a structured audit log: reproduction steps, system boundary, root cause, and fix hypothesis. No guessing, no thrashing.
 
 ## Commands
 
 | Command | Input | Description |
 |---|---|---|
-| `/dark-factory:manufacture` | Task description (e.g. "add OAuth login") | Full orchestration — routes to the right agent (feature, debug, or fix-flow) end-to-end, runs code review, opens a PR, and cleans up |
+| `/dark-factory:plan` | Task description | Plans a feature end-to-end — walks through system intent, architecture diagram, and per-flow approval gates, then opens a PR with the approved plan |
+| `/dark-factory:execute` | Path to an approved plan file | Implements an approved plan — runs the full execution pipeline, code review, and opens a PR |
+| `/dark-factory:debug` | Bug description | Diagnoses and fixes a non-obvious bug — fills out a bug audit log, applies the fix, runs code review, and opens a PR |
+| `/dark-factory:repair` | Change description | Applies a small targeted change — no plan required, runs tests in a loop until green, opens a PR |
+| `/dark-factory:investigate` | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
+| `/dark-factory:gotoworktree` | PR number, task name, or description | Finds or creates the matching git worktree and pulls main/master — use this before running any other command |
 | `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
 | `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |
 | `/dark-factory:reset` | None | Switch back to the main branch in the main worktree and pull the latest code |
