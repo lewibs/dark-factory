@@ -52,8 +52,13 @@ def _full(path: str) -> str:
 # Violation 1 & 4 & 8 — brain-state-manager must be used for all brain.json ops
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not os.path.exists(DARK_FACTORY_AGENT_PATH), reason="dark-factory-agent.md removed (deprecated agent)")
 class TestBrainStateManagerDelegation:
-    """Flow: manufactureFlowViolations — brain.json ops must be delegated to brain-state-manager."""
+    """Flow: manufactureFlowViolations — brain.json ops must be delegated to brain-state-manager.
+
+    NOTE: dark-factory-agent was removed as it is deprecated and not referenced by any active command.
+    These tests are skipped.
+    """
 
     def test_dark_factory_agent_does_not_cat_brain_json(self):
         """
@@ -156,8 +161,13 @@ class TestBrainStateManagerDelegation:
 # Violation 2 — feature-agent multi-turn loop
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not os.path.exists(DARK_FACTORY_AGENT_PATH), reason="dark-factory-agent.md removed (deprecated agent)")
 class TestFeatureAgentMultiTurnProtocol:
-    """Flow: manufactureFlowViolations — feature-agent must use AskUserQuestion not return-question protocol."""
+    """Flow: manufactureFlowViolations — feature-agent must use AskUserQuestion not return-question protocol.
+
+    NOTE: dark-factory-agent was removed as it is deprecated and not referenced by any active command.
+    These tests are skipped.
+    """
 
     def test_feature_agent_does_not_require_dark_factory_multi_turn_loop(self):
         """
@@ -221,8 +231,13 @@ class TestSubagentStopNotInSettingsJson:
 # Violations 5-7 — Mandatory steps must not be skipped
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not os.path.exists(DARK_FACTORY_AGENT_PATH), reason="dark-factory-agent.md removed (deprecated agent)")
 class TestMandatoryStepsNotSkippable:
-    """Flow: manufactureFlowViolations — steps 7-9 are mandatory and must not be skipped."""
+    """Flow: manufactureFlowViolations — steps 7-9 are mandatory and must not be skipped.
+
+    NOTE: dark-factory-agent was removed as it is deprecated and not referenced by any active command.
+    These tests are skipped.
+    """
 
     def test_dark_factory_agent_has_rule_against_skipping_code_review(self):
         """

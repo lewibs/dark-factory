@@ -19,13 +19,12 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # feature-agent as part of the planning-approval-gate fix
 # (docs/bugs/2026-04-27-planning-approval-gate-bypassed.md).
 # planning-agent is now a pure phase-delegator with no user interaction.
+# dark-factory-agent and detect-drift-agent were removed as stale agents (not referenced
+# by any active command or agent pipeline).
+# fix-flow agents were removed in a separate refactor.
 AGENTS_USING_PUSH_NOTIFICATION = [
     "agents/featurework/agents/feature-agent.md",
     "agents/featurework/execution/agents/execution-agent.md",
-    "agents/fix-flow/agents/fix-flow-orchestrator.md",
-    "agents/fix-flow/agents/ralph-fix-and-push.md",
-    "agents/dark-factory/agents/dark-factory-agent.md",
-    "agents/documentation/agents/detect-drift-agent.md",
     "agents/documentation/agents/update-documentation-agent.md",
 ]
 
