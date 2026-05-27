@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The `repair-command-agent` backs the `/dark-factory:repair` slash command. It orchestrates targeted repairs: checks for related open PRs, creates or reuses a git worktree, delegates to `repair-agent` to apply changes, then conditionally runs the post-execution pipeline depending on whether the repair was significant. Insignificant repairs skip code review and PR — cleanup happens immediately. State is passed directly between steps as local variables — no `brain.json` is created.
+- What this is: The `repair-command-agent` backs the `/dark-factory:repair` slash command. It runs in-place in whatever working directory (worktree) it is invoked from — worktree setup is handled by `gotoworktree-command-agent` separately. It delegates to `repair-agent` to apply targeted changes, then conditionally runs the post-execution pipeline depending on whether the repair was significant. Insignificant repairs skip code review and PR entirely. State is passed directly between steps as local variables — no `brain.json` is created.
 
 ## Mermaid Diagram
 
@@ -14,26 +14,18 @@
 flowchart TD
   User["User: /dark-factory:repair\ntaskDescription, taskName"] --> RCA
 
-  RCA["repair-command-agent"]
+  RCA["repair-command-agent\n(runs in-place)"]
 
-  RCA -->|"find-related-pr.sh"| PR_CHECK{"Related\nopen PR?"}
-  PR_CHECK -->|"yes"| AUQ["AskUserQuestion:\nReuse or new?"]
-  AUQ -->|"reuse"| WT_REUSE["mount existing worktree"]
-  AUQ -->|"new"| WT_NEW["prep-feature-dir.sh"]
-  PR_CHECK -->|"no"| WT_NEW
+  RCA --> RA["repair-agent\n(taskDescription)"]
 
-  WT_REUSE & WT_NEW --> RA["repair-agent\n(taskDescription)"]
+  RA -->|"success: false"| ERR["STOP: error"]
+  RA -->|"significantChange: false"| FAST["STOP: insignificant\n(no PR)"]
+  RA -->|"significantChange: true"| CRO["code-review-orchestrator-agent"]
 
-  RA -->|"success: false"| ERR["cleanup + STOP"]
-  RA -->|"significantChange: false"| FAST["cleanup-worktree.sh\n(no PR)"]
-  RA -->|"significantChange: true"| DRIFT["branch-drift guard"]
-
-  DRIFT --> CRO["code-review-orchestrator-agent"]
   CRO --> UDA["update-documentation-agent"]
   UDA --> SUA["skill-update-agent\n(non-fatal)"]
   SUA --> PRA["pr-agent"]
-  PRA -->|"prUrl"| CLEAN["cleanup-worktree.sh"]
-  CLEAN --> Done["Done: PR URL"]
+  PRA -->|"prUrl"| Done["Done: PR URL"]
 ```
 
 ## Flows
@@ -68,8 +60,6 @@ StandardError {
 | `repairCommand.success` | `RepairCommandInput` | `RepairCommandOutput` | happy path | repair applied, tests passing, PR opened (for significant changes) |
 | `repairCommand.insignificant` | `RepairCommandInput` | `{ significantChange: false }` | happy path | repair applied but no PR opened (fast path) |
 | `repairCommand.test-failure` | `RepairCommandInput` | `StandardError` | error | repair-agent could not fix new test failures within 5 iterations |
-| `repairCommand.prep-failure` | `RepairCommandInput` | `StandardError` | error | worktree prep failed |
-| `repairCommand.drift-guard-failure` | `RepairCommandInput` | `StandardError` | error | repair made no commits (for significant changes) |
 
 #### Pseudocode
 
@@ -80,40 +70,29 @@ repair-command-agent(taskDescription, taskName):
   if taskName is empty:
     taskName = "repair-" + slugify(taskDescription)
 
-  # Step 2 — PR reuse check + worktree prep
   PROJECT_DIR = bash("git rev-parse --show-toplevel")
-  relatedPrOutput = bash("find-related-pr.sh taskDescription") || ""
-  EXISTING_BRANCH = extract BRANCH= from relatedPrOutput
-  ... (PR reuse + worktree prep, same pattern as plan-command-agent) ...
-  branchRef = USE_EXISTING ? EXISTING_BRANCH : "feature/" + taskName
 
-  # Step 3 — invoke repair-agent (no brain.json created)
+  # Step 2 — invoke repair-agent (no brain.json created)
   result = invoke repair-agent({ taskDescription })
 
   if result.success == false:
-    run cleanup(WORK_DIR, taskName)
     report error: "Repair failed after 5 iterations: " + result.error.message
     STOP
 
-  # Step 4 — fast path for insignificant changes
+  # Step 3 — fast path for insignificant changes
   if result.significantChange == false:
-    bash("cleanup-worktree.sh WORK_DIR taskName")
     Report: "Repair applied (insignificant change — no PR opened)."
     STOP
 
-  # Step 5 — branch drift guard (only for significant changes)
-  if no commits ahead of main: cleanup + STOP
-
-  # Steps 6-9 — post-execution pipeline
+  # Steps 4-7 — post-execution pipeline
   invoke code-review-orchestrator-agent({
     planFilePath: "Task: " + taskDescription,
-    codePath: WORK_DIR
+    codePath: PROJECT_DIR
   })
-  invoke update-documentation-agent({ planFilePath: null, workDir: WORK_DIR })
-  try: invoke skill-update-agent({ planFilePath: null, workDir: WORK_DIR, taskSummary: taskDescription })
+  invoke update-documentation-agent({ planFilePath: null, workDir: PROJECT_DIR })
+  try: invoke skill-update-agent({ planFilePath: null, workDir: PROJECT_DIR, taskSummary: taskDescription })
   prResult = invoke pr-agent({ taskDescription })
 
-  bash("cleanup-worktree.sh WORK_DIR taskName")
   Report: "Repair complete. PR: " + prResult.prUrl
   STOP
 ```
@@ -131,4 +110,4 @@ repair-command-agent(taskDescription, taskName):
   ```bash
   /dark-factory:repair
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. Insignificant repairs (as determined by repair-agent's `significantChange` flag) skip code review and PR opening entirely. The worktree is cleaned up in all cases.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. Insignificant repairs (as determined by repair-agent's `significantChange` flag) skip code review and PR opening entirely.
