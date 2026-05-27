@@ -60,9 +60,11 @@ feature-agent(taskDescription, answer, planPath, planOnly=false):
 
     rendered = invoke render-plan-section({ planPath, sectionName: "## Mermaid Diagram" })
 
+    diagramLink = if url then "\n\nRendered diagram: " + url else "\n\n(Diagram rendering unavailable — review the source below.)"
+
     RETURN {
       status: "question",
-      question: "Mermaid diagram:\n\n" + rendered.content + "\n\nHow would you like to proceed?",
+      question: "Mermaid diagram:" + diagramLink + "\n\n" + rendered.content + "\n\nHow would you like to proceed?",
       options: ["Approve — continue to flows", "Request Changes"],
       planPath: planPath,
       phase: "mermaid"
