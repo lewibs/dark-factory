@@ -58,14 +58,14 @@ Feature work uses a structured plan template before a single line of code is wri
 
 | Command | Input | Description |
 |---|---|---|
-| `/dark-factory:plan` | Task description | Plans a feature end-to-end — walks through system intent, architecture diagram, and per-flow approval gates, then opens a PR with the approved plan |
-| `/dark-factory:execute` | Path to an approved plan file | Implements an approved plan — runs the full execution pipeline, code review, and opens a PR |
-| `/dark-factory:debug` | Bug description | Diagnoses and fixes a non-obvious bug — fills out a bug audit log, applies the fix, runs code review, and opens a PR |
-| `/dark-factory:repair` | Change description | Applies a small targeted change — no plan required, runs tests in a loop until green, opens a PR |
-| `/dark-factory:investigation` | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
-| `/dark-factory:save` | Optional task description | Commits current changes and opens or updates a PR — lightweight shortcut that skips code review and docs pipeline |
-| `/dark-factory:goto` | PR number, task name, or description | Finds or creates the matching git worktree and pulls main/master — use this before running any other command |
-| `/dark-factory:build-factory` | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
-| `/dark-factory:destroy-factory` | Optional terminal name | Terminates all other running Claude/dark-factory terminal sessions and spawns one fresh factory terminal |
-| `/dark-factory:gen-hooks` | None | Scans YAML frontmatter of skill/agent/command files for hook declarations and writes them to `.claude/settings.json` |
-| `/dark-factory:install` | None | Install or reinstall the plugin (run from repo root after `git pull`) |
+| [/dark-factory:plan](docs/docs/plan-command-agent.md) | Task description | Plans a feature end-to-end — walks through system intent, architecture diagram, and per-flow approval gates, then saves the approved plan |
+| [/dark-factory:execute](docs/docs/execute-command-agent.md) | Path to an approved plan file | Implements an approved plan — runs the full execution pipeline, code review, and opens a PR |
+| [/dark-factory:debug](docs/docs/debug-command-agent.md) | Bug description | Diagnoses and fixes a non-obvious bug — fills out a bug audit log, applies the fix, runs code review, and opens a PR |
+| [/dark-factory:repair](docs/docs/repair-command-agent.md) | Change description | Applies a small targeted change — no plan required, runs tests in a loop until green, opens a PR |
+| [/dark-factory:investigation](docs/docs/investigation-command.md) | System name or topic | Investigates a system and writes authoritative documentation to `docs/docs/` |
+| [/dark-factory:save](docs/docs/save-command.md) | Optional task description | Commits current changes and opens or updates a PR — lightweight shortcut that skips code review and docs pipeline |
+| [/dark-factory:goto](docs/docs/gotoworktree-command-agent.md) | PR number, task name, or description | Finds or creates the matching git worktree and pulls main/master — use this before running any other command |
+| [/dark-factory:build-factory](docs/docs/build-factory.md) | Optional terminal name | Opens a new gnome-terminal running `claude /remote-control` for parallel factory sessions |
+| [/dark-factory:destroy-factory](docs/docs/destroy-factory.md) | Optional terminal name | Terminates all other running Claude/dark-factory terminal sessions and spawns one fresh factory terminal |
+| [/dark-factory:gen-hooks](docs/docs/gen-hooks.md) | None | Scans YAML frontmatter of skill/agent/command files for hook declarations and writes them to `.claude/settings.json` |
+| [/dark-factory:install](docs/docs/install.md) | None | Install or reinstall the plugin (run from repo root after `git pull`) |
