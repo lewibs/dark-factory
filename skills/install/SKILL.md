@@ -46,5 +46,4 @@ bash scripts/reopen-remote-control.sh "my project"
 
 | Command | Description |
 |---|---|
-| `/dark-factory:manufacture` | Full orchestration — feature, debug, or repair end-to-end |
 | `/dark-factory:update` | Update the plugin to the latest version |

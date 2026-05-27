@@ -39,3 +39,14 @@ Any time you create, move, or rename a slash-command (i.e. a file that should be
 - The silent-ignore behavior is the key gotcha: if you put a command file in `agents/commands/` (a directory used for orchestrator instruction files), it will appear to be in the right place but will never be registered as a slash-command. There is no error or warning.
 - `agents/commands/` is a convention for storing the detailed orchestrator instructions that a command delegates to — it is NOT where the command entry-point lives.
 - The distinction: `commands/<name>.md` = the registered slash-command entry-point; `agents/commands/<name>-orchestrator.md` = the detailed instructions the entry-point delegates to.
+
+## Deprecating and removing a command
+
+Marking a command file's body as `[DEPRECATED]` or adding deprecation prose to the description does **not** remove the slash-command from the plugin. The file's presence in `commands/` is all that matters — the plugin loader registers every `.md` file it finds there regardless of content.
+
+To fully retire a command:
+1. Delete the file: `rm commands/<name>.md`
+2. Remove any references to it from `docs/docs/README.md` and other documentation.
+3. Reinstall the plugin with `/dark-factory:install` to deregister the command.
+
+Do NOT leave the file in place with a deprecation notice if the goal is to stop the command from appearing — the file must be deleted.
