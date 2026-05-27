@@ -6,7 +6,7 @@
 
 ## System Intent
 
-- What this is: The `repair-command-agent` backs the `/dark-factory:repair` slash command. It runs in-place in whatever working directory (worktree) it is invoked from — worktree setup is handled by `gotoworktree-command-agent` separately. It delegates to `repair-agent` to apply targeted changes, then conditionally runs the post-execution pipeline depending on whether the repair was significant. Insignificant repairs skip code review and PR entirely. State is passed directly between steps as local variables — no `brain.json` is created.
+- What this is: The `repair-command-agent` backs the `/dark-factory:repair` slash command. It runs in-place in whatever working directory (worktree) it is invoked from — worktree setup is handled by `gotoworktree-command-agent` separately. It delegates to `repair-agent` to apply targeted changes, then always runs the post-execution pipeline (code review → docs → skills → PR). The pr-agent naturally handles both new PR creation and reuse of existing PRs on the branch. State is passed directly between steps as local variables — no `brain.json` is created.
 
 ## Mermaid Diagram
 
@@ -19,12 +19,11 @@ flowchart TD
   RCA --> RA["repair-agent\n(taskDescription)"]
 
   RA -->|"success: false"| ERR["STOP: error"]
-  RA -->|"significantChange: false"| FAST["STOP: insignificant\n(no PR)"]
-  RA -->|"significantChange: true"| CRO["code-review-orchestrator-agent"]
+  RA -->|"success: true"| CRO["code-review-orchestrator-agent"]
 
   CRO --> UDA["update-documentation-agent"]
   UDA --> SUA["skill-update-agent\n(non-fatal)"]
-  SUA --> PRA["pr-agent"]
+  SUA --> PRA["pr-agent\n(new or existing)"]
   PRA -->|"prUrl"| Done["Done: PR URL"]
 ```
 
@@ -44,8 +43,7 @@ RepairCommandInput {
 }
 
 RepairCommandOutput {
-  prUrl:             string
-  significantChange: boolean
+  prUrl: string
 }
 
 StandardError {
@@ -57,8 +55,7 @@ StandardError {
 
 | path | input | output | path-type | notes |
 | --- | --- | --- | --- | --- |
-| `repairCommand.success` | `RepairCommandInput` | `RepairCommandOutput` | happy path | repair applied, tests passing, PR opened (for significant changes) |
-| `repairCommand.insignificant` | `RepairCommandInput` | `{ significantChange: false }` | happy path | repair applied but no PR opened (fast path) |
+| `repairCommand.success` | `RepairCommandInput` | `RepairCommandOutput` | happy path | repair applied, tests passing, PR opened (new or existing) |
 | `repairCommand.test-failure` | `RepairCommandInput` | `StandardError` | error | repair-agent could not fix new test failures within 5 iterations |
 
 #### Pseudocode
@@ -79,12 +76,7 @@ repair-command-agent(taskDescription, taskName):
     report error: "Repair failed after 5 iterations: " + result.error.message
     STOP
 
-  # Step 3 — fast path for insignificant changes
-  if result.significantChange == false:
-    Report: "Repair applied (insignificant change — no PR opened)."
-    STOP
-
-  # Steps 4-7 — post-execution pipeline
+  # Steps 3-6 — post-execution pipeline
   invoke code-review-orchestrator-agent({
     planFilePath: "Task: " + taskDescription,
     codePath: PROJECT_DIR
@@ -110,4 +102,4 @@ repair-command-agent(taskDescription, taskName):
   ```bash
   /dark-factory:repair
   ```
-- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. Insignificant repairs (as determined by repair-agent's `significantChange` flag) skip code review and PR opening entirely.
+- Notes: Invoked as a Claude Code slash command. Requires the dark-factory plugin installed. The agent runs in-place in the current directory — use `/dark-factory:gotoworktree` first to land in the correct worktree. All repairs go through the full post-execution pipeline (code review, docs, skills, PR). The pr-agent handles both new PR creation and reuse of existing PRs on the branch via `gh pr view`.
