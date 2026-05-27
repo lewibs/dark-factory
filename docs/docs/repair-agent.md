@@ -46,21 +46,9 @@ Unlike the debugging agent, repair-agent does not use a systematic debug methodo
 3. Keeps changes tight and focused (no refactoring)
 4. Does not introduce new abstractions, helpers, or patterns outside the task scope
 
-### Step 4: Assess Significance
+### Step 4: Complete Repair
 
-Sets `significantChange` flag based on whether any modified file is:
-
-**Significant if changed**:
-- Agent instruction file (`*.md` inside `agents/`)
-- Skill definition (`SKILL.md`)
-- User-facing command (inside `commands/`)
-- Public API or interface boundary
-
-**Not significant otherwise**:
-- Data files
-- Configuration files
-- Comments-only changes
-- Internal implementation details
+The repair is applied and all changes are committed. The caller (repair-command-agent) will determine whether a PR is needed based on the current branch state (existing PR or new PR).
 
 ### Step 5: Fix Failures
 
@@ -75,7 +63,7 @@ Sets `significantChange` flag based on whether any modified file is:
    - If no new failures: proceed to Step 6
 
 4. **After 5 attempts**: if new test failures still exist:
-   - Returns `{ success: false, significantChange, error: { message: "<last failure summary>" } }`
+   - Returns `{ success: false, error: { message: "<last failure summary>" } }`
    - Notes pre-existing failures but doesn't count them
 
 ### Step 6: Return Result
@@ -83,8 +71,7 @@ Sets `significantChange` flag based on whether any modified file is:
 **Success**:
 ```json
 {
-  "success": true,
-  "significantChange": true|false
+  "success": true
 }
 ```
 
@@ -92,7 +79,6 @@ Sets `significantChange` flag based on whether any modified file is:
 ```json
 {
   "success": false,
-  "significantChange": true|false,
   "error": {
     "message": "<summary of last test failure>"
   }
@@ -107,7 +93,8 @@ Sets `significantChange` flag based on whether any modified file is:
 4. **Pre-existing failures are noted, not counted** — Only new failures caused by the change block success
 5. **5-attempt limit** — Stop iterating after 5 tries; return failure
 6. **No plan file required** — This is the lightweight alternative to feature-agent
-7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+7. **No significance assessment** — repair-command-agent always runs the full post-pipeline (code review, docs, PR); pr-agent handles both new PR creation and existing PR reuse
+8. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 
@@ -127,9 +114,9 @@ Sets `significantChange` flag based on whether any modified file is:
 
 ## Lifecycle in repair-command-agent
 
-1. Invoked by repair-command-agent as non-fatal step
-2. If returns `success: false`: logged but repair-command-agent continues to code review and PR
-3. If returns `success: true`: continues to code review
+1. Invoked by repair-command-agent as first step
+2. If returns `success: false`: repair-command-agent logs error and stops
+3. If returns `success: true`: repair-command-agent always continues to code review, docs, and PR (pr-agent handles both new PR creation and reuse of existing PRs)
 4. No brain-patch.json written (repair-agent produces no artifacts for downstream use)
 
 ## Use Cases
