@@ -34,7 +34,9 @@ pr-agent(planFilePath or taskDescription, workDir):
 
   # Step 1 — Build PR body
   Read agents/pr/templates/pr-template.md — use it as the exact scaffold.
-  Populate Description from planFilePath (or taskDescription string).
+  Populate Description:
+    - If planFilePath is a valid file path: READ the file and paste its full contents verbatim into the Description section. Do not summarise or paraphrase. The comment in the template says "Do not summarise" — honour it.
+    - If planFilePath is a plain string (not a file path) or null: use the string (or taskDescription) as the description text.
   Run tests if a test suite exists; include output in Test Plan, or omit section if none.
   The footer line MUST be copied verbatim from the template:
     🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)

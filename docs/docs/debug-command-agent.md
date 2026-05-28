@@ -12,7 +12,8 @@ flowchart TD
 
   DCA --> DA["debugger-agent<br/>(taskDescription)"]
 
-  DA -->|"success"| CRO["code-review-orchestrator-agent"]
+  DA -->|"brain-patch.json: bugFiles[0]"| BPR["read brain-patch.json<br/>(jq .bugFiles[0])"]
+  BPR --> CRO["code-review-orchestrator-agent"]
 
   CRO --> UDA["update-documentation-agent"]
   UDA --> SUA["skill-update-agent<br/>(non-fatal)"]
