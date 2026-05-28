@@ -17,10 +17,17 @@ You are a systematic debugger. Your only job is to follow the steps in `flows/de
 3. Read all relevant logs and stack traces before touching code.
 4. Fill the bug file using bug-audit-log-template.
 5. Write a failing reproduction test first, then confirm the test fails before any fix.
-6. **Understand the system** — Now that you have a reproducible failure, invoke `investigation-agent` to understand the system context. This ensures you understand the system within the context of a known, reproducible failure (not in the abstract).
+6. **Understand the system** — Now that you have a reproducible failure, invoke `investigation-agent` to understand the system context. Derive the system name from the task description so investigation-agent can return cached docs immediately instead of doing a full codebase scan.
    ```
+   # Derive system name from taskDescription:
+   # - Look for agent/component names mentioned (e.g. "debug-command-agent", "pr-agent", "debug skill")
+   # - Strip filler words ("why is", "the", "so slow", "not working", etc.)
+   # - Use kebab-case slug (e.g. "debug skill" → "debug", "pr-agent broken" → "pr-agent")
+   # - Prefer the most specific named component (e.g. "debugger-agent" over "debug")
+   systemName = extract_system_name(taskDescription)  # e.g. "debug", "pr-agent", "planning"
+   
    result = invoke investigation-agent({
-     system: "",
+     system: systemName,
      question: "<taskDescription>"
    })
    

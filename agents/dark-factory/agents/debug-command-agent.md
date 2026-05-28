@@ -44,18 +44,19 @@ debug-command-agent(taskDescription, taskName):
   if planFilePath is empty: planFilePath = null
   # planFilePath is now the absolute path to the bug audit log, or null if agent did not write one
 
-  # Step 4 — code review
+  # Step 4 — code review (scoped to changed files only)
+  # Compute changed files to limit reviewer scope to the fix, not the entire codebase
+  CHANGED_FILES = bash("git diff --name-only HEAD~1 2>/dev/null || git diff --name-only --cached 2>/dev/null || echo ''")
   invoke code-review-orchestrator-agent({
     planFilePath: planFilePath ?? "Task: " + taskDescription,
-    codePath: PROJECT_DIR
+    codePath: PROJECT_DIR,
+    changedFiles: CHANGED_FILES
   })
 
-  # Step 5 — update docs (non-fatal if no planFilePath)
-  invoke update-documentation-agent({ planFilePath, workDir: PROJECT_DIR })
-
-  # Step 6 — skill update (non-fatal)
-  try: invoke skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
-  catch: warn and continue
+  # Step 5+6 — update docs and skills in parallel (non-fatal)
+  invoke in parallel:
+    - update-documentation-agent({ planFilePath, workDir: PROJECT_DIR })
+    - skill-update-agent({ planFilePath, workDir: PROJECT_DIR, taskSummary: taskDescription })
 
   # Step 7 — determine WORK_DIR (worktree root) and open PR
   WORK_DIR = bash("git rev-parse --show-toplevel")
@@ -69,6 +70,8 @@ debug-command-agent(taskDescription, taskName):
 ## Rules
 
 - Never skip code review, docs, or PR steps.
+- Always scope code review to changed files (not the full project root) — pass `changedFiles` from `git diff --name-only`.
+- Always run docs and skill updates in parallel — they are independent and sequential adds unnecessary latency.
 - Gracefully handle debugger-agent errors (report and stop).
 - This agent runs in-place; worktree setup is handled by gotoworktree-command-agent.
 - If the automated pipeline was skipped or the user wants to open a PR manually, they can run `/dark-factory:save` as a shortcut to commit and open/update a PR.

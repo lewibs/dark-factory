@@ -16,6 +16,7 @@ The code-review-orchestrator-agent manages the full automated code review workfl
 
 - `planFilePath` (string, required) — Absolute path to the approved plan file (used for context by reviewers)
 - `codePath` (string, required) — Directory path or branch name containing the code to review
+- `changedFiles` (string, optional) — Newline-separated list of specific file paths to review; when provided, reviewers only examine these files instead of all files under `codePath`
 
 ## Orchestration Flow (6 Steps)
 
@@ -30,12 +31,14 @@ Uses `manage-issues-file` command with `operation: "create"`:
 Spawns two reviewers in parallel:
 
 **High-Level Review Agent**:
-- Inputs: `planFilePath`, `codePath`
+- Inputs: `planFilePath`, `codePath`, `changedFiles` (if provided)
 - Checks: architectural decisions, design patterns, code organization, adherence to plan
+- When `changedFiles` is provided: reads only those specific files instead of all files under `codePath`
 
 **Low-Level Review Agent**:
-- Input: `codePath`
+- Inputs: `codePath`, `changedFiles` (if provided)
 - Checks: code style, readability, potential bugs, test coverage, performance
+- When `changedFiles` is provided: reads only those specific files instead of all files under `codePath`
 
 Both append their findings to `issues.md` as checklist items.
 
@@ -121,11 +124,12 @@ Returns:
 ## Key Design Rules
 
 1. **Parallel reviewer spawn** — Both reviewers run simultaneously to save time
-2. **Never skip resolver if reviewer fails** — Do not start resolver if either reviewer errored
-3. **Loop guard at 10 iterations** — Prevent infinite loops on unresolvable issues
-4. **Always delete issues.md on success** — Clean up before returning to caller
-5. **Surface all errors** — Never suppress reviewer or resolver errors
-6. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
+2. **Pass changedFiles to both reviewers** — When provided, forward the `changedFiles` param to both high-level and low-level reviewers so they scope their read to only the changed files
+3. **Never skip resolver if reviewer fails** — Do not start resolver if either reviewer errored
+4. **Loop guard at 10 iterations** — Prevent infinite loops on unresolvable issues
+5. **Always delete issues.md on success** — Clean up before returning to caller
+6. **Surface all errors** — Never suppress reviewer or resolver errors
+7. **Never use Explore subagent_type directly** — Always route codebase research through `investigation-agent`; it checks existing docs first (cheap) before scanning the codebase
 
 ## Dependencies
 

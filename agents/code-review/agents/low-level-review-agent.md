@@ -18,7 +18,8 @@ You will be invoked with:
 
 ```txt
 LowLevelReviewInput {
-  codePath: string (required — directory path or branch containing the code)
+  codePath:      string (required — directory path or branch containing the code)
+  changedFiles?: string (optional — newline-separated list of specific files to review; when provided, only read those files instead of all files under codePath)
 }
 
 LowLevelReviewOutput {
@@ -32,8 +33,10 @@ StandardError {
 
 ## Your task
 
-1. Read all source files under `codePath`.
-   - If `codePath` does not exist or yields no readable files: return `StandardError { message: "code path not found or empty: <codePath>" }`.
+1. Read source files to review:
+   - If `changedFiles` is provided and non-empty: read only those specific files (parse the newline-separated list).
+   - Otherwise: read all source files under `codePath`.
+   - If no readable files are found: return `StandardError { message: "code path not found or empty: <codePath>" }`.
 2. For each file, for each function or meaningful block:
    - **Bugs**: Look for incorrect logic, wrong conditions, off-by-one errors, null/undefined dereferences.
    - **Untested / unreachable paths**: Identify code branches that have no test coverage or can never be reached.

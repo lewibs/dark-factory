@@ -16,6 +16,8 @@ Concrete triggers:
 ## Steps
 
 1. Identify the system or component name (e.g. `"repair-agent"`, `"metrics"`, `"dark-factory-hooks"`).
+   - **Always derive a meaningful system name** — never pass an empty string. An empty `system` value causes investigation-agent to look up `docs/docs/.md` (which never exists), forcing a full codebase scan every time.
+   - If you do not know the system name upfront, extract it from the task description, file paths being changed, or the bug/plan context. For example, if `taskDescription` is "fix latency in debug-command-agent", use `system: "debug-command-agent"`.
 2. Invoke `investigation-agent` with the system name and an optional specific question:
 
    ```
