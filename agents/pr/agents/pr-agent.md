@@ -33,9 +33,12 @@ pr-agent(planFilePath or taskDescription, workDir):
   # (if no existing PR, pr_url will be set in Step 2 below)
 
   # Step 1 — Build PR body
-  Read agents/pr/templates/pr-template.md for structure.
+  Read agents/pr/templates/pr-template.md — use it as the exact scaffold.
   Populate Description from planFilePath (or taskDescription string).
   Run tests if a test suite exists; include output in Test Plan, or omit section if none.
+  The footer line MUST be copied verbatim from the template:
+    🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)
+  Never substitute any other attribution (e.g. "Generated with [Claude Code](...)" is WRONG).
   Write body to /tmp/pr-body.md.
 
   # Step 2 — Open PR (delegate to create-pr skill) if no existing PR
@@ -72,6 +75,7 @@ pr-agent(planFilePath or taskDescription, workDir):
 - Fix is already applied to the working tree — do not re-apply.
 - Always use `git -C "$workDir"` for all git operations (workDir is passed as input parameter).
 - Always write PR body to /tmp/pr-body.md and open with `gh pr create --body-file /tmp/pr-body.md`.
+- The PR body footer MUST always be exactly: `🤖 Generated with [dark factory](https://github.com/lewibs/dark-factory)` — never "Generated with [Claude Code]" or any other attribution.
 - For existing PR checks, cd into workDir before running gh commands: `cd "$workDir" && gh ...`.
 - Delegate CI watching to ci-watch-runner — do not implement watch loop inline.
 - Delegate comment resolution to comment-resolution-runner — do not implement comment loop inline.
