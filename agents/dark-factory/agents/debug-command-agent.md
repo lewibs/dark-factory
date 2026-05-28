@@ -37,8 +37,12 @@ debug-command-agent(taskDescription, taskName):
     report error: result.message
     STOP
 
-  # Step 3 — planFilePath is null for debugger route (no plan file generated)
-  planFilePath = null
+  # Step 3 — recover bug file path from brain-patch.json written by debugger-agent
+  # debugger-agent writes: { "bugFiles": ["<absolute path>"], "notes": [...] }
+  WORK_DIR = bash("git rev-parse --show-toplevel")
+  planFilePath = bash("jq -r '.bugFiles[0] // empty' \"$WORK_DIR/brain-patch.json\" 2>/dev/null || echo ''")
+  if planFilePath is empty: planFilePath = null
+  # planFilePath is now the absolute path to the bug audit log, or null if agent did not write one
 
   # Step 4 — code review
   invoke code-review-orchestrator-agent({

@@ -34,8 +34,8 @@ The PR lifecycle is fully automated except for the final merge decision, enablin
 
 1. **Reads PR template** from `agents/pr/templates/pr-template.md` for structure
 2. **Populates Description section**:
-   - If planFilePath provided: extracts summary from plan
-   - If taskDescription provided: uses description directly
+   - If planFilePath is a valid file path: reads the file and pastes its full contents verbatim — no summarisation
+   - If planFilePath is a plain string or null: uses the string (or taskDescription) directly as description text
    - If neither: builds from git diff
 3. **Runs tests** (if test suite exists):
    - Detects test runner (pytest, npm test, go test, etc.)
