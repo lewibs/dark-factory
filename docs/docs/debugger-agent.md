@@ -65,9 +65,18 @@ Uses `bug-audit-log-template` to document:
 
 Now that you have a reproducible failure, invoke `investigation-agent` to understand the system context. This ensures you understand the system within the context of a known, reproducible failure (not in the abstract). This approach aligns with "The Art of Debugging" methodology.
 
+Derive the system name from `taskDescription` before invoking so investigation-agent can return cached docs immediately (a cache hit is ~10x faster than a full codebase scan):
+
 ```
+# Derive system name from taskDescription:
+# - Look for agent/component names mentioned (e.g. "debug-command-agent", "pr-agent", "debug skill")
+# - Strip filler words ("why is", "the", "so slow", "not working", etc.)
+# - Use kebab-case slug (e.g. "debug skill" → "debug", "pr-agent broken" → "pr-agent")
+# - Prefer the most specific named component (e.g. "debugger-agent" over "debug")
+systemName = extract_system_name(taskDescription)  # e.g. "debug", "pr-agent", "planning"
+
 result = invoke investigation-agent({
-  system: "",
+  system: systemName,
   question: "<taskDescription>"
 })
 
@@ -134,7 +143,7 @@ Resolves WORK_DIR (see rule 8) and writes `$WORK_DIR/brain-patch.json`:
 1. **Follow the checklist in strict order** — Do not skip steps; each step validates the previous one
 2. **Read all evidence before coding** — Understand the bug completely before touching code
 3. **Write tests before fixing** — Test-first ensures the fix is actually necessary
-4. **Understand system in context of failure** — Invoke investigation-agent after a reproducible test is written and confirmed failing, not in the abstract (Step 6). This ensures system understanding is grounded in a concrete, reproducible failure.
+4. **Understand system in context of failure** — Invoke investigation-agent after a reproducible test is written and confirmed failing, not in the abstract (Step 6). Derive the system name from `taskDescription` before invoking to enable a cache hit; an empty system name always forces a full codebase scan. This ensures system understanding is grounded in a concrete, reproducible failure.
 5. **Verify fix is necessary** — Remove fix and confirm test fails again (except when unsafe)
 6. **Do NOT read brain.json** — Context is already injected by pre-hook
 7. **Do NOT write brain.json directly** — Only write brain-patch.json

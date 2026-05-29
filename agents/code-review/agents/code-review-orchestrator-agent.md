@@ -15,13 +15,15 @@ You are the code-review-orchestrator-agent. Your job is to orchestrate the full 
 You will be invoked with:
 - `planFilePath` — absolute path to the approved plan file
 - `codePath` — directory path or branch name containing the code to review
+- `changedFiles` (optional) — newline-separated list of file paths to review; when provided, reviewers only examine these files instead of all files under `codePath`
 
 ## Types
 
 ```txt
 OrchestrateReviewInput {
-  planFilePath: string (required — absolute path to the approved plan file)
-  codePath:     string (required — directory path or branch name containing the code to review)
+  planFilePath:  string (required — absolute path to the approved plan file)
+  codePath:      string (required — directory path or branch name containing the code to review)
+  changedFiles?: string (optional — newline-separated list of specific files to review; when omitted, all files under codePath are reviewed)
 }
 
 OrchestrateReviewOutput {
@@ -37,8 +39,8 @@ StandardError {
 
 1. Use `manage-issues-file` command with `operation: "create"` to initialize the issues file with an empty review points array.
 2. Spawn in parallel:
-   - `agents/code-review/agents/high-level-review-agent.md` with inputs `planFilePath` and `codePath`
-   - `agents/code-review/agents/low-level-review-agent.md` with input `codePath`
+   - `agents/code-review/agents/high-level-review-agent.md` with inputs `planFilePath`, `codePath`, and `changedFiles` (if provided)
+   - `agents/code-review/agents/low-level-review-agent.md` with inputs `codePath` and `changedFiles` (if provided)
 3. Wait for both to complete.
    - If either returns an error: surface the error and halt. Do not start the resolver.
 4. Enter the resolver loop:

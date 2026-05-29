@@ -19,8 +19,9 @@ You will be invoked with:
 
 ```txt
 HighLevelReviewInput {
-  planFilePath: string (required — absolute path to the approved plan file)
-  codePath:     string (required — directory path or branch containing the code)
+  planFilePath:  string (required — absolute path to the approved plan file)
+  codePath:      string (required — directory path or branch containing the code)
+  changedFiles?: string (optional — newline-separated list of specific files to review; when provided, only read those files instead of all files under codePath)
 }
 
 HighLevelReviewOutput {
@@ -36,8 +37,10 @@ StandardError {
 
 1. Read `planFilePath`.
    - If the file does not exist or is unreadable: return `StandardError { message: "plan file not found: <planFilePath>" }`.
-2. Read all source files under `codePath`.
-   - If `codePath` does not exist or yields no readable files: return `StandardError { message: "code path not found or empty: <codePath>" }`.
+2. Read source files to review:
+   - If `changedFiles` is provided and non-empty: read only those specific files (parse the newline-separated list).
+   - Otherwise: read all source files under `codePath`.
+   - If no readable files are found: return `StandardError { message: "code path not found or empty: <codePath>" }`.
 3. For each of the following structural concerns, evaluate whether the code conforms to the plan:
    - **Module structure**: Does the file/agent layout match what the plan specifies in its Core files and Mermaid diagram?
    - **I/O contracts**: Are the input and output types from the plan's flow definitions honoured at call sites? Are required fields present? Are return shapes correct?
